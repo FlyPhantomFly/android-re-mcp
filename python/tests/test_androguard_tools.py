@@ -102,6 +102,65 @@ def test_manifest_parse_dangerous_permissions():
     }
 
 
+def test_manifest_parse_categorization_off_by_default():
+    out = static_mod.StaticHandler().manifest_parse({"apk_path": str(FIXTURE)})
+    assert "permission_categorization" not in out["output"]
+
+
+def test_manifest_parse_categorization_with_reasons():
+    out = static_mod.StaticHandler().manifest_parse({
+        "apk_path": str(FIXTURE), "categorize_permissions": True,
+    })
+    cat = out["output"]["permission_categorization"]
+    assert cat["total"] == len(out["output"]["permissions"])
+    assert (cat["dangerous_count"], cat["normal_count"]) == (4, 1)
+
+    reasons = {d["permission"]: d["reason"] for d in cat["dangerous"]}
+    assert set(reasons) == {
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+    }
+    assert reasons["android.permission.CAMERA"] == (
+        "microphone/camera access allows covert recording"
+    )
+    assert reasons["android.permission.ACCESS_FINE_LOCATION"] == (
+        "location access enables user tracking"
+    )
+    assert cat["normal"] == ["android.permission.INTERNET"]
+    # npm risk-summary lines, triggered by the same substrings npm uses
+    assert "Location permissions enable user tracking." in cat["risk_summary"]
+    assert "Microphone/Camera permissions allow covert recording." in cat["risk_summary"]
+    assert not any("SMS" in line for line in cat["risk_summary"])
+
+
+def test_permission_triage_table_matches_npm():
+    """The categorization set must equal the npm DANGEROUS_PERMISSIONS list."""
+    from android_re_mcp.handlers.static import _DANGEROUS_PERMS, _is_dangerous
+
+    npm_names = {
+        "READ_SMS", "SEND_SMS", "RECEIVE_SMS", "READ_MMS", "WRITE_SMS", "RECEIVE_MMS",
+        "READ_CONTACTS", "WRITE_CONTACTS", "GET_ACCOUNTS", "RECORD_AUDIO",
+        "PROCESS_OUTGOING_CALLS", "READ_CALL_LOG", "WRITE_CALL_LOG", "CALL_PHONE",
+        "ADD_VOICEMAIL", "USE_SIP", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION", "CAMERA", "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE", "MANAGE_EXTERNAL_STORAGE", "READ_PHONE_STATE",
+        "READ_PHONE_NUMBERS", "USE_BIOMETRIC", "USE_FINGERPRINT", "BODY_SENSORS",
+        "ACTIVITY_RECOGNITION", "ACCESS_WIFI_STATE", "CHANGE_WIFI_STATE",
+        "BLUETOOTH_CONNECT", "BLUETOOTH_SCAN", "NFC", "READ_CALENDAR",
+        "WRITE_CALENDAR", "PACKAGE_USAGE_STATS", "BIND_DEVICE_ADMIN",
+        "INSTALL_PACKAGES", "DELETE_PACKAGES",
+    }
+    assert _DANGEROUS_PERMS == npm_names
+    # every member carries a reason, and short/bare/custom name semantics match npm
+    assert static_mod._PERMISSION_REASONS.keys() == npm_names
+    assert _is_dangerous("android.permission.INSTALL_PACKAGES") is True
+    assert _is_dangerous("INSTALL_PACKAGES") is True  # bare short name
+    assert _is_dangerous("com.example.CUSTOM_PERMISSION") is False
+    assert _is_dangerous("android.permission.INTERNET") is False
+
+
 def test_manifest_parse_exported_component_sets():
     out = static_mod.StaticHandler().manifest_parse({"apk_path": str(FIXTURE)})
     o = out["output"]

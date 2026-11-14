@@ -381,6 +381,8 @@ class StaticHandler:
                 ),
                 "components": components,
             }
+            if args.get("categorize_permissions"):
+                output["permission_categorization"] = _categorize_permissions(permissions)
             return {
                 "status": "ok",
                 "tool": "androguard",
@@ -688,20 +690,60 @@ class StaticHandler:
 
 _ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
 
-_DANGEROUS_PERMS = {
-    "android.permission.READ_CONTACTS",
-    "android.permission.WRITE_CONTACTS",
-    "android.permission.ACCESS_FINE_LOCATION",
-    "android.permission.ACCESS_COARSE_LOCATION",
-    "android.permission.READ_SMS",
-    "android.permission.SEND_SMS",
-    "android.permission.READ_CALL_LOG",
-    "android.permission.RECORD_AUDIO",
-    "android.permission.CAMERA",
-    "android.permission.READ_EXTERNAL_STORAGE",
-    "android.permission.WRITE_EXTERNAL_STORAGE",
-    "android.permission.READ_PHONE_STATE",
-}
+# The npm permissions-checker triage taxonomy (DANGEROUS_PERMISSIONS),
+# ported with a per-permission reason table: runtime-"dangerous" grants
+# plus install-time/signature grants worth triage. Membership below this
+# taxonomy line is a *triage* ranking, not Google's protection levels.
+_PERMISSION_REASONS: dict[str, str] = {}
+for _names, _reason in (
+    (
+        {"READ_SMS", "SEND_SMS", "RECEIVE_SMS", "READ_MMS", "WRITE_SMS", "RECEIVE_MMS"},
+        "SMS/MMS access can enable toll fraud and message interception",
+    ),
+    (
+        {"READ_CONTACTS", "WRITE_CONTACTS", "GET_ACCOUNTS"},
+        "contacts and account list access — exposes the user's social graph",
+    ),
+    (
+        {"RECORD_AUDIO", "CAMERA"},
+        "microphone/camera access allows covert recording",
+    ),
+    (
+        {
+            "PROCESS_OUTGOING_CALLS", "READ_CALL_LOG", "WRITE_CALL_LOG", "CALL_PHONE",
+            "ADD_VOICEMAIL", "USE_SIP", "READ_PHONE_STATE", "READ_PHONE_NUMBERS",
+        },
+        "call handling and phone-state access",
+    ),
+    (
+        {"ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "ACCESS_BACKGROUND_LOCATION"},
+        "location access enables user tracking",
+    ),
+    (
+        {"READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE", "MANAGE_EXTERNAL_STORAGE"},
+        "external-storage access (files, photos, downloads)",
+    ),
+    (
+        {"USE_BIOMETRIC", "USE_FINGERPRINT", "BODY_SENSORS", "ACTIVITY_RECOGNITION"},
+        "biometric/body-sensor access",
+    ),
+    (
+        {"ACCESS_WIFI_STATE", "CHANGE_WIFI_STATE", "BLUETOOTH_CONNECT", "BLUETOOTH_SCAN", "NFC"},
+        "connectivity grant worth triage (installed silently, not runtime-prompted)",
+    ),
+    (
+        {"READ_CALENDAR", "WRITE_CALENDAR"},
+        "calendar access reveals schedule and attendees",
+    ),
+    (
+        {"PACKAGE_USAGE_STATS", "BIND_DEVICE_ADMIN", "INSTALL_PACKAGES", "DELETE_PACKAGES"},
+        "package/administration grant worth triage (installed silently, not runtime-prompted)",
+    ),
+):
+    for _n in _names:
+        _PERMISSION_REASONS[_n] = _reason
+
+_DANGEROUS_PERMS = frozenset(_PERMISSION_REASONS)
 
 
 def _load_androguard():
@@ -739,7 +781,49 @@ def _analyze_apk(apk_path: str):
 
 
 def _is_dangerous(perm: str) -> bool:
-    return perm in _DANGEROUS_PERMS
+    """npm permissions-checker semantics: the short name decides.
+
+    ``android.permission.`` is stripped before the set lookup, so a bare
+    ``READ_SMS`` in a manifest counts too; custom namespaces
+    (``com.example.PERM``) never match.
+    """
+    return perm.removeprefix("android.permission.") in _DANGEROUS_PERMS
+
+
+def _categorize_permissions(permissions: list[str]) -> dict:
+    """Dangerous/normal split with reasons (npm permissions-checker port).
+
+    The risk-summary lines keep npm's wording, keyed the same way npm
+    keys them: substring checks over the full permission strings.
+    """
+    dangerous: list[dict] = []
+    normal: list[str] = []
+    for perm in permissions:
+        reason = _PERMISSION_REASONS.get(perm.removeprefix("android.permission."))
+        if reason is not None:
+            dangerous.append({"permission": perm, "reason": reason})
+        else:
+            normal.append(perm)
+
+    joined = " | ".join(permissions)
+    risk_summary: list[str] = []
+    if any(m in joined for m in ("READ_SMS", "SEND_SMS", "RECEIVE_SMS")):
+        risk_summary.append("SMS permissions can enable toll fraud and message interception.")
+    if "LOCATION" in joined:
+        risk_summary.append("Location permissions enable user tracking.")
+    if "RECORD_AUDIO" in joined or "CAMERA" in joined:
+        risk_summary.append("Microphone/Camera permissions allow covert recording.")
+    if "INSTALL_PACKAGES" in joined:
+        risk_summary.append("INSTALL_PACKAGES allows the app to install arbitrary APKs — high risk.")
+
+    return {
+        "total": len(permissions),
+        "dangerous_count": len(dangerous),
+        "dangerous": dangerous,
+        "normal_count": len(normal),
+        "normal": normal,
+        "risk_summary": risk_summary,
+    }
 
 
 def _as_bool(value: object) -> bool | None:

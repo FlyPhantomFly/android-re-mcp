@@ -227,6 +227,10 @@ TOOL_SCHEMAS: list[dict] = [
             "type": "object",
             "properties": {
                 "apk_path": {"type": "string"},
+                "categorize_permissions": {
+                    "type": "boolean",
+                    "description": "Also return a dangerous/normal permission split with per-permission reasons and a risk summary (npm permissions-checker port)",
+                },
             },
             "required": ["apk_path"],
         },
