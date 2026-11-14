@@ -1,9 +1,9 @@
 """
-Entry point for the mobile-re-mcp MCP server.
+Entry point for the android-re-mcp MCP server.
 
 Usage:
-    python -m mobile_re_mcp           # stdio transport (default)
-    python -m mobile_re_mcp --transport sse --port 8765  # SSE, loopback only
+    python -m android_re_mcp           # stdio transport (default)
+    python -m android_re_mcp --transport sse --port 8765  # SSE, loopback only
 """
 
 from __future__ import annotations
@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="mobile-re-mcp-py",
-        description="Android dynamic analysis MCP server (Python half of mobile-re-mcp)",
+        prog="android-re-mcp",
+        description="Android dynamic analysis MCP server (Python half of android-re-mcp)",
     )
     p.add_argument(
         "--transport",
@@ -30,7 +30,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--host",
         default="127.0.0.1",
-        help="Address for SSE transport (default: 127.0.0.1). Anything else needs MOBILE_RE_MCP_TOKEN.",
+        help="Address for SSE transport (default: 127.0.0.1). Anything else needs ANDROID_RE_MCP_TOKEN.",
     )
     p.add_argument(
         "--port",
@@ -64,25 +64,25 @@ def main() -> None:
 
     if args.setup:
         print("[*] Starting zero-touch automated setup...")
-        from mobile_re_mcp.setup.install_tool import install_all_missing_tools
+        from android_re_mcp.setup.install_tool import install_all_missing_tools
         install_all_missing_tools()
         print("[*] Setup complete! You can now start the MCP server.")
         sys.exit(0)
 
-    from mobile_re_mcp.paths import ensure_tools_on_path
+    from android_re_mcp.paths import ensure_tools_on_path
 
     ensure_tools_on_path()
 
     # Import here so startup errors surface cleanly
-    from mobile_re_mcp.server import create_server
+    from android_re_mcp.server import create_server
 
     server = create_server()
 
     if args.transport == "stdio":
-        logger.info("Starting mobile-re-mcp over stdio")
+        logger.info("Starting android-re-mcp over stdio")
         asyncio.run(server.run_stdio())
     else:
-        logger.info("Starting mobile-re-mcp SSE on %s:%d", args.host, args.port)
+        logger.info("Starting android-re-mcp SSE on %s:%d", args.host, args.port)
         asyncio.run(server.run_sse(host=args.host, port=args.port))
 
 

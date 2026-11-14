@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Spawn a mobile-re-mcp MCP server over stdio and probe it.
+"""Spawn a android-re-mcp MCP server over stdio and probe it.
 
 Used for before/after verification while developing (RFC-style budget testing):
 
     # the installed package:
-    ./scripts/mcp_probe.py --command "$(which mobile-re-mcp-py)" --list-tools
+    ./scripts/mcp_probe.py --command "$(which android-re-mcp)" --list-tools
 
     # a working tree:
-    ./scripts/mcp_probe.py --command python3 --args -m mobile_re_mcp \
+    ./scripts/mcp_probe.py --command python3 --args -m android_re_mcp \
         --env PYTHONPATH=python/src --call manifest_parse='{"apk_path": "/x/a.apk"}'
 
 `--call` values are "tool=json-arguments" pairs; results print as JSON.

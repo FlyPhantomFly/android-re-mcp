@@ -3,18 +3,18 @@ import subprocess
 
 import pytest
 
-from mobile_re_mcp.handlers import memory as memory_mod
-from mobile_re_mcp.handlers import native as native_mod
-from mobile_re_mcp.handlers import network as network_mod
-from mobile_re_mcp.handlers import static as static_mod
-from mobile_re_mcp.setup import install_tool as inst
+from android_re_mcp.handlers import memory as memory_mod
+from android_re_mcp.handlers import native as native_mod
+from android_re_mcp.handlers import network as network_mod
+from android_re_mcp.handlers import static as static_mod
+from android_re_mcp.setup import install_tool as inst
 
 
 def test_memory_roundtrip_and_traversal(isolated_env):
     m = memory_mod.MemoryHandler()
     out = m.memory_write({"package": "com.example.app", "content": "hello"})
     assert out["status"] == "ok"
-    assert "/.local/share/mobile-re-mcp/targets/com.example.app/memory.md" in out["output"]["path"]
+    assert "/.local/share/android-re-mcp/targets/com.example.app/memory.md" in out["output"]["path"]
     assert m.memory_read({"package": "com.example.app"})["output"]["content"] == "hello"
     for bad in ("../../x", "/etc", "a/b", ".hidden"):
         with pytest.raises(ValueError):
@@ -125,7 +125,7 @@ def test_every_pin_has_a_real_sha256():
 
 def test_frida_script_library_ships_every_catalogue_script(isolated_env):
     """F-PY-3: the package ships its 8 scripts — the library must not be empty."""
-    from mobile_re_mcp.frida_scripts import index
+    from android_re_mcp.frida_scripts import index
 
     expected = {
         "ssl_pinning_universal", "root_detection_bypass", "frida_detection_bypass",
@@ -141,9 +141,9 @@ def test_frida_script_library_ships_every_catalogue_script(isolated_env):
 
 
 def test_user_script_override_precedence(isolated_env):
-    from mobile_re_mcp.frida_scripts import index
+    from android_re_mcp.frida_scripts import index
 
-    d = isolated_env / ".local" / "share" / "mobile-re-mcp" / "frida_scripts"
+    d = isolated_env / ".local" / "share" / "android-re-mcp" / "frida_scripts"
     d.mkdir(parents=True)
     (d / "crypto_monitor.js").write_text("// mine")
     assert index.get_script_content("crypto_monitor") == "// mine"  # override wins
@@ -154,7 +154,7 @@ def test_user_script_override_precedence(isolated_env):
 
 def test_shipped_scripts_register_and_rearm_the_config_protocol():
     """Every script accepts {type:'config', ...}: UPPER primary, lowercase fallback."""
-    from mobile_re_mcp.frida_scripts import index
+    from android_re_mcp.frida_scripts import index
 
     for meta in index.SCRIPT_CATALOGUE:
         src = index.get_script_content(meta["name"])
@@ -173,7 +173,7 @@ def test_shipped_scripts_use_only_frida_17_globals():
     """
     import re
 
-    from mobile_re_mcp.frida_scripts import index
+    from android_re_mcp.frida_scripts import index
 
     bare = re.compile(
         r"(?<![.\w])process\.(enumerateRanges|enumerateModules|enumerateThreads|"
@@ -196,7 +196,7 @@ def test_java_scripts_are_bundled_with_the_java_bridge():
     `ReferenceError: 'Java' is not defined` on every modern client.
     memory_scan is pure-native and ships as raw source.
     """
-    from mobile_re_mcp.frida_scripts import index
+    from android_re_mcp.frida_scripts import index
 
     for meta in index.SCRIPT_CATALOGUE:
         src = index.get_script_content(meta["name"])
@@ -210,7 +210,7 @@ def test_java_scripts_are_bundled_with_the_java_bridge():
 
 def test_memory_scan_contract_for_frida_find_bytes():
     """frida_find_bytes str.replace-patches these exact lines — they must exist."""
-    from mobile_re_mcp.frida_scripts import index
+    from android_re_mcp.frida_scripts import index
 
     src = index.get_script_content("memory_scan")
     assert 'var SEARCH_STRING = "";' in src
@@ -226,7 +226,7 @@ def test_memory_scan_contract_for_frida_find_bytes():
 
 
 def test_signer_jar_is_never_relative(isolated_env):
-    from mobile_re_mcp.config import signer_jar
+    from android_re_mcp.config import signer_jar
 
     assert signer_jar().is_absolute()
     assert signer_jar().name == "uber-apk-signer.jar"

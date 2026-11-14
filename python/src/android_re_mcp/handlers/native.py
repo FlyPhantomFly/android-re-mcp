@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = 120
 _TIMEOUT_LONG = 300
-from mobile_re_mcp.paths import scratch_dir, tools_dir
+from android_re_mcp.paths import scratch_dir, tools_dir
 
 _TOOLS_DIR = tools_dir()
 
@@ -35,7 +35,7 @@ def _missing(tool: str, hint: str = "") -> dict:
     return {
         "status": "missing_tool",
         "tool": tool,
-        "error": f"'{tool}' not found. Run mobile-re-mcp-py --setup, or install '{tool}' yourself.",
+        "error": f"'{tool}' not found. Run android-re-mcp --setup, or install '{tool}' yourself.",
         "hint": hint,
     }
 

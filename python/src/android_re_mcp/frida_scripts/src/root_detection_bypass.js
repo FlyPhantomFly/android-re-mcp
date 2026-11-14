@@ -56,7 +56,7 @@ Java.perform(function () {
             var lowered = (Array.prototype.join.call(command, " ") || "").toLowerCase();
             if (lowered === "su" || lowered.indexOf("which su") >= 0 || lowered.indexOf("busybox") >= 0) {
                 _note("Runtime.exec(" + lowered + ")");
-                throw Java.use("java.io.IOException").$new("blocked by mobile-re-mcp root bypass");
+                throw Java.use("java.io.IOException").$new("blocked by android-re-mcp root bypass");
             }
         };
         Runtime.exec.overload("java.lang.String").implementation = function (c) { ExecHook(c); return this.exec(c); };

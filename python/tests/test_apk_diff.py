@@ -10,7 +10,7 @@ injected facts and live via the real-APK smoke.
 import zipfile
 from pathlib import Path
 
-from mobile_re_mcp.handlers import apkdiff as apkdiff_mod
+from android_re_mcp.handlers import apkdiff as apkdiff_mod
 
 # Built by concatenation at runtime so repo scanners don't flag the test
 # file itself (same pattern as the existing secret-fixture tests).
@@ -176,7 +176,7 @@ def test_entry_cap_skips_oversized_entries(tmp_path, monkeypatch):
     real = apkdiff_mod._env_max_mb
     monkeypatch.setattr(
         apkdiff_mod, "_env_max_mb",
-        lambda name, fallback: 1 if name == "MOBILE_RE_MCP_MAX_ENTRY_MB" else real(name, fallback),
+        lambda name, fallback: 1 if name == "ANDROID_RE_MCP_MAX_ENTRY_MB" else real(name, fallback),
     )  # 1 MB per-entry cap, file cap untouched
     huge = b"x" * (2 * 1024 * 1024)  # 2 MB entry > 1 MB cap
     old = _write_apk(tmp_path, "cap_old.apk", {

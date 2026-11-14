@@ -3,8 +3,8 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "mobile-re-mcp"
-version = "1.3.0"
+name = "android-re-mcp"
+version = "1.4.0"
 description = "Android dynamic analysis MCP server: adb, Frida, mitmproxy, apktool, jadx"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -28,20 +28,20 @@ frida = ["frida>=16.0.0", "frida-tools>=12.0.0"]
 static = ["androguard>=4.0,<5", "apkid>=2.1.0", "apkleaks>=2.6.0"]
 network = ["mitmproxy>=10.0.0"]
 analysis = ["quark-engine>=23.0.0"]
-all = ["mobile-re-mcp[frida,static,network,analysis]"]
+all = ["android-re-mcp[frida,static,network,analysis]"]
 dev = ["pytest>=8", "ruff>=0.6", "androguard>=4.0,<5"]
 
 [project.scripts]
-mobile-re-mcp-py = "mobile_re_mcp.__main__:main"
+android-re-mcp = "android_re_mcp.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/FlyPhantomFly/mobile-re-mcp"
-Repository = "https://github.com/FlyPhantomFly/mobile-re-mcp"
-Issues = "https://github.com/FlyPhantomFly/mobile-re-mcp/issues"
-Changelog = "https://github.com/FlyPhantomFly/mobile-re-mcp/blob/master/CHANGELOG.md"
+Homepage = "https://github.com/FlyPhantomFly/android-re-mcp"
+Repository = "https://github.com/FlyPhantomFly/android-re-mcp"
+Issues = "https://github.com/FlyPhantomFly/android-re-mcp/issues"
+Changelog = "https://github.com/FlyPhantomFly/android-re-mcp/blob/master/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mobile_re_mcp"]
+packages = ["src/android_re_mcp"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src", "tests", "README.md", "LICENSE", "NOTICE.md", "pyproject.toml"]

@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from mobile_re_mcp.paths import captures_dir
+from android_re_mcp.paths import captures_dir
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ def _missing(tool: str) -> dict:
     return {
         "status": "missing_tool",
         "tool": tool,
-        "error": f"'{tool}' not found. Run mobile-re-mcp-py --setup, or install '{tool}' yourself.",
+        "error": f"'{tool}' not found. Run android-re-mcp --setup, or install '{tool}' yourself.",
     }
 
 
@@ -349,7 +349,7 @@ class NetworkHandler:
             "            'cache': {},\n"
             "            'timings': {'send': 0, 'wait': 0, 'receive': 0},\n"
             "        })\n"
-            "har = {'log': {'version': '1.2', 'creator': {'name': 'mobile-re-mcp', 'version': '1'}, 'entries': entries}}\n"
+            "har = {'log': {'version': '1.2', 'creator': {'name': 'android-re-mcp', 'version': '1'}, 'entries': entries}}\n"
             "with open(sys.argv[2], 'w') as out: json.dump(har, out, indent=2)\n"
             "print(f'Exported {len(entries)} flows')\n"
         )

@@ -15,7 +15,7 @@ _SCRIPTS_DIR = Path(__file__).parent
 
 def _script_dirs() -> list[Path]:
     """Folders searched for the catalogue's .js files: the user's own first, then the package."""
-    from mobile_re_mcp.paths import data_dir
+    from android_re_mcp.paths import data_dir
 
     return [data_dir() / "frida_scripts", _SCRIPTS_DIR]
 

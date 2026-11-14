@@ -2,7 +2,7 @@ name: Publish to PyPI
 
 # Publishes with PyPI "trusted publishing" (OIDC): no PyPI token is stored in GitHub.
 # One-time setup (pypi.org -> Your account -> Publishing -> Add a new pending publisher):
-#   PyPI project name : mobile-re-mcp
+#   PyPI project name : android-re-mcp
 #   Owner             : FlyPhantomFly
 #   Repository        : mobile-re-mcp
 #   Workflow filename : publish-pypi.yml

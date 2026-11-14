@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from mobile_re_mcp.handlers import static as static_mod
+from android_re_mcp.handlers import static as static_mod
 
 FIXTURE = Path(__file__).parent / "fixtures" / "notesdemo.apk"
 HAS_QUARK = importlib.util.find_spec("quark") is not None

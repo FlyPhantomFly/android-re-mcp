@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = 120
 _TIMEOUT_LONG = 600   # Blutter can be very slow on large apps
-from mobile_re_mcp.paths import scratch_dir, tools_dir
+from android_re_mcp.paths import scratch_dir, tools_dir
 
 _TOOLS_DIR = tools_dir()
 

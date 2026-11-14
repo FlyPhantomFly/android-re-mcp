@@ -73,7 +73,7 @@ npm does not check those fields when you save them, and a wrong one fails the wo
 npm trust list mobile-re-mcp
 npm trust github mobile-re-mcp --file publish.yml --repo FlyPhantomFly/mobile-re-mcp --env npm-publish --allow-publish -y
 ```
-For the first PyPI release, add a pending publisher on pypi.org under Your account, Publishing (project `mobile-re-mcp`, same owner and repository, workflow `publish-pypi.yml`, environment `pypi`). In GitHub, create both environments under Settings, Environments, and add yourself as a required reviewer.
+For the first PyPI release, add a pending publisher on pypi.org under Your account, Publishing (project `android-re-mcp`, same owner and repository, workflow `publish-pypi.yml`, environment `pypi`). In GitHub, create both environments under Settings, Environments, and add yourself as a required reviewer.
 For every release after that:
 1. Update `CHANGELOG.md`, run `npm version <x.y.z> --no-git-tag-version`, and set the same `version` in `python/pyproject.toml`. CI fails if they differ. Commit and push.
 2. Tag it (`git tag vX.Y.Z && git push origin vX.Y.Z`) and create a GitHub Release for the tag.

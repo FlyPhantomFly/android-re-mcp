@@ -11,7 +11,7 @@
 # Prerequisites: node + frida-compile (pipx-installed frida-tools ships
 # it) and a checkout of the bridge: `npm install frida-java-bridge`.
 #
-# Usage:  cd python/src/mobile_re_mcp/frida_scripts && bash build_bundles.sh
+# Usage:  cd python/src/android_re_mcp/frida_scripts && bash build_bundles.sh
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"

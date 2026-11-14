@@ -16,7 +16,7 @@ import logging
 import subprocess
 from pathlib import Path
 
-from mobile_re_mcp.clitools import find_cli as _find_cli
+from android_re_mcp.clitools import find_cli as _find_cli
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def _missing(tool: str) -> dict:
         "status": "missing_tool",
         "tool": tool,
         "error": f"'{tool}' not found on PATH.",
-        "hint": f"Run mobile-re-mcp-py --setup, or install '{tool}' yourself.",
+        "hint": f"Run android-re-mcp --setup, or install '{tool}' yourself.",
     }
 
 
@@ -288,7 +288,7 @@ class StaticHandler:
                 "status": "missing_tool",
                 "tool": "quark_scan",
                 "error": "quark-engine is not installed in this Python environment.",
-                "hint": "Run mobile-re-mcp-py --setup, or install quark-engine yourself.",
+                "hint": "Run android-re-mcp --setup, or install quark-engine yourself.",
             }
 
         apk_path = args.get("apk_path", "")

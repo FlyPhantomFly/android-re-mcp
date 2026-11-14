@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from mobile_re_mcp.handlers import static as static_mod
+from android_re_mcp.handlers import static as static_mod
 
 pytest.importorskip("androguard")
 

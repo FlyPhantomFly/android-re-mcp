@@ -1,7 +1,7 @@
 """
 server.py — MCP server factory: registers all tools, resources, and prompts.
 
-All handler implementations live in mobile_re_mcp/handlers/*.
+All handler implementations live in android_re_mcp/handlers/*.
 Tool logic is intentionally thin here; this file only wires registration.
 
 Dispatch is non-blocking (F-PY-4): sync handlers run on worker threads via
@@ -33,20 +33,20 @@ from mcp.types import (
     Tool,
 )
 
-from mobile_re_mcp import __version__, guard
-from mobile_re_mcp.handlers.device import DeviceHandler
-from mobile_re_mcp.handlers.dynamic import DynamicHandler
-from mobile_re_mcp.handlers.flutter import FlutterHandler
-from mobile_re_mcp.handlers.memory import MemoryHandler
-from mobile_re_mcp.handlers.native import NativeHandler
-from mobile_re_mcp.handlers.network import NetworkHandler
-from mobile_re_mcp.handlers.patcher import PatcherHandler
-from mobile_re_mcp.handlers.rasp import RaspHandler
-from mobile_re_mcp.handlers.signing import SigningHandler
-from mobile_re_mcp.handlers.apkdiff import ApkDiffHandler
-from mobile_re_mcp.handlers.static import StaticHandler
-from mobile_re_mcp.setup.check_tools import check_all_tools
-from mobile_re_mcp.setup.install_tool import install_tool as _install_tool
+from android_re_mcp import __version__, guard
+from android_re_mcp.handlers.device import DeviceHandler
+from android_re_mcp.handlers.dynamic import DynamicHandler
+from android_re_mcp.handlers.flutter import FlutterHandler
+from android_re_mcp.handlers.memory import MemoryHandler
+from android_re_mcp.handlers.native import NativeHandler
+from android_re_mcp.handlers.network import NetworkHandler
+from android_re_mcp.handlers.patcher import PatcherHandler
+from android_re_mcp.handlers.rasp import RaspHandler
+from android_re_mcp.handlers.signing import SigningHandler
+from android_re_mcp.handlers.apkdiff import ApkDiffHandler
+from android_re_mcp.handlers.static import StaticHandler
+from android_re_mcp.setup.check_tools import check_all_tools
+from android_re_mcp.setup.install_tool import install_tool as _install_tool
 
 logger = logging.getLogger(__name__)
 
@@ -1065,7 +1065,7 @@ async def _run_tool(
 def create_server() -> Server:
     """Build and return a configured MCP Server instance."""
 
-    server = Server("mobile-re-mcp-py", version=__version__)
+    server = Server("android-re-mcp", version=__version__)
 
     # Instantiate stateful handlers
     static = StaticHandler()
@@ -1269,11 +1269,11 @@ def create_server() -> Server:
         from starlette.responses import PlainTextResponse, Response
         from starlette.routing import Mount, Route
 
-        token = os.environ.get("MOBILE_RE_MCP_TOKEN", "")
+        token = os.environ.get("ANDROID_RE_MCP_TOKEN", "")
         loopback = host in ("127.0.0.1", "::1", "localhost")
         if not loopback and not token:
             raise SystemExit(
-                f"Refusing to listen on {host} without MOBILE_RE_MCP_TOKEN. "
+                f"Refusing to listen on {host} without ANDROID_RE_MCP_TOKEN. "
                 "This server can run adb and Frida commands."
             )
 

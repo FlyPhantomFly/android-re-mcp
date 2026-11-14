@@ -21,7 +21,7 @@ from xml.etree import ElementTree
 
 logger = logging.getLogger(__name__)
 
-from mobile_re_mcp.paths import scratch_dir
+from android_re_mcp.paths import scratch_dir
 
 _TIMEOUT = 120
 

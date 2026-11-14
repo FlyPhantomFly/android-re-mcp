@@ -1,6 +1,6 @@
 import pytest
 
-from mobile_re_mcp import guard
+from android_re_mcp import guard
 
 
 def refused(tool, args):
@@ -39,7 +39,7 @@ def test_symlink_into_protected_location_is_refused(isolated_env, tmp_path):
 def test_allowed_dirs(tmp_path, monkeypatch):
     work = tmp_path / "work"
     work.mkdir()
-    monkeypatch.setenv("MOBILE_RE_MCP_ALLOWED_DIRS", str(work))
+    monkeypatch.setenv("ANDROID_RE_MCP_ALLOWED_DIRS", str(work))
     guard.validate("apk_identify", {"apk_path": str(work / "a.apk")})
     refused("apk_identify", {"apk_path": str(tmp_path / "other.apk")})
     refused("apk_identify", {"apk_path": str(work / ".." / "other.apk")})
@@ -70,12 +70,12 @@ def test_frida_server_push_arguments():
 
 def test_install_tool_is_off_by_default(monkeypatch):
     refused("install_tool", {"tool_name": "jadx"})
-    monkeypatch.setenv("MOBILE_RE_MCP_ALLOW_INSTALL", "1")
+    monkeypatch.setenv("ANDROID_RE_MCP_ALLOW_INSTALL", "1")
     guard.validate("install_tool", {"tool_name": "jadx"})
 
 
 def test_disable_tools_env(monkeypatch):
-    monkeypatch.setenv("MOBILE_RE_MCP_DISABLE_TOOLS", "adb_shell, frida_inject")
+    monkeypatch.setenv("ANDROID_RE_MCP_DISABLE_TOOLS", "adb_shell, frida_inject")
     refused("adb_shell", {"command": "id"})
     refused("frida_inject", {"script": "1"})
     guard.validate("adb_devices", {})

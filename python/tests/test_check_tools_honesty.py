@@ -3,7 +3,7 @@
 Every entry must be probed exactly the way its consumer invokes it: pip
 CLIs as executables (not importable modules), 'medusa' disambiguated from
 the foofus.net SSH cracker, and resolution shared with the handlers via
-mobile_re_mcp.clitools.find_cli.
+android_re_mcp.clitools.find_cli.
 """
 
 from __future__ import annotations
@@ -15,9 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from mobile_re_mcp import clitools
-from mobile_re_mcp.handlers import static as static_mod
-from mobile_re_mcp.setup import check_tools as ct
+from android_re_mcp import clitools
+from android_re_mcp.handlers import static as static_mod
+from android_re_mcp.setup import check_tools as ct
 
 
 def _spy_sh(name: str, body: str) -> None:

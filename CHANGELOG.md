@@ -14,6 +14,18 @@ being ported into the Python package and its iOS tools dropped — one package,
 one implementation, one publish pipeline. Ports land before any removal, so
 there is never a window where a capability exists nowhere.
 
+### Renamed: `android-re-mcp`
+
+With the npm half retired there is no second implementation to disambiguate,
+so the project is rebranded: PyPI project **`android-re-mcp`**, command
+**`android-re-mcp`** (was `mobile-re-mcp-py`), import package
+**`android_re_mcp`**, server name `android-re-mcp`, env prefix
+**`ANDROID_RE_MCP_*`** (was `MOBILE_RE_MCP_*`), data/config folders
+`~/.local/share/android-re-mcp` and `~/.config/android-re-mcp`. The retired
+npm name `mobile-re-mcp` gets a deprecation notice pointing here. Anyone
+upgrading: reinstall under the new name and update the env-var prefix in
+client configs.
+
 ### Added (Python)
 - `apk_diff` — build-vs-build diff ported from the npm tool (E-NPM-4 → E-PY-10): identity/SDK levels, security-flag changes, permission and exported-component deltas, native-library sha256 changes, optional secret deltas and an archive inventory. Zero new dependencies — the manifest section reads through the androguard already shipped by `[static]` (missing extra or an unreadable manifest degrades that section honestly), native libs/secrets/inventory are stdlib-only, the secret scan extracts printable strings from `classes*.dex` / `resources.arsc` / text assets instead of shelling out to `strings(1)`, and the npm size caps carry over (`MOBILE_RE_MCP_MAX_FILE_MB`, `MOBILE_RE_MCP_MAX_ENTRY_MB`). Verified live: identical build reports all-same; two different apps show every delta section; manifest-less fixtures degrade with the real reason.
 

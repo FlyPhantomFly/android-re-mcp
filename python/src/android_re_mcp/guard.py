@@ -1,9 +1,9 @@
 """Argument checks applied to every tool call before a handler runs.
 
 Environment:
-  MOBILE_RE_MCP_ALLOWED_DIRS   os.pathsep-separated folders that file arguments must stay inside
-  MOBILE_RE_MCP_DISABLE_TOOLS  comma-separated tool names to turn off
-  MOBILE_RE_MCP_ALLOW_INSTALL  set to 1 to let the install_tool MCP tool run
+  ANDROID_RE_MCP_ALLOWED_DIRS   os.pathsep-separated folders that file arguments must stay inside
+  ANDROID_RE_MCP_DISABLE_TOOLS  comma-separated tool names to turn off
+  ANDROID_RE_MCP_ALLOW_INSTALL  set to 1 to let the install_tool MCP tool run
 """
 
 from __future__ import annotations
@@ -50,14 +50,14 @@ def _csv(name: str) -> set[str]:
 
 
 def disabled_tools() -> set[str]:
-    off = _csv("MOBILE_RE_MCP_DISABLE_TOOLS")
-    if os.environ.get("MOBILE_RE_MCP_ALLOW_INSTALL") != "1":
+    off = _csv("ANDROID_RE_MCP_DISABLE_TOOLS")
+    if os.environ.get("ANDROID_RE_MCP_ALLOW_INSTALL") != "1":
         off.add("install_tool")
     return off
 
 
 def allowed_dirs() -> list[Path]:
-    raw = os.environ.get("MOBILE_RE_MCP_ALLOWED_DIRS", "")
+    raw = os.environ.get("ANDROID_RE_MCP_ALLOWED_DIRS", "")
     return [Path(p).expanduser().resolve() for p in raw.split(os.pathsep) if p.strip()]
 
 
@@ -81,7 +81,7 @@ def check_path(value: Any, key: str, tool: str) -> None:
         raise GuardError(f"'{key}' may not write into /etc")
     dirs = allowed_dirs()
     if dirs and not any(_inside(resolved, d) for d in dirs):
-        raise GuardError(f"'{key}' is outside MOBILE_RE_MCP_ALLOWED_DIRS")
+        raise GuardError(f"'{key}' is outside ANDROID_RE_MCP_ALLOWED_DIRS")
     suffixes = OUTPUT_SUFFIXES.get(tool, {}).get(key)
     if suffixes and resolved.suffix.lower() not in suffixes:
         raise GuardError(f"'{key}' must end with one of: {', '.join(sorted(suffixes))}")
@@ -91,9 +91,9 @@ def validate(tool: str, args: Any) -> dict:
     """Return the checked arguments or raise GuardError."""
     if tool in disabled_tools():
         raise GuardError(
-            "install_tool is off by default; set MOBILE_RE_MCP_ALLOW_INSTALL=1 to enable it"
+            "install_tool is off by default; set ANDROID_RE_MCP_ALLOW_INSTALL=1 to enable it"
             if tool == "install_tool"
-            else f"tool '{tool}' is disabled by MOBILE_RE_MCP_DISABLE_TOOLS"
+            else f"tool '{tool}' is disabled by ANDROID_RE_MCP_DISABLE_TOOLS"
         )
     if args is None:
         return {}

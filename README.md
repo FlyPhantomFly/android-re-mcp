@@ -1,15 +1,15 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/social-preview-dark.svg">
-  <img src="docs/social-preview-light.svg" alt="mobile-re-mcp" width="100%">
+  <img src="docs/social-preview-light.svg" alt="android-re-mcp" width="100%">
 </picture>
 
-[![npm](https://img.shields.io/npm/v/mobile-re-mcp?color=0ea5e9&label=npm)](https://www.npmjs.com/package/mobile-re-mcp) [![PyPI](https://img.shields.io/pypi/v/mobile-re-mcp?color=3776ab&label=pypi)](https://pypi.org/project/mobile-re-mcp/) [![CI](https://img.shields.io/github/actions/workflow/status/FlyPhantomFly/mobile-re-mcp/ci.yml?label=CI)](https://github.com/FlyPhantomFly/mobile-re-mcp/actions) [![MIT](https://img.shields.io/badge/license-MIT-10b981)](LICENSE)
+[![npm](https://img.shields.io/npm/v/mobile-re-mcp?color=0ea5e9&label=npm)](https://www.npmjs.com/package/mobile-re-mcp) [![PyPI](https://img.shields.io/pypi/v/android-re-mcp?color=3776ab&label=pypi)](https://pypi.org/project/android-re-mcp/) [![CI](https://img.shields.io/github/actions/workflow/status/FlyPhantomFly/mobile-re-mcp/ci.yml?label=CI)](https://github.com/FlyPhantomFly/mobile-re-mcp/actions) [![MIT](https://img.shields.io/badge/license-MIT-10b981)](LICENSE)
 
-mobile-re-mcp is two MCP servers in one repo, for two halves of the same job.
+android-re-mcp is one repo, one brand, and — as of 1.4.0 — one server: the npm half is being retired and its Android tools folded into the Python package.
 
-The **Python server**, published on PyPI as `mobile-re-mcp` (command `mobile-re-mcp-py`), is the live half and the larger of the two, with 59 tools. It drives adb, Frida, mitmproxy, apktool and jadx against a real Android device: decompile an app, hook it, read its traffic, patch it, sign it and install it again. It leads this README.
+The **Python server**, published on PyPI as `android-re-mcp` (command `android-re-mcp`), is the live half and the larger of the two, with 59 tools. It drives adb, Frida, mitmproxy, apktool and jadx against a real Android device: decompile an app, hook it, read its traffic, patch it, sign it and install it again. It leads this README.
 
-The **npm server**, published on npm as `mobile-re-mcp` (command `mobile-re-mcp`), is the file-reading half. It reads an Android APK or iOS IPA and reports what is inside — permissions, exported components, hardcoded secrets, Firebase config, entitlements, bundled SDKs — without ever running the app. It is described [further down](#the-npm-server).
+The **npm server**, published on npm as `mobile-re-mcp` (command `mobile-re-mcp`), is the file-reading half being retired in 1.4.0: its static Android tools move into the Python package, its iOS tools are dropped, and it will be deprecated on npm. It is described [further down](#the-npm-server) until then.
 
 You ask in plain language, the assistant calls the right tool, and the findings come back. Both packages share a version number, and you can install either one without the other.
 
@@ -19,7 +19,7 @@ You ask in plain language, the assistant calls the right tool, and the findings 
 
 ### What exactly it does
 
-`pip install "mobile-re-mcp[all]"` gives you an MCP server, started as `mobile-re-mcp-py`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **59 tools over one Android target at a time**:
+`pip install "android-re-mcp[all]"` gives you an MCP server, started as `android-re-mcp`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **59 tools over one Android target at a time**:
 
 - **Static work on the APK file itself** — apktool and jadx decompilation, ripgrep searches across the decompiled folder, androguard manifest parsing and bytecode cross-references, apkid packer/obfuscator identification, apkleaks secret scanning, quark-engine behaviour rules (`quark_scan`), and an orchestrator (`apk_analyze_full`) that runs all of those in one call and scores the protection tier.
 - **Dynamic work on a running app** — spawn or attach a process with Frida, inject JavaScript, stream script output back, hook SSL pinning, dump and search process memory, trace storage, crypto and network calls from a built-in script collection you can extend with your own scripts.
@@ -34,8 +34,8 @@ It is Android only. Several tools change the device (install, push, patch), whic
 ### Install
 
 ```bash
-pip install "mobile-re-mcp[all]"
-mobile-re-mcp-py --setup
+pip install "android-re-mcp[all]"
+android-re-mcp --setup
 ```
 
 It needs Python 3.11 or newer. The base install is just the MCP server. The extras pick up the heavy libraries, and you can install parts instead of all:
@@ -50,16 +50,16 @@ It needs Python 3.11 or newer. The base install is just the MCP server. The extr
 
 If Frida is already pinned in your environment, install without extras and the server will not touch it.
 
-`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0 and Il2CppDumper 6.7.46 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `mobile-re-mcp-py --setup` again any time to fill in whatever is missing.
+`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0 and Il2CppDumper 6.7.46 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
 
-The command is `mobile-re-mcp-py`, so it does not clash with the npm package's `mobile-re-mcp`.
+The command is `android-re-mcp`, so it does not clash with the npm package's `android-re-mcp`.
 
 ### Connect it
 
 Claude Code:
 
 ```bash
-claude mcp add mobile-re-py -- mobile-re-mcp-py
+claude mcp add mobile-re-py -- android-re-mcp
 ```
 
 opencode, in `~/.config/opencode/opencode.json`:
@@ -67,7 +67,7 @@ opencode, in `~/.config/opencode/opencode.json`:
 ```json
 {
   "mcp": {
-    "mobile-re-py": { "type": "local", "command": ["/path/to/venv/bin/mobile-re-mcp-py"], "enabled": true }
+    "mobile-re-py": { "type": "local", "command": ["/path/to/venv/bin/android-re-mcp"], "enabled": true }
   }
 }
 ```
@@ -77,12 +77,12 @@ Claude Desktop, in `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "mobile-re-py": { "command": "/path/to/venv/bin/mobile-re-mcp-py" }
+    "mobile-re-py": { "command": "/path/to/venv/bin/android-re-mcp" }
   }
 }
 ```
 
-Use the full path to the command if it lives in a virtualenv. Any other client needs only the command, with no arguments. stdio is the default transport; `--transport sse --port 8765` also works, listens on 127.0.0.1 only, and any other `--host` needs `MOBILE_RE_MCP_TOKEN`, which clients send as a bearer token.
+Use the full path to the command if it lives in a virtualenv. Any other client needs only the command, with no arguments. stdio is the default transport; `--transport sse --port 8765` also works, listens on 127.0.0.1 only, and any other `--host` needs `ANDROID_RE_MCP_TOKEN`, which clients send as a bearer token.
 
 Start with a check of what you have: ask "Run check_tools", and the assistant lists which tools it found (with versions) and which are missing, with install hints. On a set-up machine it should report `ok`; a fully-loaded box typically shows 30+ available.
 
@@ -147,7 +147,7 @@ Every tool returns structured JSON with a `status` field (`ok`, `error`, `missin
 | `frida_get_script` | read the JS source of a named script (8 ship with the package; yours override) | nothing |
 | `frida_run_script` | spawn + inject a named built-in script in one call, with config sent as `{'type':'config', …}` after load | frida |
 
-The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` compiled in — frida 17 removed the `Java` global from script runtimes, so raw sources would die with `ReferenceError` on every modern client (`memory_scan` is pure-native and ships as-is). Rebuild them with `python/src/mobile_re_mcp/frida_scripts/build_bundles.sh` after editing the raw sources in that folder's `src/`. For a stealth frida-server (renamed binary on a non-default port), set `MOBILE_RE_MCP_FRIDA_ENDPOINT` (below).
+The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` compiled in — frida 17 removed the `Java` global from script runtimes, so raw sources would die with `ReferenceError` on every modern client (`memory_scan` is pure-native and ships as-is). Rebuild them with `python/src/android_re_mcp/frida_scripts/build_bundles.sh` after editing the raw sources in that folder's `src/`. For a stealth frida-server (renamed binary on a non-default port), set `ANDROID_RE_MCP_FRIDA_ENDPOINT` (below).
 
 **Anti-detection (2)**
 
@@ -226,32 +226,32 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | --- | --- | --- |
 | `memory_read` / `memory_write` | session notes per package, pre-seeded with a findings template so follow-up sessions can resume | nothing |
 | `check_tools` | full inventory of your toolchain with versions, paths, install hints and the MCP tools that use each entry (`used_by`); pip CLIs are probed as executables, and the `medusa` entry refuses the SSH-cracker namesake | nothing |
-| `install_tool` | install a missing tool from a pinned SHA-256-checked download, pip or npm; `medusa`/`fridump` deliberately have no auto-recipe (name-collision / unused) | off unless `MOBILE_RE_MCP_ALLOW_INSTALL=1` |
+| `install_tool` | install a missing tool from a pinned SHA-256-checked download, pip or npm; `medusa`/`fridump` deliberately have no auto-recipe (name-collision / unused) | off unless `ANDROID_RE_MCP_ALLOW_INSTALL=1` |
 
 ### Knowledge packs and prompts
 
 Five MCP **resources**: `knowledge://detection-patterns` (root/Frida/emulator/integrity checks and their counters), `knowledge://bypass-playbooks` (escalation ladders), `knowledge://framework-fingerprints` (React Native, Flutter, Unity, Xamarin from artefacts), `knowledge://crypto-patterns` (hardcoded keys, weak IVs, insecure ciphers) and `knowledge://common-mistakes`. Seven MCP **prompts** wrap the same packs: `master-workflow`, `first-look`, `rasp-assess`, `bypass-ssl`, `bypass-root`, `bypass-frida`, `stuck`. Your client's prompt picker lists them; they cost nothing to call.
 
-Eight bypass/monitor scripts ship with the package (`ssl_pinning_universal`, `root_detection_bypass`, `frida_detection_bypass`, `crypto_monitor`, `memory_scan`, `method_tracer`, `storage_monitor`, `network_monitor`) — every one accepts live config: post or send `{type:'config', ...}` (UPPER-case keys as shown by `frida_list_scripts` usage strings; lowercase accepted too). Drop your own script into `~/.local/share/mobile-re-mcp/frida_scripts` using the same catalogue filename and yours is used instead of the shipped one.
+Eight bypass/monitor scripts ship with the package (`ssl_pinning_universal`, `root_detection_bypass`, `frida_detection_bypass`, `crypto_monitor`, `memory_scan`, `method_tracer`, `storage_monitor`, `network_monitor`) — every one accepts live config: post or send `{type:'config', ...}` (UPPER-case keys as shown by `frida_list_scripts` usage strings; lowercase accepted too). Drop your own script into `~/.local/share/android-re-mcp/frida_scripts` using the same catalogue filename and yours is used instead of the shipped one.
 
 ### Files and settings
 
-- Notes, captures and scratch files: `~/.local/share/mobile-re-mcp` (`MOBILE_RE_MCP_HOME` to move; created `0700`)
-- Your settings: `~/.config/mobile-re-mcp/config.toml` (`MOBILE_RE_MCP_CONFIG`) — today just `[signing]` keystore paths and passwords
-- Downloaded tools: `~/tools` (`MOBILE_RE_MCP_TOOLS_DIR`); subfolders (jadx, platform-tools, il2cppdumper, scrcpy) are appended to the server's PATH if present
-- `MOBILE_RE_MCP_ALLOWED_DIRS` — folders (separated by `:`) that all file arguments must stay inside
-- `MOBILE_RE_MCP_DISABLE_TOOLS` — comma-separated tools to switch off, e.g. `adb_shell,adb_push,adb_pull`
-- `MOBILE_RE_MCP_ALLOW_INSTALL=1` — the only way `install_tool` becomes callable over MCP (`--setup` always works)
-- `MOBILE_RE_MCP_FRIDA_ENDPOINT=127.0.0.1:31337` — connect every `frida_*` tool to a remote frida-server instead of USB discovery. For a stealth setup (renamed server binary on a non-default port, reached via `adb forward tcp:31337 tcp:31337`) USB discovery finds nothing — this is the switch that makes the dynamic tools work against it.
+- Notes, captures and scratch files: `~/.local/share/android-re-mcp` (`ANDROID_RE_MCP_HOME` to move; created `0700`)
+- Your settings: `~/.config/android-re-mcp/config.toml` (`ANDROID_RE_MCP_CONFIG`) — today just `[signing]` keystore paths and passwords
+- Downloaded tools: `~/tools` (`ANDROID_RE_MCP_TOOLS_DIR`); subfolders (jadx, platform-tools, il2cppdumper, scrcpy) are appended to the server's PATH if present
+- `ANDROID_RE_MCP_ALLOWED_DIRS` — folders (separated by `:`) that all file arguments must stay inside
+- `ANDROID_RE_MCP_DISABLE_TOOLS` — comma-separated tools to switch off, e.g. `adb_shell,adb_push,adb_pull`
+- `ANDROID_RE_MCP_ALLOW_INSTALL=1` — the only way `install_tool` becomes callable over MCP (`--setup` always works)
+- `ANDROID_RE_MCP_FRIDA_ENDPOINT=127.0.0.1:31337` — connect every `frida_*` tool to a remote frida-server instead of USB discovery. For a stealth setup (renamed server binary on a non-default port, reached via `adb forward tcp:31337 tcp:31337`) USB discovery finds nothing — this is the switch that makes the dynamic tools work against it.
 
 ### Staying safe
 
 This server runs commands on your phone and your computer, so treat its tools with care.
 
 - Every call passes the guard first: file arguments reject a leading `-`, NUL bytes, and protected locations (`~/.ssh`, `~/.config/gh`, shell rc files, keyrings, …); `package`, `serial`, `port` and similar arguments are pattern-checked; writes into `/etc` are refused.
-- The stateful tools (`frida_spawn`, `adb_shell`, `adb_install`, `mitm_*`, signing) change a real device — set them to ask first in your client, and keep `MOBILE_RE_MCP_DISABLE_TOOLS` around anything you do not want reachable.
+- The stateful tools (`frida_spawn`, `adb_shell`, `adb_install`, `mitm_*`, signing) change a real device — set them to ask first in your client, and keep `ANDROID_RE_MCP_DISABLE_TOOLS` around anything you do not want reachable.
 - mitmproxy listens on 127.0.0.1. Run `adb reverse tcp:8080 tcp:8080` and point the phone's proxy at 127.0.0.1:8080.
-- SSE transport is loopback-only unless you set `MOBILE_RE_MCP_TOKEN`; foreign Host headers are rejected.
+- SSE transport is loopback-only unless you set `ANDROID_RE_MCP_TOKEN`; foreign Host headers are rejected.
 - Downloads are pinned to a release and SHA-256-verified. Scratch files live in a private `0700` folder, never `/tmp`.
 - A sample you analyze can try to steer the assistant through its own strings and symbol names. Use a VM for hostile samples, and do not auto-approve tools that touch the device.
 

@@ -7,7 +7,7 @@ from mcp.client.stdio import stdio_client
 
 
 async def _session_run(env, fn):
-    params = StdioServerParameters(command=sys.executable, args=["-m", "mobile_re_mcp"], env=env)
+    params = StdioServerParameters(command=sys.executable, args=["-m", "android_re_mcp"], env=env)
     async with stdio_client(params) as (r, w):
         async with ClientSession(r, w) as s:
             await s.initialize()
@@ -18,7 +18,7 @@ def _env(tmp_path, **extra):
     import os
 
     env = dict(os.environ)
-    env.update({"HOME": str(tmp_path), "MOBILE_RE_MCP_HOME": str(tmp_path / "data")})
+    env.update({"HOME": str(tmp_path), "ANDROID_RE_MCP_HOME": str(tmp_path / "data")})
     env.update(extra)
     return env
 
@@ -37,7 +37,7 @@ def test_disable_env_hides_tools(tmp_path):
     async def go(s):
         return [t.name for t in (await s.list_tools()).tools]
 
-    names = asyncio.run(_session_run(_env(tmp_path, MOBILE_RE_MCP_DISABLE_TOOLS="adb_shell"), go))
+    names = asyncio.run(_session_run(_env(tmp_path, ANDROID_RE_MCP_DISABLE_TOOLS="adb_shell"), go))
     assert "adb_shell" not in names and "adb_devices" in names
 
 

@@ -1,4 +1,4 @@
-# Defaults only. Put your own settings in ~/.config/mobile-re-mcp/config.toml (or $MOBILE_RE_MCP_CONFIG).
+# Defaults only. Put your own settings in ~/.config/android-re-mcp/config.toml (or $ANDROID_RE_MCP_CONFIG).
 [signing]
 # Absolute path to uber-apk-signer.jar. Empty uses ~/tools/signing/uber-apk-signer.jar
 jar_path = ""

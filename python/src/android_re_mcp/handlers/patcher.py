@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = 120
 _TIMEOUT_LONG = 300
-from mobile_re_mcp.config import load_config, signer_jar
-from mobile_re_mcp.paths import tools_dir
+from android_re_mcp.config import load_config, signer_jar
+from android_re_mcp.paths import tools_dir
 
 _TOOLS_DIR = tools_dir()
 _GADGETS_DIR = _TOOLS_DIR / "gadgets"

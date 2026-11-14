@@ -9,7 +9,7 @@ import types
 
 import pytest
 
-from mobile_re_mcp.handlers import dynamic as dynamic_mod
+from android_re_mcp.handlers import dynamic as dynamic_mod
 
 
 class _FakeDevice:

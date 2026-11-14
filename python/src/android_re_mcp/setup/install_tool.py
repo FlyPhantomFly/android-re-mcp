@@ -1,8 +1,8 @@
 """
-setup/install_tool.py — Downloads helper tools into ~/tools (or $MOBILE_RE_MCP_TOOLS_DIR).
+setup/install_tool.py — Downloads helper tools into ~/tools (or $ANDROID_RE_MCP_TOOLS_DIR).
 
 Every download is pinned to a release and checked against a SHA-256 before it is used.
-The install_tool MCP tool is off unless MOBILE_RE_MCP_ALLOW_INSTALL=1; `mobile-re-mcp-py --setup` always works.
+The install_tool MCP tool is off unless ANDROID_RE_MCP_ALLOW_INSTALL=1; `android-re-mcp --setup` always works.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from mobile_re_mcp.paths import tools_dir
+from android_re_mcp.paths import tools_dir
 
 _APKTOOL = "2.12.1"
 
@@ -93,7 +93,7 @@ class DownloadError(RuntimeError):
 def _fetch(url: str):
     if not url.startswith("https://"):
         raise DownloadError(f"refusing non-https URL: {url}")
-    req = urllib.request.Request(url, headers={"User-Agent": "mobile-re-mcp"})
+    req = urllib.request.Request(url, headers={"User-Agent": "android-re-mcp"})
     return urllib.request.urlopen(req, timeout=120)  # noqa: S310 (https enforced above)
 
 
@@ -316,7 +316,7 @@ def install_tool(tool_name: str) -> dict:
 
 def install_all_missing_tools() -> None:
     """Check all tools and install the missing ones."""
-    from mobile_re_mcp.setup.check_tools import check_all_tools
+    from android_re_mcp.setup.check_tools import check_all_tools
 
     print("[*] Analyzing current environment...")
     tools = check_all_tools().get("tools", {})

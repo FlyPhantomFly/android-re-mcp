@@ -8,7 +8,7 @@
   <text x="640" y="162" text-anchor="middle" font-size="46" fill="#0ea5e9">🔍</text>
 
   <!-- Title -->
-  <text x="640" y="270" text-anchor="middle" font-size="56" font-weight="700" fill="#0f172a" letter-spacing="-1">mobile-re-mcp</text>
+  <text x="640" y="270" text-anchor="middle" font-size="56" font-weight="700" fill="#0f172a" letter-spacing="-1">android-re-mcp</text>
 
   <!-- Subtitle -->
   <text x="640" y="316" text-anchor="middle" font-size="22" fill="#64748b">Mobile App Security Analysis · MCP Server for Claude</text>

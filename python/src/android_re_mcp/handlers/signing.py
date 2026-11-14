@@ -10,7 +10,7 @@ import logging
 import subprocess
 from pathlib import Path
 
-from mobile_re_mcp.config import load_config, signer_jar
+from android_re_mcp.config import load_config, signer_jar
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class SigningHandler:
                 "status": "missing_tool",
                 "tool": "uber-apk-signer",
                 "error": f"uber-apk-signer jar not found at '{jar_path}'.",
-                "hint": "Run mobile-re-mcp-py --setup, or set [signing].jar_path in ~/.config/mobile-re-mcp/config.toml.",
+                "hint": "Run android-re-mcp --setup, or set [signing].jar_path in ~/.config/android-re-mcp/config.toml.",
             }
 
         cmd = ["java", "-jar", jar_path, "--apks", apk_path]

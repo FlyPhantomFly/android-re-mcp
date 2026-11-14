@@ -12,7 +12,7 @@ import textwrap
 
 import pytest
 
-from mobile_re_mcp.handlers import device as device_mod
+from android_re_mcp.handlers import device as device_mod
 
 UI_XML = textwrap.dedent("""\
     <?xml version='1.0' encoding='UTF-8' standalone='yes' ?>

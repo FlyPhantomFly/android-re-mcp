@@ -10,7 +10,7 @@ import types
 
 import pytest
 
-from mobile_re_mcp.handlers import dynamic as dynamic_mod
+from android_re_mcp.handlers import dynamic as dynamic_mod
 
 
 class _FakeScript:
@@ -307,20 +307,20 @@ def test_attach_reports_failure_when_nothing_matches(monkeypatch):
     assert "unable to find process" in result["error"]
 
 
-# ── MOBILE_RE_MCP_FRIDA_ENDPOINT: stealth servers on non-default ports ──
+# ── ANDROID_RE_MCP_FRIDA_ENDPOINT: stealth servers on non-default ports ──
 
 def test_frida_endpoint_env(monkeypatch):
-    monkeypatch.delenv("MOBILE_RE_MCP_FRIDA_ENDPOINT", raising=False)
+    monkeypatch.delenv("ANDROID_RE_MCP_FRIDA_ENDPOINT", raising=False)
     assert dynamic_mod.frida_endpoint() is None
-    monkeypatch.setenv("MOBILE_RE_MCP_FRIDA_ENDPOINT", "127.0.0.1:31337")
+    monkeypatch.setenv("ANDROID_RE_MCP_FRIDA_ENDPOINT", "127.0.0.1:31337")
     assert dynamic_mod.frida_endpoint() == "127.0.0.1:31337"
-    monkeypatch.setenv("MOBILE_RE_MCP_FRIDA_ENDPOINT", "   ")
+    monkeypatch.setenv("ANDROID_RE_MCP_FRIDA_ENDPOINT", "   ")
     assert dynamic_mod.frida_endpoint() is None
 
 
 def test_get_frida_device_uses_endpoint_when_set(monkeypatch):
-    """Stealth setup: MOBILE_RE_MCP_FRIDA_ENDPOINT wins over USB discovery."""
-    monkeypatch.setenv("MOBILE_RE_MCP_FRIDA_ENDPOINT", "127.0.0.1:31337")
+    """Stealth setup: ANDROID_RE_MCP_FRIDA_ENDPOINT wins over USB discovery."""
+    monkeypatch.setenv("ANDROID_RE_MCP_FRIDA_ENDPOINT", "127.0.0.1:31337")
     fake = types.ModuleType("frida")
     manager = types.SimpleNamespace(
         add_remote_device=lambda endpoint: f"remote:{endpoint}"
@@ -333,5 +333,5 @@ def test_get_frida_device_uses_endpoint_when_set(monkeypatch):
     assert dynamic_mod._get_frida_device() == "remote:127.0.0.1:31337"
     assert calls == [], "must not probe USB when an endpoint is configured"
 
-    monkeypatch.delenv("MOBILE_RE_MCP_FRIDA_ENDPOINT")
+    monkeypatch.delenv("ANDROID_RE_MCP_FRIDA_ENDPOINT")
     assert dynamic_mod._get_frida_device() == "usb"

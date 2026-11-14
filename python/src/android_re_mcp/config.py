@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mobile_re_mcp.paths import tools_dir, user_config_path
+from android_re_mcp.paths import tools_dir, user_config_path
 
 _DEFAULTS = Path(__file__).parent / "config.toml"
 

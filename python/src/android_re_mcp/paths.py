@@ -19,13 +19,13 @@ def _private_dir(p: Path) -> Path:
 
 def data_dir() -> Path:
     """Per-user data directory (target notes, captures, scratch files)."""
-    env = os.environ.get("MOBILE_RE_MCP_HOME")
+    env = os.environ.get("ANDROID_RE_MCP_HOME")
     if env:
         base = Path(env).expanduser()
     elif os.name == "nt":
-        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "mobile-re-mcp"
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "android-re-mcp"
     else:
-        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "mobile-re-mcp"
+        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "android-re-mcp"
     return _private_dir(base)
 
 
@@ -39,20 +39,20 @@ def captures_dir() -> Path:
 
 
 def tools_dir() -> Path:
-    """Where downloaded RE tools live. Override with MOBILE_RE_MCP_TOOLS_DIR."""
-    env = os.environ.get("MOBILE_RE_MCP_TOOLS_DIR")
+    """Where downloaded RE tools live. Override with ANDROID_RE_MCP_TOOLS_DIR."""
+    env = os.environ.get("ANDROID_RE_MCP_TOOLS_DIR")
     return Path(env).expanduser() if env else Path.home() / "tools"
 
 
 def user_config_path() -> Path:
-    env = os.environ.get("MOBILE_RE_MCP_CONFIG")
+    env = os.environ.get("ANDROID_RE_MCP_CONFIG")
     if env:
         return Path(env).expanduser()
     if os.name == "nt":
         base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
     else:
         base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return base / "mobile-re-mcp" / "config.toml"
+    return base / "android-re-mcp" / "config.toml"
 
 
 def ensure_tools_on_path() -> None:

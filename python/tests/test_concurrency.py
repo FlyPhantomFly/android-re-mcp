@@ -12,10 +12,10 @@ import time
 
 import pytest
 
-from mobile_re_mcp.handlers.device import DeviceHandler
-from mobile_re_mcp.handlers.dynamic import DynamicHandler
-from mobile_re_mcp.handlers.network import NetworkHandler
-from mobile_re_mcp.server import _run_tool
+from android_re_mcp.handlers.device import DeviceHandler
+from android_re_mcp.handlers.dynamic import DynamicHandler
+from android_re_mcp.handlers.network import NetworkHandler
+from android_re_mcp.server import _run_tool
 from mcp.types import CallToolResult
 
 pytest.importorskip("mcp")

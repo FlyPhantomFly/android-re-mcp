@@ -2,7 +2,7 @@
 setup/check_tools.py — Verify all required tools are available.
 
 Can be run standalone:
-    python -m mobile_re_mcp.setup.check_tools
+    python -m android_re_mcp.setup.check_tools
 
 Returns structured JSON per tool so the MCP check_tools() tool
 and the TUI dashboard both use identical data.
@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from mobile_re_mcp.clitools import find_cli
+from android_re_mcp.clitools import find_cli
 
 
 @dataclass
@@ -60,11 +60,11 @@ def _check_binary(
 ) -> ToolStatus:
     """Check a CLI by running it with a version flag.
 
-    Resolution goes through mobile_re_mcp.clitools.find_cli — the exact
+    Resolution goes through android_re_mcp.clitools.find_cli — the exact
     lookup the handlers use — so a console script living next to the
     interpreter counts just as much as one on PATH.
     """
-    from mobile_re_mcp.clitools import find_cli
+    from android_re_mcp.clitools import find_cli
 
     used_by = used_by or []
     path = find_cli(name)
@@ -116,7 +116,7 @@ def _check_medusa(used_by: Optional[list[str]] = None) -> ToolStatus:
     run is the reliable disambiguator.
     """
     used_by = used_by or []
-    from mobile_re_mcp.clitools import find_cli
+    from android_re_mcp.clitools import find_cli
 
     cli = find_cli("medusa")
     if cli is None:
@@ -188,7 +188,7 @@ def _check_file(display_name: str, paths: list[str], kind: str = "binary", hint:
 
 
 def _get_config_signing() -> dict:
-    from mobile_re_mcp.config import load_config, signer_jar
+    from android_re_mcp.config import load_config, signer_jar
 
     cfg = dict(load_config().get("signing", {}))
     cfg["jar_path"] = str(signer_jar())
@@ -214,7 +214,7 @@ def check_all_tools() -> dict:
     cfg = _get_config_signing()
     jar_path = cfg.get("jar_path", "uber-apk-signer.jar")
 
-    from mobile_re_mcp.paths import tools_dir as _tools_dir
+    from android_re_mcp.paths import tools_dir as _tools_dir
 
     tools_dir = _tools_dir()
 
@@ -233,34 +233,34 @@ def check_all_tools() -> dict:
 
     checks: list[ToolStatus] = [
         # ── Core static analysis ───────────────────────────────────────────
-        _check_binary("apktool", hint="Run mobile-re-mcp-py --setup, or install apktool yourself",
+        _check_binary("apktool", hint="Run android-re-mcp --setup, or install apktool yourself",
                       used_by=["apk_decompile", "inject_gadget", "apk_rebuild_sign"]),
-        _check_binary("jadx", "--version", hint="Run mobile-re-mcp-py --setup, or install jadx yourself",
+        _check_binary("jadx", "--version", hint="Run android-re-mcp --setup, or install jadx yourself",
                       used_by=["apk_decompile_java"]),
-        _check_binary("apkid", "--version", kind="python", hint="Run mobile-re-mcp-py --setup, or install apkid yourself",
+        _check_binary("apkid", "--version", kind="python", hint="Run android-re-mcp --setup, or install apkid yourself",
                       used_by=["apk_identify", "apk_analyze_full", "rasp_identify", "rasp_bypass"]),
-        _check_binary("apkleaks", "--version", kind="python", hint="Run mobile-re-mcp-py --setup, or install apkleaks yourself",
+        _check_binary("apkleaks", "--version", kind="python", hint="Run android-re-mcp --setup, or install apkleaks yourself",
                       used_by=["apk_scan_secrets", "apk_analyze_full"]),
-        _check_python_module("androguard", hint="Run mobile-re-mcp-py --setup, or install androguard yourself",
+        _check_python_module("androguard", hint="Run android-re-mcp --setup, or install androguard yourself",
                              used_by=["manifest_parse", "analyze_code", "find_crypto_usage",
                                       "find_urls", "apk_analyze_full"]),
-        _check_python_module("quark-engine", "quark", hint="Run mobile-re-mcp-py --setup, or install quark-engine yourself",
+        _check_python_module("quark-engine", "quark", hint="Run android-re-mcp --setup, or install quark-engine yourself",
                              used_by=["quark_scan", "apk_analyze_full"]),
         _check_binary("rg", "--version", hint="Manual install required (ripgrep)",
                       used_by=["search_strings"]),
 
         # ── Dynamic instrumentation ────────────────────────────────────────
-        _check_python_module("frida", hint="Run mobile-re-mcp-py --setup, or install frida yourself",
+        _check_python_module("frida", hint="Run android-re-mcp --setup, or install frida yourself",
                              used_by=["frida_spawn", "frida_attach", "frida_inject", "frida_detach",
                                       "frida_status", "frida_memdump", "frida_find_bytes",
                                       "ssl_kill_switch"]),
-        _check_python_module("frida-tools", "frida_tools", hint="Run mobile-re-mcp-py --setup, or install frida-tools yourself",
+        _check_python_module("frida-tools", "frida_tools", hint="Run android-re-mcp --setup, or install frida-tools yourself",
                              used_by=[]),
-        _check_binary("frida", "--version", hint="Run mobile-re-mcp-py --setup, or install frida-tools yourself",
+        _check_binary("frida", "--version", hint="Run android-re-mcp --setup, or install frida-tools yourself",
                       used_by=["frida_server_push", "frida_spawn_hluda"]),
-        _check_binary("frida-ps", "--version", hint="Run mobile-re-mcp-py --setup, or install frida-tools yourself",
+        _check_binary("frida-ps", "--version", hint="Run android-re-mcp --setup, or install frida-tools yourself",
                       used_by=[]),
-        _check_binary("objection", "--version", hint="Run mobile-re-mcp-py --setup, or install objection yourself",
+        _check_binary("objection", "--version", hint="Run android-re-mcp --setup, or install objection yourself",
                       used_by=["objection_run"]),
 
         # ── Device binaries on device (optional — need to be pushed) ──────
@@ -281,18 +281,18 @@ def check_all_tools() -> dict:
         ),
 
         # ── Device control ─────────────────────────────────────────────────
-        _check_binary("adb", "version", hint="Run mobile-re-mcp-py --setup, or install adb yourself",
+        _check_binary("adb", "version", hint="Run android-re-mcp --setup, or install adb yourself",
                       used_by=["adb_devices", "adb_shell", "adb_install", "adb_pull", "adb_push",
                                "adb_logcat_start", "adb_logcat_read", "adb_logcat_stop",
                                "adb_ui_dump", "scrcpy_screenshot", "frida_server_push",
                                "frida_spawn_hluda"]),
 
         # ── Network ────────────────────────────────────────────────────────
-        _check_binary("mitmdump", "--version", hint="Run mobile-re-mcp-py --setup, or install mitmproxy yourself",
+        _check_binary("mitmdump", "--version", hint="Run android-re-mcp --setup, or install mitmproxy yourself",
                       used_by=["mitm_start", "mitm_stop", "mitm_read_flows", "mitm_export_har"]),
-        _check_binary("mitmproxy", "--version", hint="Run mobile-re-mcp-py --setup, or install mitmproxy yourself",
+        _check_binary("mitmproxy", "--version", hint="Run android-re-mcp --setup, or install mitmproxy yourself",
                       used_by=[]),
-        _check_python_module("mitmproxy", hint="Run mobile-re-mcp-py --setup, or install mitmproxy yourself",
+        _check_python_module("mitmproxy", hint="Run android-re-mcp --setup, or install mitmproxy yourself",
                              used_by=[]),
 
         # ── Binary analysis / RE (optional) ───────────────────────────────
@@ -313,7 +313,7 @@ def check_all_tools() -> dict:
             hint="apktool bundles baksmali; standalone jars are on Maven Central (com.android.tools.smali)",
             used_by=[],
         ),
-        _check_binary("Il2CppDumper", hint="Run mobile-re-mcp-py --setup, or install il2cppdumper yourself",
+        _check_binary("Il2CppDumper", hint="Run android-re-mcp --setup, or install il2cppdumper yourself",
                       used_by=["il2cpp_dump"]),
 
         # ── Test keystore ──────────────────────────────────────────────────
@@ -325,9 +325,9 @@ def check_all_tools() -> dict:
         ),
 
         # ── npm tools (optional) ───────────────────────────────────────────
-        _check_binary("apk-mitm", "--version", hint="Run mobile-re-mcp-py --setup, or install apk-mitm yourself",
+        _check_binary("apk-mitm", "--version", hint="Run android-re-mcp --setup, or install apk-mitm yourself",
                       used_by=[]),
-        _check_binary("frida-compile", "--version", hint="Run mobile-re-mcp-py --setup, or install frida-compile yourself",
+        _check_binary("frida-compile", "--version", hint="Run android-re-mcp --setup, or install frida-compile yourself",
                       used_by=[]),
 
         # ── Dynamic frameworks (optional) ─────────────────────────────────

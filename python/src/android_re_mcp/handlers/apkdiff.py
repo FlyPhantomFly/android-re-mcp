@@ -18,8 +18,8 @@ as PyPI tool E-PY-10, with the same sections but structured JSON output:
     ``strings(1)`` binary, no apkleaks).
   * an archive-inventory summary (entry counts + size changes).
 
-Size caps mirror the npm zip guard (F-NPM-4): ``MOBILE_RE_MCP_MAX_FILE_MB``
-(default 2048) checked before opening, ``MOBILE_RE_MCP_MAX_ENTRY_MB``
+Size caps mirror the npm zip guard (F-NPM-4): ``ANDROID_RE_MCP_MAX_FILE_MB``
+(default 2048) checked before opening, ``ANDROID_RE_MCP_MAX_ENTRY_MB``
 (default 256) checked per entry before decompression; ``0`` disables
 either cap.
 """
@@ -32,7 +32,7 @@ import re
 import zipfile
 from pathlib import Path
 
-from mobile_re_mcp.handlers.static import _load_androguard
+from android_re_mcp.handlers.static import _load_androguard
 
 _LIST_CAP = 20
 _DEFAULT_MAX_FILE_MB = 2048
@@ -105,14 +105,14 @@ def _printable_strings(data: bytes, min_len: int = 8) -> str:
 
 
 def _open_zip(path: str) -> zipfile.ZipFile:
-    """Open an APK under MOBILE_RE_MCP_MAX_FILE_MB (0 disables)."""
-    cap = _env_max_mb("MOBILE_RE_MCP_MAX_FILE_MB", _DEFAULT_MAX_FILE_MB)
+    """Open an APK under ANDROID_RE_MCP_MAX_FILE_MB (0 disables)."""
+    cap = _env_max_mb("ANDROID_RE_MCP_MAX_FILE_MB", _DEFAULT_MAX_FILE_MB)
     if cap:
         size = Path(path).stat().st_size
         if size > cap * _MB:
             raise PayloadTooLarge(
                 f"input file is {size / _MB:.1f} MB, above the {cap} MB cap "
-                f"(raise MOBILE_RE_MCP_MAX_FILE_MB, or set it to 0 to disable the cap)"
+                f"(raise ANDROID_RE_MCP_MAX_FILE_MB, or set it to 0 to disable the cap)"
             )
     try:
         return zipfile.ZipFile(path)
@@ -121,8 +121,8 @@ def _open_zip(path: str) -> zipfile.ZipFile:
 
 
 def _read_entry(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> bytes | None:
-    """One entry under MOBILE_RE_MCP_MAX_ENTRY_MB (0 disables); None = skip."""
-    cap = _env_max_mb("MOBILE_RE_MCP_MAX_ENTRY_MB", _DEFAULT_MAX_ENTRY_MB)
+    """One entry under ANDROID_RE_MCP_MAX_ENTRY_MB (0 disables); None = skip."""
+    cap = _env_max_mb("ANDROID_RE_MCP_MAX_ENTRY_MB", _DEFAULT_MAX_ENTRY_MB)
     if cap and (info.file_size > cap * _MB or info.compress_size > cap * _MB):
         return None
     try:
@@ -342,7 +342,7 @@ class ApkDiffHandler:
                 missing_extra = _load_androguard() is None
                 output["manifest_error"] = (
                     "androguard is not installed — install the [static] extra: "
-                    "pip install 'mobile-re-mcp[static]'"
+                    "pip install 'android-re-mcp[static]'"
                     if missing_extra
                     else
                     f"could not parse the {'old' if old_facts is None else 'new'} "

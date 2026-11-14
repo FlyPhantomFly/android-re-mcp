@@ -26,7 +26,7 @@ import threading
 from pathlib import Path
 from typing import Any, Optional
 
-from mobile_re_mcp.frida_scripts.index import (
+from android_re_mcp.frida_scripts.index import (
     get_categories,
     get_script_content,
     list_scripts,
@@ -35,7 +35,7 @@ from mobile_re_mcp.frida_scripts.index import (
 logger = logging.getLogger(__name__)
 
 _TIMEOUT = 120
-from mobile_re_mcp.paths import data_dir, tools_dir
+from android_re_mcp.paths import data_dir, tools_dir
 
 _TOOLS_DIR = tools_dir()
 
@@ -50,10 +50,10 @@ def frida_endpoint() -> str | None:
     A frida-server running under a non-default name on a non-default port
     (renamed binary listening on 0.0.0.0:31337, reached via
     `adb forward tcp:31337 tcp:31337`) is invisible to frida's USB
-    discovery. Set MOBILE_RE_MCP_FRIDA_ENDPOINT=127.0.0.1:31337 and every
+    discovery. Set ANDROID_RE_MCP_FRIDA_ENDPOINT=127.0.0.1:31337 and every
     frida_* tool connects through that endpoint instead of USB.
     """
-    return os.environ.get("MOBILE_RE_MCP_FRIDA_ENDPOINT", "").strip() or None
+    return os.environ.get("ANDROID_RE_MCP_FRIDA_ENDPOINT", "").strip() or None
 
 
 def _get_frida_device(timeout: int = 10):
@@ -70,7 +70,7 @@ def _missing(tool: str, hint: str = "") -> dict:
     return {
         "status": "missing_tool",
         "tool": tool,
-        "error": f"'{tool}' not found. Run mobile-re-mcp-py --setup, or install '{tool}' yourself.",
+        "error": f"'{tool}' not found. Run android-re-mcp --setup, or install '{tool}' yourself.",
         "hint": hint,
     }
 
@@ -247,7 +247,7 @@ class DynamicHandler:
                 "status": "missing_tool",
                 "tool": "frida_status",
                 "error": "frida is not installed in this Python environment.",
-                "hint": "Run mobile-re-mcp-py --setup, or pip install frida.",
+                "hint": "Run android-re-mcp --setup, or pip install frida.",
             }
 
         try:

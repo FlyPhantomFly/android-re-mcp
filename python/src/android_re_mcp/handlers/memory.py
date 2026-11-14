@@ -4,7 +4,7 @@ handlers/memory.py — Per-target session notes.
 Tools: memory_read, memory_write
 
 Notes are stored at <data dir>/targets/<package>/memory.md
-(default data dir: ~/.local/share/mobile-re-mcp, override with MOBILE_RE_MCP_HOME).
+(default data dir: ~/.local/share/android-re-mcp, override with ANDROID_RE_MCP_HOME).
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import logging
 import re
 from pathlib import Path
 
-from mobile_re_mcp.paths import data_dir
+from android_re_mcp.paths import data_dir
 
 logger = logging.getLogger(__name__)
 
