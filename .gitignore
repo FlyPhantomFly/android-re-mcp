@@ -1,0 +1,50 @@
+# Build output
+dist/
+
+# Dependencies
+node_modules/
+
+# APK / IPA — never commit binary test files
+*.apk
+*.ipa
+*.aab
+# ...except our own 5 KB fixture (built by tests/fixtures/build_notesdemo.sh)
+!python/tests/fixtures/notesdemo.apk
+
+# apktool / decompiled output folders
+*_decompiled/
+smali*/
+baksmali*/
+
+# Environment & secrets
+.env
+.env.*
+*.keystore
+*.jks
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Claude memory (local only)
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+python/dist/
+python/build/
