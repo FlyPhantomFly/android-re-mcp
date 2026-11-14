@@ -43,6 +43,7 @@ from mobile_re_mcp.handlers.network import NetworkHandler
 from mobile_re_mcp.handlers.patcher import PatcherHandler
 from mobile_re_mcp.handlers.rasp import RaspHandler
 from mobile_re_mcp.handlers.signing import SigningHandler
+from mobile_re_mcp.handlers.apkdiff import ApkDiffHandler
 from mobile_re_mcp.handlers.static import StaticHandler
 from mobile_re_mcp.setup.check_tools import check_all_tools
 from mobile_re_mcp.setup.install_tool import install_tool as _install_tool
@@ -118,6 +119,26 @@ TOOL_SCHEMAS: list[dict] = [
                 "apk_path": {"type": "string"},
             },
             "required": ["apk_path"],
+        },
+    },
+    {
+        "name": "apk_diff",
+        "description": (
+            "Diff two builds of the same app: identity/SDK levels, security "
+            "flags, permission and exported-component deltas, native-library "
+            "changes (sha256), optional secret deltas, archive inventory."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "old_path": {"type": "string", "description": "Absolute path to the older APK"},
+                "new_path": {"type": "string", "description": "Absolute path to the newer APK"},
+                "skip_secrets": {
+                    "type": "boolean",
+                    "description": "Skip the (slower) secret-scan diff; default false",
+                },
+            },
+            "required": ["old_path", "new_path"],
         },
     },
     {
@@ -1048,6 +1069,7 @@ def create_server() -> Server:
 
     # Instantiate stateful handlers
     static = StaticHandler()
+    apkdiff = ApkDiffHandler()
     dynamic = DynamicHandler()
     rasp = RaspHandler()
     device = DeviceHandler()
@@ -1066,6 +1088,7 @@ def create_server() -> Server:
         "apk_identify": static.apk_identify,
         "apk_scan_secrets": static.apk_scan_secrets,
         "apk_analyze_full": static.apk_analyze_full,
+        "apk_diff": apkdiff.apk_diff,
         "quark_scan": static.quark_scan,
         "manifest_parse": static.manifest_parse,
         "search_strings": static.search_strings,

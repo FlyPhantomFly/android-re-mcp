@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - Unreleased
+
+### Consolidation (PyPI ← npm)
+
+The npm server (`mobile-re-mcp`) is being retired: its static Android tools are
+being ported into the Python package and its iOS tools dropped — one package,
+one implementation, one publish pipeline. Ports land before any removal, so
+there is never a window where a capability exists nowhere.
+
+### Added (Python)
+- `apk_diff` — build-vs-build diff ported from the npm tool (E-NPM-4 → E-PY-10): identity/SDK levels, security-flag changes, permission and exported-component deltas, native-library sha256 changes, optional secret deltas and an archive inventory. Zero new dependencies — the manifest section reads through the androguard already shipped by `[static]` (missing extra or an unreadable manifest degrades that section honestly), native libs/secrets/inventory are stdlib-only, the secret scan extracts printable strings from `classes*.dex` / `resources.arsc` / text assets instead of shelling out to `strings(1)`, and the npm size caps carry over (`MOBILE_RE_MCP_MAX_FILE_MB`, `MOBILE_RE_MCP_MAX_ENTRY_MB`). Verified live: identical build reports all-same; two different apps show every delta section; manifest-less fixtures degrade with the real reason.
+
 ## [1.3.0] - 2026-11-10
 
 This release is the rebuild pass documented in

@@ -7,7 +7,7 @@
 
 mobile-re-mcp is two MCP servers in one repo, for two halves of the same job.
 
-The **Python server**, published on PyPI as `mobile-re-mcp` (command `mobile-re-mcp-py`), is the live half and the larger of the two, with 58 tools. It drives adb, Frida, mitmproxy, apktool and jadx against a real Android device: decompile an app, hook it, read its traffic, patch it, sign it and install it again. It leads this README.
+The **Python server**, published on PyPI as `mobile-re-mcp` (command `mobile-re-mcp-py`), is the live half and the larger of the two, with 59 tools. It drives adb, Frida, mitmproxy, apktool and jadx against a real Android device: decompile an app, hook it, read its traffic, patch it, sign it and install it again. It leads this README.
 
 The **npm server**, published on npm as `mobile-re-mcp` (command `mobile-re-mcp`), is the file-reading half. It reads an Android APK or iOS IPA and reports what is inside — permissions, exported components, hardcoded secrets, Firebase config, entitlements, bundled SDKs — without ever running the app. It is described [further down](#the-npm-server).
 
@@ -19,7 +19,7 @@ You ask in plain language, the assistant calls the right tool, and the findings 
 
 ### What exactly it does
 
-`pip install "mobile-re-mcp[all]"` gives you an MCP server, started as `mobile-re-mcp-py`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **58 tools over one Android target at a time**:
+`pip install "mobile-re-mcp[all]"` gives you an MCP server, started as `mobile-re-mcp-py`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **59 tools over one Android target at a time**:
 
 - **Static work on the APK file itself** — apktool and jadx decompilation, ripgrep searches across the decompiled folder, androguard manifest parsing and bytecode cross-references, apkid packer/obfuscator identification, apkleaks secret scanning, quark-engine behaviour rules (`quark_scan`), and an orchestrator (`apk_analyze_full`) that runs all of those in one call and scores the protection tier.
 - **Dynamic work on a running app** — spawn or attach a process with Frida, inject JavaScript, stream script output back, hook SSL pinning, dump and search process memory, trace storage, crypto and network calls from a built-in script collection you can extend with your own scripts.
@@ -105,7 +105,7 @@ The server also carries seven guided prompts (`master-workflow`, `first-look`, `
 
 Every tool returns structured JSON with a `status` field (`ok`, `error`, `missing_tool`) — your assistant can chain calls. File arguments are absolute paths validated by the guard. `apk_decompile` and `apk_decompile_java` land next to the APK (`<name>_apktool/`, `<name>_jadx/`); dumps and captures go to the private data folder.
 
-**Static analysis (8)**
+**Static analysis (9)**
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
@@ -114,6 +114,7 @@ Every tool returns structured JSON with a `status` field (`ok`, `error`, `missin
 | `apk_identify` | apkid: packers, obfuscators, compilers, anti-tamper | apkid |
 | `apk_scan_secrets` | apkleaks: hardcoded keys and credentials, report saved as JSON | apkleaks |
 | `apk_analyze_full` | runs apkid + apkleaks + manifest + quark in one call, adds framework guess and protection tier | apkid, apkleaks, androguard, (quark-engine) |
+| `apk_diff` | two builds side by side: identity/SDK levels, security flags, permission and exported-component deltas, native-library sha256 changes, optional secret deltas, archive inventory | androguard (manifest section); everything else stdlib |
 | `quark_scan` | quark-engine behaviour rules: scored matches like "send SMS" or "load dex from external source"; `keywords` filters, the rule set comes from `freshquark` or `rules_dir` | quark-engine |
 | `manifest_parse` | androguard: package, versions, SDK levels, exported components, permissions, debuggable/allowBackup flags | androguard |
 | `search_strings` | ripgrep with JSON output over any folder (a decompile, a dump, a HAR) | ripgrep |
