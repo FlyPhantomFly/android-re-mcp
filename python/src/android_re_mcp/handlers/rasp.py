@@ -309,6 +309,35 @@ class RaspHandler:
             except Exception as exc:  # noqa: BLE001
                 logger.warning("apkid scan failed: %s", exc)
 
+        # Strategy 3: native-library identification (E-PY-14, the npm
+        # android_native_libraries folded in) — per-ABI ELF inventory plus
+        # packer/RASP .so fingerprints. Packer/RASP basename hits join the
+        # same `detected` list (their product label as the vendor key);
+        # the full inventory always rides along in the output.
+        try:
+            from android_re_mcp.handlers.native import apk_native_inventory
+
+            native = apk_native_inventory(apk_path)
+            if "error" not in native and not native.get("no_native_code"):
+                for libs in native["by_abi"].values():
+                    for lib in libs:
+                        known = lib.get("identified")
+                        if known and known["kind"] in ("packer", "rasp"):
+                            existing = next(
+                                (d for d in detected if d["vendor"] == known["label"]), None
+                            )
+                            if existing:
+                                if lib["basename"] not in existing["signals"]:
+                                    existing["signals"].append(lib["basename"])
+                            else:
+                                detected.append({
+                                    "vendor": known["label"],
+                                    "confidence": "high",
+                                    "signals": [lib["basename"]],
+                                })
+        except Exception as exc:  # noqa: BLE001
+            native = {"error": str(exc)}
+
         protection_tier = "enterprise" if detected else "none"
         return {
             "status": "ok",
@@ -317,6 +346,7 @@ class RaspHandler:
                 "detected": detected,
                 "protection_tier": protection_tier,
                 "primary_rasp": detected[0]["vendor"] if detected else None,
+                "native_libraries": native,
             },
         }
 
