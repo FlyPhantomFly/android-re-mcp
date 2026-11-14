@@ -118,7 +118,7 @@ Every tool returns structured JSON with a `status` field (`ok`, `error`, `missin
 | `android_api_extractor` | Retrofit HTTP annotations + OkHttp3 fields from smali, as a list or a ready-to-import Postman v2.1 collection | apktool (when given `apk_path`; `smali_dir` skips it) |
 | `android_google_services` | Google/Firebase config: bundled `google-services.json`, ten known keys from `res/values/strings.xml` (`smali_dir`), or a Google-pattern scan of `resources.arsc` | stdlib (`smali_dir` for the strings.xml path) |
 | `quark_scan` | quark-engine behaviour rules: scored matches like "send SMS" or "load dex from external source"; `keywords` filters, the rule set comes from `freshquark` or `rules_dir` | quark-engine |
-| `manifest_parse` | androguard: package, versions, SDK levels, exported components, permissions, debuggable/allowBackup flags | androguard |
+| `manifest_parse` | androguard: package, versions, SDK levels, exported components, permissions, debuggable/allowBackup flags; `categorize_permissions` adds a dangerous/normal split with per-permission reasons and a risk summary | androguard |
 | `search_strings` | ripgrep with JSON output over any folder (a decompile, a dump, a HAR) | ripgrep |
 
 **Bytecode deep-dive (3)**
