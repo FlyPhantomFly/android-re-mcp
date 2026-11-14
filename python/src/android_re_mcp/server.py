@@ -45,6 +45,7 @@ from android_re_mcp.handlers.rasp import RaspHandler
 from android_re_mcp.handlers.signing import SigningHandler
 from android_re_mcp.handlers.apkdiff import ApkDiffHandler
 from android_re_mcp.handlers.apiextractor import ApiExtractorHandler
+from android_re_mcp.handlers.googleservices import GoogleServicesHandler
 from android_re_mcp.handlers.static import StaticHandler
 from android_re_mcp.setup.check_tools import check_all_tools
 from android_re_mcp.setup.install_tool import install_tool as _install_tool
@@ -163,6 +164,26 @@ TOOL_SCHEMAS: list[dict] = [
                     "description": "Structured endpoint list, or a ready-to-import Postman v2.1 collection (default txt)",
                 },
             },
+        },
+    },
+    {
+        "name": "android_google_services",
+        "description": (
+            "Extract Google/Firebase config from an APK: parses "
+            "google-services.json when bundled, then either the ten known "
+            "Google keys from res/values/strings.xml (with smali_dir) or a "
+            "Google-pattern scan of resources.arsc."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "apk_path": {"type": "string", "description": "Absolute path to the APK"},
+                "smali_dir": {
+                    "type": "string",
+                    "description": "Absolute path to an apktool decompile — enables structured strings.xml parsing instead of the resources.arsc scan",
+                },
+            },
+            "required": ["apk_path"],
         },
     },
     {
@@ -1095,6 +1116,7 @@ def create_server() -> Server:
     static = StaticHandler()
     apkdiff = ApkDiffHandler()
     apiextractor = ApiExtractorHandler()
+    googleservices = GoogleServicesHandler()
     dynamic = DynamicHandler()
     rasp = RaspHandler()
     device = DeviceHandler()
@@ -1115,6 +1137,7 @@ def create_server() -> Server:
         "apk_analyze_full": static.apk_analyze_full,
         "apk_diff": apkdiff.apk_diff,
         "android_api_extractor": apiextractor.android_api_extractor,
+        "android_google_services": googleservices.android_google_services,
         "quark_scan": static.quark_scan,
         "manifest_parse": static.manifest_parse,
         "search_strings": static.search_strings,
