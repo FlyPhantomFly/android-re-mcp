@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Consolidation (PyPI ← npm)
 
-The npm server (`mobile-re-mcp`) is being retired: its static Android tools are
-being ported into the Python package and its iOS tools dropped — one package,
-one implementation, one publish pipeline. Ports land before any removal, so
-there is never a window where a capability exists nowhere.
+The npm server (`mobile-re-mcp`) is retired: its static Android tools are
+ported into the Python package, its iOS tools dropped, and its TypeScript
+sources deleted — one package,
+one implementation, one publish pipeline. Ports landed before any removal, so
+there was never a window where a capability existed nowhere.
 
 ### Renamed: `android-re-mcp`
 
