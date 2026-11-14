@@ -2,8 +2,8 @@
 ## Supported versions
 | Version | Supported |
 | --- | --- |
-| 1.2.x | npm and PyPI |
-| 1.1.x | npm only |
+| 1.4.x | PyPI (`android-re-mcp`) |
+| 1.3.x | no (that npm package is retired; upgrade) |
 | older | no |
 ## Reporting a vulnerability
 Please do not open a public issue for a security problem. Report it privately through [GitHub Security Advisories](https://github.com/FlyPhantomFly/mobile-re-mcp/security/advisories/new) and include what you found, how to reproduce it, what it could do, and a fix if you have one.

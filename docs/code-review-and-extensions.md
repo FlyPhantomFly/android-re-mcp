@@ -21,7 +21,13 @@ One GitHub-flavoured codebase in `python/src/android_re_mcp/`:
 - `setup/` — `check_tools.py` (35-item inventory used by the `check_tools` MCP tool) and `install_tool.py` (SHA-256-pinned downloads + pip/npm recipes; MCP-invocable only with `ANDROID_RE_MCP_ALLOW_INSTALL=1`).
 - Tests: `python/tests/` — 28 tests, mostly on the guard, downloads (sha-pin, zip-slip, plain-http refusal) and a handful of handler behaviours. **No test executes an androguard code path**, which is why the API drift below shipped.
 
-### The npm server — npm package `mobile-re-mcp`, command `mobile-re-mcp`
+### The npm server — npm package `mobile-re-mcp`, command `mobile-re-mcp` — **retired in 1.4.0**
+
+> This section and every npm finding below are kept as the historical record of the review.
+> The package was consolidated into the PyPI package (E-PY-10…14, commits `c21c6e4`…`2ca8400`),
+> its iOS half was dropped in 1.4.0, and its sources (`src/`, `test/`, `package.json`) were
+> deleted when the retirement completed. npm carries a deprecation notice pointing at
+> `pip install android-re-mcp`.
 
 One TypeScript codebase in `src/`:
 

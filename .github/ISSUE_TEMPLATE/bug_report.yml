@@ -12,11 +12,11 @@ body:
     attributes:
       label: Which tool is affected?
       options:
-        - apk_manifest_analyzer
-        - apk_permissions_checker
+        - manifest_parse
+        - apk_scan_secrets
+        - apk_diff
         - android_api_extractor
         - android_google_services
-        - android_secrets_scanner
         - Other / multiple tools
     validations:
       required: true
@@ -27,7 +27,7 @@ body:
       label: Platform
       options:
         - Android (APK)
-        - Both
+        - N/A
     validations:
       required: true
 
@@ -52,7 +52,7 @@ body:
       label: Steps to reproduce
       description: How can we reproduce this? Include the tool input if possible (redact sensitive values).
       placeholder: |
-        1. Tool: android_secrets_scanner
+        1. Tool: apk_scan_secrets
         2. Input: apk_path = "/path/to/app.apk"
         3. Output: ...
     validations:
@@ -62,7 +62,7 @@ body:
     id: version
     attributes:
       label: Package version
-      placeholder: "e.g. 1.0.0 — run: npm list mobile-re-mcp"
+      placeholder: "e.g. 1.4.0 — run: pip show android-re-mcp"
     validations:
       required: true
 

@@ -16,8 +16,7 @@
 <!-- How did you test this? Describe the APK used (redact sensitive info). -->
 
 - [ ] Tested against a real APK
-- [ ] `npm run build` passes with no TypeScript errors
-- [ ] `ruff check python` and `pytest python/tests` pass (if you touched the Python server)
+- [ ] `ruff check python` and `pytest python/tests` pass
 
 ## Checklist
 

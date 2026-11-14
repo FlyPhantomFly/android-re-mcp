@@ -44,6 +44,18 @@ client configs.
   now reads Android APKs only — matching its static Android tools moving into
   the Python package this release (see the phase-2 note in
   docs/code-review-and-extensions.md).
+- the npm server itself. With all five static Android tools ported (E-PY-10…14),
+  the TypeScript half is deleted: `src/`, `test/`, `package.json` +
+  `package-lock.json`, `tsconfig.json`, `test-tools.mjs`, the npm publish
+  workflow, the reusable-analyze workflow it backed, the Node CI matrix and
+  version-match job, the npm Dependabot ecosystem, and `node_modules`/
+  `dist` artifacts. CI is now pytest + ruff on Python 3.11/3.13; the publish
+  pipeline is PyPI-only (`publish-pypi.yml`). README documents the retirement
+  and points installers at `pip install "android-re-mcp[all]"`; CONTRIBUTING
+  is rewritten PyPI-only; the bug-report template lists Python tool names;
+  SECURITY's supported-versions table is 1.4.x-only. npm marks the package
+  deprecated:
+  `npm deprecate mobile-re-mcp "consolidated into the Python package (pip install android-re-mcp)"`.
 
 ## [1.3.0] - 2026-11-10
 
