@@ -219,7 +219,7 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `rasp_identify` | vendor fingerprinting (Guardsquare, Arxan, Promon, Zimperium, custom) from APK entry names and apkid | optional apkid |
+| `rasp_identify` | vendor fingerprinting (Guardsquare, Arxan, Promon, Zimperium, custom) from APK entry names and apkid, plus a full native-library inventory: per-ABI ELF listing, known packer/RASP/framework/SDK/runtime identification, stripped/packed section-table signals | optional apkid |
 | `rasp_bypass` | returns a ready Frida script for vendor + protection (root, SSL, Frida detection, integrity, emulator) | nothing |
 
 **Per-target notes (2)** and **Setup (2)**

@@ -698,8 +698,10 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "name": "rasp_identify",
         "description": (
-            "Identify RASP SDK present in the APK "
-            "(Guardsquare, Arxan, Promon, Zimperium, custom)."
+            "Identify RASP/packer protection in the APK (Guardsquare, Arxan, "
+            "Promon, Zimperium, custom) and inventory its native libraries: "
+            "per-ABI ELF listing, known packer/RASP/framework/SDK/runtime "
+            "identification, stripped/packed section-table signals."
         ),
         "inputSchema": {
             "type": "object",

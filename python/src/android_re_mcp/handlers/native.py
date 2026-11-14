@@ -82,6 +82,246 @@ def _filter_interesting_strings(strings: list[str]) -> list[str]:
     return interesting
 
 
+# ---------------------------------------------------------------------------
+# APK-level native inventory (E-PY-14 — port of the npm android_native_libraries)
+# ---------------------------------------------------------------------------
+#
+# Two identification layers, as in npm:
+#   1. a known-library table (packers, RASP/anti-tamper, frameworks, SDKs,
+#      runtimes) matched on the basename;
+#   2. raw ELF header inspection — class/machine, section-header presence
+#      and section-name list. Packers and protectors routinely strip or
+#      merge sections, so shnum = 0 on an unpacked-looking .so is a
+#      protection signal in its own right.
+#
+# Zero new dependencies: the ELF parser is struct-free int.from_bytes over
+# the entry bytes, and the inventory reads the APK through the shared
+# :mod:`apkscan` caps.
+
+# Publicly documented Android native libraries (basename match), ported
+# verbatim from the npm KNOWN_ANDROID_LIBS table (patterns, labels, kinds
+# and per-entry case-insensitivity all preserved).
+_KNOWN_ANDROID_LIBS: list[tuple[re.Pattern[str], str, str]] = [
+    # ── Packers / protectors (dex-shelling, VMP) ──────────────────────────
+    (re.compile(r"^libjiagu", re.I), "Qihoo 360 Jiagu (加固)", "packer"),
+    (re.compile(r"^libDexHelper", re.I), "SecNeo", "packer"),
+    (re.compile(r"^libexecmain|^libexecs?\."), "Ijiami (爱加密)", "packer"),
+    (re.compile(r"^libchaosvmp"), "Naga (娜迦) VMP", "packer"),
+    (re.compile(r"^libddiexec"), "Naga (娜迦)", "packer"),
+    (re.compile(r"^libnesec"), "Naga (娜迦)", "packer"),
+    (re.compile(r"^libshell"), "Tencent Legu (乐固)", "packer"),
+    (re.compile(r"^libtup|^libtos\."), "Tencent Legu (乐固)", "packer"),
+    (re.compile(r"^libSecShell", re.I), "Bangcle (梆梆安全)", "packer"),
+    (re.compile(r"^libDexProtector", re.I), "DexProtector", "packer"),
+    (re.compile(r"^libmobisec", re.I), "Alibaba Mobisec", "packer"),
+    (re.compile(r"^libkwscmm|^libkwssgmain|^libkwslinker"), "KiwiSec (几维安全)", "packer"),
+    # ── RASP / anti-tamper / anti-cheat ──────────────────────────────────
+    (re.compile(r"^libAppGuard", re.I), "AppGuard (INKA Entworks)", "rasp"),
+    (re.compile(r"^libsgmain|^libsgsecuritybody"), "Alibaba SecurityGuard (聚安全)", "rasp"),
+    (re.compile(r"^libtprt", re.I), "Tencent TP (TenProtect)", "rasp"),
+    (re.compile(r"^libnqshield", re.I), "NetQin (网秦)", "rasp"),
+    # ── Frameworks / engines ─────────────────────────────────────────────
+    (re.compile(r"^libflutter"), "Flutter engine", "framework"),
+    (re.compile(r"^libreactnativejni"), "React Native", "framework"),
+    (re.compile(r"^libunity"), "Unity engine", "framework"),
+    (re.compile(r"^libil2cpp"), "Unity IL2CPP", "framework"),
+    (re.compile(r"^libxamarin", re.I), "Xamarin", "framework"),
+    (re.compile(r"^libmono"), "Mono runtime (Xamarin)", "framework"),
+    (re.compile(r"^libgodot"), "Godot engine", "framework"),
+    (re.compile(r"^libQt5"), "Qt", "framework"),
+    # ── SDKs ─────────────────────────────────────────────────────────────
+    (re.compile(r"^libBugly", re.I), "Tencent Bugly (crash reporting)", "sdk"),
+    (re.compile(r"^libjpush", re.I), "JPush (极光推送)", "sdk"),
+    (re.compile(r"^libgetuiext", re.I), "GeTui (个推)", "sdk"),
+    (re.compile(r"^libumeng", re.I), "Umeng (友盟)", "sdk"),
+    # ── Runtimes (benign, useful context) ────────────────────────────────
+    (re.compile(r"^libc\+\+_shared"), "NDK libc++ runtime", "runtime"),
+    (re.compile(r"^libhoudini"), "Intel ARM translation layer", "runtime"),
+    (re.compile(r"^libRSSupport|^librsjni"), "RenderScript support", "runtime"),
+]
+
+_ELF_MACHINES = {3: "x86", 8: "MIPS", 40: "ARM", 62: "x86-64", 183: "ARM64", 243: "RISC-V"}
+_ELF_MAGIC = b"\x7fELF"
+_LIB_ENTRY_RX = re.compile(r"^lib/([^/]+)/([^/]+\.so)$")
+_SECTIONS_CAP = 20
+
+
+def match_known_lib(basename: str) -> dict | None:
+    """The first known-library row whose pattern matches *basename*."""
+    for rx, label, kind in _KNOWN_ANDROID_LIBS:
+        if rx.search(basename):
+            return {"label": label, "kind": kind}
+    return None
+
+
+def inspect_elf(data: bytes) -> dict:
+    """Parse the interesting parts of an ELF header (+ section names).
+
+    Never raises — a non-ELF blob reports ``ok: false``; a truncated
+    header does too (the npm original could throw past its magic check,
+    the port degrades instead).
+    """
+
+    def fail(detail: str) -> dict:
+        return {"ok": False, "detail": detail, "machine": None, "shnum": None,
+                "sections": None, "note": None}
+
+    if len(data) < 0x34 or data[:4] != _ELF_MAGIC:
+        return fail("not an ELF (missing \\x7fELF magic)")
+    ei_class, ei_data = data[4], data[5]
+    is64 = ei_class == 2
+    if not is64 and ei_class != 1:
+        return fail(f"ELF with unknown EI_CLASS {ei_class}")
+    if ei_data != 1:
+        return fail("big-endian ELF is not an Android ABI")
+
+    # Fixed header fields end at 0x40 (ELF64) / 0x34 (ELF32); the npm
+    # original could throw past its length check — the port degrades.
+    header_len = 0x40 if is64 else 0x34
+    if len(data) < header_len:
+        return fail(f"truncated ELF header ({len(data)} < {header_len} bytes)")
+
+    try:
+        e_type = int.from_bytes(data[0x10:0x12], "little")
+        e_machine = int.from_bytes(data[0x12:0x14], "little")
+        machine = _ELF_MACHINES.get(e_machine, f"machine {e_machine}")
+        type_str = {2: "EXEC", 3: "DYN (shared object)"}.get(e_type, f"type {e_type}")
+
+        # Section-header table location differs between ELF32 and ELF64.
+        width = 8 if is64 else 4
+        shoff_off, shentsize_off, shnum_off, shstrndx_off = (
+            (0x28, 0x3A, 0x3C, 0x3E) if is64 else (0x20, 0x2E, 0x30, 0x32)
+        )
+        shoff = int.from_bytes(data[shoff_off:shoff_off + width], "little")
+        shentsize = int.from_bytes(data[shentsize_off:shentsize_off + 2], "little")
+        shnum = int.from_bytes(data[shnum_off:shnum_off + 2], "little")
+        shstrndx = int.from_bytes(data[shstrndx_off:shstrndx_off + 2], "little")
+
+        sections: list[str] | None = None
+        note: str | None = None
+
+        if shoff == 0 or shnum == 0:
+            note = "no section-header table (stripped or packed — common for packer/RASP payloads)"
+        elif shstrndx in (0, 0xFFFF):
+            note = "section headers present but no section-name table"
+        elif shoff + shnum * shentsize <= len(data):
+            str_hdr = shoff + shstrndx * shentsize
+            str_off_field, str_size_field = (0x18, 0x20) if is64 else (0x10, 0x14)
+            str_off = int.from_bytes(data[str_hdr + str_off_field:str_hdr + str_off_field + width], "little")
+            str_size = int.from_bytes(data[str_hdr + str_size_field:str_hdr + str_size_field + width], "little")
+            if str_off + str_size <= len(data):
+                strtab = data[str_off:str_off + str_size]
+                sections = []
+                for i in range(shnum):
+                    base = shoff + i * shentsize
+                    sh_type = int.from_bytes(data[base + 4:base + 8], "little")
+                    if sh_type == 0:
+                        continue  # SHT_NULL carries no real name
+                    name_off = int.from_bytes(data[base:base + 4], "little")
+                    end = strtab.find(b"\x00", name_off)
+                    name = "" if end == -1 else strtab[name_off:end].decode("latin-1")
+                    if name:
+                        sections.append(name)
+        else:
+            note = f"section-header table declares {shnum} entries beyond the file end (malformed or packed)"
+    except IndexError:
+        return fail("truncated ELF header")
+
+    return {
+        "ok": True,
+        "detail": f"ELF {'64' if is64 else '32'}-bit {machine}, {type_str}",
+        "machine": machine,
+        "shnum": shnum,
+        "sections": sections,
+        "note": note,
+    }
+
+
+def apk_native_inventory(apk_path: str) -> dict:
+    """Per-ABI ELF inventory of an APK (the npm tool's whole output).
+
+    Every ``lib/<abi>/*.so`` entry is identified against
+    ``_KNOWN_ANDROID_LIBS`` and ELF-inspected; packer/RASP matches and
+    suspicious ELF layouts surface as ``protection_signals``. Opens the
+    APK through the shared size caps; never raises — a bad APK reports
+    ``{"error": ...}`` so callers can degrade gracefully.
+    """
+    from android_re_mcp.handlers import apkscan  # local: keep native.py import-light
+
+    try:
+        zf = apkscan._open_zip(apk_path)
+    except (apkscan.PayloadTooLarge, zipfile.BadZipFile, OSError) as exc:
+        return {"error": str(exc)}
+
+    notes: list[str] = []
+    by_abi: dict[str, list[dict]] = {}
+    entry_cap = apkscan._env_max_mb(apkscan.ENTRY_CAP_ENV, apkscan.DEFAULT_ENTRY_CAP_MB)
+    try:
+        for info in zf.infolist():
+            match = _LIB_ENTRY_RX.match(info.filename)
+            if not match:
+                continue
+            abi, basename = match.group(1), match.group(2)
+            lib: dict = {
+                "entry": info.filename,
+                "basename": basename,
+                "size": info.file_size,
+                "identified": match_known_lib(basename),
+            }
+            data = apkscan._read_entry(zf, info, entry_cap)
+            if data is None:
+                lib["elf"] = None
+                lib["note"] = f"skipped: above the {entry_cap} MB per-entry cap"
+                notes.append(f"skipped: '{info.filename}' above the per-entry cap")
+            else:
+                elf = inspect_elf(data)
+                lib["elf"] = elf
+                if elf.get("sections") and len(elf["sections"]) > _SECTIONS_CAP:
+                    elf["sections_extra"] = len(elf["sections"]) - _SECTIONS_CAP
+                    elf["sections"] = elf["sections"][:_SECTIONS_CAP]
+                if elf.get("note"):
+                    notes.append(f"{basename}: {elf['note']}")
+            by_abi.setdefault(abi, []).append(lib)
+    finally:
+        zf.close()
+
+    signals: list[str] = []
+    for abi in sorted(by_abi):
+        for lib in by_abi[abi]:
+            known, elf = lib.get("identified"), lib.get("elf")
+            if known and known["kind"] in ("packer", "rasp"):
+                note = elf.get("note") if elf else None
+                signals.append(
+                    f"{lib['basename']}: {known['label']} ({known['kind']})"
+                    + (f" — {note}" if note else "")
+                )
+            elif not known and elf is not None and elf.get("note"):
+                signals.append(
+                    f"{lib['basename']}: unrecognised library with a suspicious "
+                    f"ELF layout — {elf['note']}"
+                )
+
+    counts = {"packer": 0, "rasp": 0, "framework": 0, "sdk": 0, "runtime": 0}
+    identified = 0
+    total = 0
+    for libs in by_abi.values():
+        for lib in libs:
+            total += 1
+            known = lib.get("identified")
+            if known:
+                identified += 1
+                counts[known["kind"]] += 1
+
+    return {
+        "by_abi": {abi: by_abi[abi] for abi in sorted(by_abi)},
+        "no_native_code": total == 0,
+        **({"note": "No lib/<abi>/*.so entries — the APK ships no native code."} if total == 0 else {}),
+        "protection_signals": signals,
+        "summary": {"total": total, "abis": len(by_abi), "identified": identified, **counts},
+        "notes": notes[:5],
+    }
+
+
 class NativeHandler:
     """Native library analysis handler."""
 
