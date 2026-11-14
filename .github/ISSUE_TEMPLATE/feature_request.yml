@@ -14,7 +14,7 @@ body:
       options:
         - New tool
         - New detection pattern (secret / API key)
-        - New library row in native-libraries KNOWN_ANDROID_LIBS
+        - New library row in python/src/android_re_mcp/handlers/native.py `_KNOWN_ANDROID_LIBS`
         - Improvement to existing tool
         - Other
     validations:

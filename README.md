@@ -3,15 +3,13 @@
   <img src="docs/social-preview-light.svg" alt="android-re-mcp" width="100%">
 </picture>
 
-[![npm](https://img.shields.io/npm/v/mobile-re-mcp?color=0ea5e9&label=npm)](https://www.npmjs.com/package/mobile-re-mcp) [![PyPI](https://img.shields.io/pypi/v/android-re-mcp?color=3776ab&label=pypi)](https://pypi.org/project/android-re-mcp/) [![CI](https://img.shields.io/github/actions/workflow/status/FlyPhantomFly/mobile-re-mcp/ci.yml?label=CI)](https://github.com/FlyPhantomFly/mobile-re-mcp/actions) [![MIT](https://img.shields.io/badge/license-MIT-10b981)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/android-re-mcp?color=3776ab&label=pypi)](https://pypi.org/project/android-re-mcp/) [![CI](https://img.shields.io/github/actions/workflow/status/FlyPhantomFly/mobile-re-mcp/ci.yml?label=CI)](https://github.com/FlyPhantomFly/mobile-re-mcp/actions) [![MIT](https://img.shields.io/badge/license-MIT-10b981)](LICENSE)
 
-android-re-mcp is one repo, one brand, and — as of 1.4.0 — one server: the npm half is being retired and its Android tools folded into the Python package.
+android-re-mcp is one repo, one brand, and — as of 1.4.0 — one server. The old npm half (`mobile-re-mcp`) is retired: its static Android tools are folded into the Python package, its iOS tools are gone, and npm shows the package as deprecated.
 
-The **Python server**, published on PyPI as `android-re-mcp` (command `android-re-mcp`), is the live half and the larger of the two, with 61 tools. It drives adb, Frida, mitmproxy, apktool and jadx against a real Android device: decompile an app, hook it, read its traffic, patch it, sign it and install it again. It leads this README.
+The **Python server**, published on PyPI as `android-re-mcp` (command `android-re-mcp`), has 61 tools. It drives adb, Frida, mitmproxy, apktool and jadx against a real Android device: decompile an app, hook it, read its traffic, patch it, sign it and install it again.
 
-The **npm server**, published on npm as `mobile-re-mcp` (command `mobile-re-mcp`), is the file-reading half being retired in 1.4.0: its static Android tools move into the Python package, its iOS tools are dropped, and it will be deprecated on npm. It is described [further down](#the-npm-server) until then.
-
-You ask in plain language, the assistant calls the right tool, and the findings come back. Both packages share a version number, and you can install either one without the other.
+You ask in plain language, the assistant calls the right tool, and the findings come back.
 
 ---
 
@@ -51,8 +49,6 @@ It needs Python 3.11 or newer. The base install is just the MCP server. The extr
 If Frida is already pinned in your environment, install without extras and the server will not touch it.
 
 `--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0 and Il2CppDumper 6.7.46 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
-
-The command is `android-re-mcp`, so it does not clash with the npm package's `android-re-mcp`.
 
 ### Connect it
 
@@ -259,127 +255,23 @@ This server runs commands on your phone and your computer, so treat its tools wi
 
 ---
 
-## The npm server
+## The npm server (retired)
 
-The npm package is deliberately the opposite temperament: it never runs the app, never touches a device. It reads an APK and tells your assistant what is inside — a natural first step before the Python server. Its iOS tools are gone as of 1.4.0 (this package is being retired; the static Android tools live on in the Python package).
+The npm package `mobile-re-mcp` was retired in 1.4.0. Its static Android tools live on in this package — `manifest_parse` covers the manifest and permission checks, `apk_scan_secrets` the secret scan, plus `apk_diff`, `android_api_extractor` and `android_google_services` — and its iOS tools are gone.
 
-### An example
-
-The sample below is an APK made for this README: a small notes app with a few deliberate mistakes in it. You ask:
-
-> Check /home/me/apks/NotesDemo.apk for anything risky.
-
-The assistant runs the manifest analyzer, the permissions checker and the secrets scanner. The output is trimmed here, and key values are masked:
-
-```text
-=== Android Manifest Analysis ===
-Package Name : com.example.notes
-Version Name : 2.3.1
---- Security Flags ---
-  debuggable          : TRUE  ⚠ DANGER
-  allowBackup         : TRUE  ⚠ WARNING
-  usesCleartextTraffic: TRUE  ⚠ DANGER
---- Exported Components (android:exported="true") ---
-  ⚠ 5 exported component(s):
-    - com.example.notes.MainActivity (activity)
-    - com.example.notes.ShareActivity (activity)
-    - com.example.notes.SyncService (service)
-    - com.example.notes.BootReceiver (receiver)
-    - com.example.notes.NotesProvider (provider)
-```
-```text
-=== APK Permissions Analysis ===
---- Dangerous Permissions (4) ---
-  ⚠ android.permission.CAMERA
-  ⚠ android.permission.ACCESS_FINE_LOCATION
-  ⚠ android.permission.READ_CONTACTS
-  ⚠ android.permission.WRITE_EXTERNAL_STORAGE
-```
-```text
-=== Android Secrets Scanner ===
-[CRITICAL] AWS Access Key ID
-  → AKIA…DEMO
-⚠ 1 CRITICAL finding(s) — immediate review required.
-```
-From there you can keep talking: "Which of those exported components can I drop?" The assistant already has the findings and can answer.
-![Demo recording](docs/demo.gif)
-
-### Install
+npm marks the package deprecated with a pointer here. Install this package instead:
 
 ```bash
-npm install -g mobile-re-mcp
+pip install "android-re-mcp[all]"
 ```
 
-You need Node 22 or newer. The server speaks MCP over stdio, so register it with your client as a command.
-
-Claude Code:
-
-```bash
-claude mcp add mobile-re -- npx -y mobile-re-mcp
-```
-
-opencode, in `~/.config/opencode/opencode.json`:
-
-```json
-{
-  "mcp": {
-    "mobile-re": { "type": "local", "command": ["npx", "-y", "mobile-re-mcp"], "enabled": true }
-  }
-}
-```
-
-Claude Desktop, in `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`, Windows: `%APPDATA%\Claude\`):
-
-```json
-{
-  "mcpServers": {
-    "mobile-re": { "command": "npx", "args": ["-y", "mobile-re-mcp"] }
-  }
-}
-```
-
-Other clients work the same way: command `npx`, arguments `-y mobile-re-mcp`. If your client cannot see your shell's PATH (common with nvm), give it the full path to `node` and to `dist/index.js` in the global install.
-To run from a checkout, use `git clone https://github.com/FlyPhantomFly/mobile-re-mcp.git`, then `npm ci && npm run build`, and point the client at `node /path/to/mobile-re-mcp/dist/index.js`.
-
-### What to ask
-
-- "Which permissions in /path/to/app.apk are dangerous, and why?"
-- "Are any components in this APK exported where an attacker could reach them?"
-- "What API endpoints does this APK call?"
-- "Which Firebase project does this app use, and are its keys in the app?"
-
-### Tools
-
-Every tool takes the file as an absolute path, `apk_path`.
-
-| Tool | What it reports | Needs |
-| --- | --- | --- |
-| `apk_manifest_analyzer` | Package info, `debuggable` and `allowBackup` flags, exported components, intent filters | `aapt`, or `apktool` |
-| `apk_permissions_checker` | Permissions split into dangerous and normal, with a short reason for each | `aapt` or `aapt2`, or `apktool` |
-| `android_api_extractor` | Retrofit endpoints and OkHttp fields from decompiled smali, as text or a Postman collection | `apktool`, or a smali folder you already have |
-| `android_google_services` | Firebase and Google Cloud settings from `google-services.json` and `resources.arsc` | `strings` |
-| `android_secrets_scanner` | Hardcoded keys and credentials in DEX files, resources and assets | `strings` |
-| `android_native_libraries` | Every `lib/<abi>/*.so` with known packer/RASP/framework/SDK matches and ELF section inspection | nothing |
-| `apk_diff` | Two builds side by side: identity/SDK levels, flags, permission and exported-component deltas, native-library changes (sha256), secret deltas, archive inventory | `aapt`/`aapt2` for the manifest sections, `strings` for secrets |
-
-Some tools take extra options. `smali_folder` lets the Android tools reuse an existing decompile. `android_api_extractor` also takes `output_format` (`txt` or `postman`). The scanners take `min_length`. `apk_diff` takes `skip_secrets` to leave the (slower) secret-scan diff out.
-
-`aapt`, `apktool` and `strings` need to be on your PATH. On Windows the tools start without a shell, so `apktool` has to resolve to a real `.exe`, not `apktool.bat`.
-
-### Staying safe
-
-- External programs are started with an argument array, never through a shell, so a crafted path cannot inject a command.
-- The file has to exist, be an absolute path and look like a ZIP (`.apk`).
-- To limit where the server may read, set `MOBILE_RE_MCP_ALLOWED_DIRS` (separate folders with `:`, or `;` on Windows). For example, in the Claude Desktop entry add `"env": { "MOBILE_RE_MCP_ALLOWED_DIRS": "/home/me/apks" }`.
-- Zip-bomb guard: inputs are capped at 2048 MB and any single decompressed entry at 256 MB (`MOBILE_RE_MCP_MAX_FILE_MB` / `MOBILE_RE_MCP_MAX_ENTRY_MB`, `0` disables a cap). A crafted 2 KB APK that expands to 2 GB can no longer OOM the server — oversized entries are reported as `[skipped: …]` where the tool can continue, and oversized inputs fail with a clear message.
-- An untrusted app is hostile input for `apktool`, `aapt` and `strings`. Keep them updated, and for samples you do not trust, run the server in a VM or container.
-- Findings, including any secrets that were found, go to your AI client and so to its model provider.
+Old npm releases stay on npm and in the git history (the server lived under `src/` before 1.4.0).
 
 ---
 
 ## Working on it
 
-Build the npm server with `npm ci && npm run build`; the Python server lives in [`python/`](python) with its own README, config and tests. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to add a tool or a detection pattern, [SECURITY.md](SECURITY.md) is for reporting vulnerabilities, and [CHANGELOG.md](CHANGELOG.md) lists what changed. [docs/code-review-and-extensions.md](docs/code-review-and-extensions.md) documents the current function of both servers, findings from a full review, and the proposed extensions.
+The Python server lives in [`python/`](python) with its own README, config and tests. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to add a tool or a detection pattern, [SECURITY.md](SECURITY.md) is for reporting vulnerabilities, and [CHANGELOG.md](CHANGELOG.md) lists what changed. [docs/code-review-and-extensions.md](docs/code-review-and-extensions.md) documents the current function of the server, findings from a full review, and the proposed extensions.
 
 ## License
 
