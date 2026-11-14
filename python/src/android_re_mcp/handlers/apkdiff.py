@@ -27,38 +27,20 @@ either cap.
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 import zipfile
 from pathlib import Path
 
+from android_re_mcp.handlers import apkscan
+from android_re_mcp.handlers.apkscan import PayloadTooLarge, _env_max_mb, _open_zip, _read_entry
 from android_re_mcp.handlers.static import _load_androguard
 
 _LIST_CAP = 20
-_DEFAULT_MAX_FILE_MB = 2048
-_DEFAULT_MAX_ENTRY_MB = 256
-_MB = 1024 * 1024
 
-_TEXT_ASSET_EXTENSIONS = (".json", ".xml", ".txt", ".properties", ".yaml", ".yml", ".plist")
 _LIB_ENTRY = re.compile(r"^lib/([^/]+)/([^/]+\.so)$")
-_DEX_ENTRY = re.compile(r"^classes\d*\.dex$")
 
 _ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
 _COMPONENT_TAGS = ("activity", "activity-alias", "service", "receiver", "provider")
-
-
-class PayloadTooLarge(ValueError):
-    """Raised when an input or entry exceeds the configured size caps."""
-
-
-def _env_max_mb(name: str, fallback: int) -> int:
-    """Integer MB from env; ``0`` disables; anything else falls back."""
-    raw = os.environ.get(name, "")
-    try:
-        parsed = int(raw)
-    except ValueError:
-        return fallback
-    return parsed if parsed >= 0 else fallback
 
 
 # ── the shared secret-pattern set (parity with the npm patterns.ts) ────────
@@ -98,46 +80,13 @@ _SECRET_PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
 ]
 
 
-def _printable_strings(data: bytes, min_len: int = 8) -> str:
-    """The printable-ASCII runs of *data* (what ``strings -a -n 8`` yields)."""
-    rx = re.compile(rb"[\x20-\x7e]{%d,}" % min_len)
-    return "\n".join(m.group(0).decode("ascii", "ignore") for m in rx.finditer(data))
-
-
-def _open_zip(path: str) -> zipfile.ZipFile:
-    """Open an APK under ANDROID_RE_MCP_MAX_FILE_MB (0 disables)."""
-    cap = _env_max_mb("ANDROID_RE_MCP_MAX_FILE_MB", _DEFAULT_MAX_FILE_MB)
-    if cap:
-        size = Path(path).stat().st_size
-        if size > cap * _MB:
-            raise PayloadTooLarge(
-                f"input file is {size / _MB:.1f} MB, above the {cap} MB cap "
-                f"(raise ANDROID_RE_MCP_MAX_FILE_MB, or set it to 0 to disable the cap)"
-            )
-    try:
-        return zipfile.ZipFile(path)
-    except zipfile.BadZipFile as exc:
-        raise zipfile.BadZipFile(f"cannot open {path} as a zip archive: {exc}") from exc
-
-
-def _read_entry(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> bytes | None:
-    """One entry under ANDROID_RE_MCP_MAX_ENTRY_MB (0 disables); None = skip."""
-    cap = _env_max_mb("ANDROID_RE_MCP_MAX_ENTRY_MB", _DEFAULT_MAX_ENTRY_MB)
-    if cap and (info.file_size > cap * _MB or info.compress_size > cap * _MB):
-        return None
-    try:
-        return zf.read(info)
-    except Exception:  # noqa: BLE001 — corrupt entry: skip, don't fail the diff
-        return None
-
-
-def _native_libs(zf: zipfile.ZipFile, notes: list[str]) -> dict[str, dict]:
+def _native_libs(zf: zipfile.ZipFile, notes: list[str], entry_cap: int) -> dict[str, dict]:
     libs: dict[str, dict] = {}
     for info in zf.infolist():
         match = _LIB_ENTRY.match(info.filename)
         if not match:
             continue
-        data = _read_entry(zf, info)
+        data = _read_entry(zf, info, entry_cap)
         digest: str | None = None
         if data is None:
             notes.append(f"skipped: '{info.filename}' above the per-entry cap")
@@ -152,49 +101,17 @@ def _native_libs(zf: zipfile.ZipFile, notes: list[str]) -> dict[str, dict]:
     return libs
 
 
-def _collect_apk_strings(zf: zipfile.ZipFile, notes: list[str]) -> dict[str, dict]:
+def _collect_apk_strings(
+    zf: zipfile.ZipFile, notes: list[str], entry_cap: int
+) -> dict[str, dict]:
     """Secret-pattern matches over DEX/arsc printable strings and text assets.
 
     Same sources as the npm ``collectRawApkSecrets`` (strings over
     classes*.dex and resources.arsc + text assets), minus the external
-    ``strings`` binary. Matches are deduplicated per pattern, and — like
-    the npm ``scanText`` — only patterns with at least one match are
-    recorded (an empty entry would make the diff report "no changes").
+    ``strings`` binary — this pins the secret-pattern set; the source
+    walk and dedup live in the shared :mod:`apkscan` module.
     """
-    results: dict[str, dict] = {}
-    seen_by_name: dict[str, set[str]] = {}
-
-    def scan(text: str) -> None:
-        for name, rx, risk in _SECRET_PATTERNS:
-            seen = seen_by_name.setdefault(name, set())
-            found: list[str] = []
-            for match in rx.finditer(text):
-                value = (match.group(1) if match.lastindex else match.group(0)).strip()
-                if value and value not in seen:
-                    seen.add(value)
-                    found.append(value)
-            if not found:
-                continue
-            entry = results.get(name)
-            if entry is None:
-                results[name] = {"risk": risk, "matches": found}
-            else:
-                entry["matches"].extend(found)
-
-    for info in zf.infolist():
-        if _DEX_ENTRY.match(info.filename) or info.filename == "resources.arsc":
-            data = _read_entry(zf, info)
-            if data is None:
-                notes.append(f"skipped: '{info.filename}' above the per-entry cap")
-                continue
-            scan(_printable_strings(data))
-        elif info.filename.startswith("assets/") and info.filename.endswith(_TEXT_ASSET_EXTENSIONS):
-            data = _read_entry(zf, info)
-            if data is None:
-                notes.append(f"skipped: '{info.filename}' above the per-entry cap")
-                continue
-            scan(data.decode("utf-8", "ignore"))
-    return results
+    return apkscan.scan_zip(zf, _SECRET_PATTERNS, entry_cap, notes)
 
 
 def _secret_delta(
@@ -292,6 +209,7 @@ class ApkDiffHandler:
 
         notes: list[str] = []
         output: dict = {"old_path": old_path, "new_path": new_path}
+        entry_cap = _env_max_mb(apkscan.ENTRY_CAP_ENV, apkscan.DEFAULT_ENTRY_CAP_MB)
 
         try:
             # ── Manifest-derived facts ──────────────────────────────────
@@ -350,8 +268,8 @@ class ApkDiffHandler:
                 )
 
             # ── Native libraries ────────────────────────────────────────
-            old_libs = _native_libs(old_zip, notes)
-            new_libs = _native_libs(new_zip, notes)
+            old_libs = _native_libs(old_zip, notes, entry_cap)
+            new_libs = _native_libs(new_zip, notes, entry_cap)
             lib_added = sorted(new_libs[n]["abi"] + "/" + new_libs[n]["basename"]
                                for n in new_libs if n not in old_libs)
             lib_changed = sorted(new_libs[n]["abi"] + "/" + new_libs[n]["basename"]
@@ -376,8 +294,8 @@ class ApkDiffHandler:
                 output["secrets"] = {"mode": "skipped"}
             else:
                 try:
-                    old_secrets = _collect_apk_strings(old_zip, notes)
-                    new_secrets = _collect_apk_strings(new_zip, notes)
+                    old_secrets = _collect_apk_strings(old_zip, notes, entry_cap)
+                    new_secrets = _collect_apk_strings(new_zip, notes, entry_cap)
                     new_only, changed, old_only = _secret_delta(old_secrets, new_secrets)
                     output["secrets"] = {
                         "mode": "scanned",
