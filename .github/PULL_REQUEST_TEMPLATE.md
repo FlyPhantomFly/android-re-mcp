@@ -7,16 +7,15 @@
 - [ ] Bug fix
 - [ ] New tool
 - [ ] New detection pattern
-- [ ] Framework addition (`ios_frameworks_detector`)
+- [ ] Known-library addition (`native-libraries.ts` KNOWN_ANDROID_LIBS)
 - [ ] Documentation
 - [ ] Refactor / cleanup
 
 ## Testing
 
-<!-- How did you test this? Describe the APK/IPA used (redact sensitive info). -->
+<!-- How did you test this? Describe the APK used (redact sensitive info). -->
 
 - [ ] Tested against a real APK
-- [ ] Tested against a real IPA
 - [ ] `npm run build` passes with no TypeScript errors
 - [ ] `ruff check python` and `pytest python/tests` pass (if you touched the Python server)
 

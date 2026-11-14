@@ -174,8 +174,8 @@ export type ScanResults = Map<string, { def: PatternDef; matches: string[] }>;
 /**
  * Merge *results* into *target*, deduplicating matches.
  *
- * Used by the Android and iOS secret scanners, which previously carried
- * two drifted copies of this closure. Deduplication is Set-based, not the
+ * Used by the secret scanners, which previously carried
+ * drifted copies of this closure. Deduplication is Set-based, not the
  * old O(n²) includes() over a growing array.
  */
 export function mergeScanResults(target: ScanResults, results: ScanResults): void {

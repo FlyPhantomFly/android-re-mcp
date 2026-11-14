@@ -33,6 +33,18 @@ client configs.
 - `manifest_parse` extended with `categorize_permissions: true` (E-PY-13, the npm permissions-checker port): adds `permission_categorization` — the dangerous/normal split with a per-permission reason and npm's risk-summary lines (toll fraud, tracking, covert recording, arbitrary APK installs). The `dangerous_permissions` set grows from 12 hand-picked grants to the npm tool's 40-name triage taxonomy verbatim (runtime-dangerous plus install-time/signature grants worth triage), now matched on the short name like npm (bare `READ_SMS` counts, custom namespaces don't). Without the flag the output is unchanged. Verified live: notesdemo categorizes 4 dangerous + 1 normal with reasons and two summary lines; TermuxBoot reports 0 dangerous / 2 normal / empty summary.
 - `rasp_identify` extended with the npm `android_native_libraries` tool folded in (E-PY-14, no new tool): every `lib/<abi>/*.so` entry is inventoried per ABI and ELF-inspected — class/machine/type, section-header presence and section names — with the npm known-library table ported verbatim (31 rows: packers, RASP, frameworks, SDKs, runtimes). Packer/RASP basename hits join the tool's `detected` list under their product label, and stripped/packed section tables or unrecognised suspicious ELF layouts surface as `protection_signals`. Zero new dependencies (hand-rolled ELF header parse; the npm original could throw past its length check, the port degrades instead). Verified live: TiviMate's 24 `.so` files across 4 ABIs identify `libdexprotector.so` as DexProtector (packer) everywhere, flipping the tool to protection tier `enterprise`; a no-native-code APK reports the npm wording honestly.
 
+
+### Removed (npm)
+- the iOS half of the npm server: all seven `ios_*` tools
+  (`ios_manifest_analyzer`, `ios_permissions_checker`, `ios_entitlements_checker`,
+  `ios_binary_strings`, `ios_frameworks_detector`, `ios_google_services`,
+  `ios_secrets_scanner`), `src/tools/ios/` with its shared `extract-binary.ts`,
+  the `plist`/`@types/plist` dependencies, and every iOS/ipa reference in the
+  README, CONTRIBUTING, issue/PR templates and CI workflow. The npm package
+  now reads Android APKs only — matching its static Android tools moving into
+  the Python package this release (see the phase-2 note in
+  docs/code-review-and-extensions.md).
+
 ## [1.3.0] - 2026-11-10
 
 This release is the rebuild pass documented in
