@@ -44,6 +44,7 @@ from android_re_mcp.handlers.patcher import PatcherHandler
 from android_re_mcp.handlers.rasp import RaspHandler
 from android_re_mcp.handlers.signing import SigningHandler
 from android_re_mcp.handlers.apkdiff import ApkDiffHandler
+from android_re_mcp.handlers.apiextractor import ApiExtractorHandler
 from android_re_mcp.handlers.static import StaticHandler
 from android_re_mcp.setup.check_tools import check_all_tools
 from android_re_mcp.setup.install_tool import install_tool as _install_tool
@@ -139,6 +140,29 @@ TOOL_SCHEMAS: list[dict] = [
                 },
             },
             "required": ["old_path", "new_path"],
+        },
+    },
+    {
+        "name": "android_api_extractor",
+        "description": (
+            "Extract Retrofit HTTP annotations and OkHttp3 fields from smali "
+            "(decompiles with apktool when given apk_path; or reads an "
+            "existing smali_dir). output_format=txt or postman."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "apk_path": {"type": "string", "description": "Absolute path to the APK (decompiled with apktool)"},
+                "smali_dir": {
+                    "type": "string",
+                    "description": "Absolute path to an existing apktool decompile (skips the apktool step)",
+                },
+                "output_format": {
+                    "type": "string",
+                    "enum": ["txt", "postman"],
+                    "description": "Structured endpoint list, or a ready-to-import Postman v2.1 collection (default txt)",
+                },
+            },
         },
     },
     {
@@ -1070,6 +1094,7 @@ def create_server() -> Server:
     # Instantiate stateful handlers
     static = StaticHandler()
     apkdiff = ApkDiffHandler()
+    apiextractor = ApiExtractorHandler()
     dynamic = DynamicHandler()
     rasp = RaspHandler()
     device = DeviceHandler()
@@ -1089,6 +1114,7 @@ def create_server() -> Server:
         "apk_scan_secrets": static.apk_scan_secrets,
         "apk_analyze_full": static.apk_analyze_full,
         "apk_diff": apkdiff.apk_diff,
+        "android_api_extractor": apiextractor.android_api_extractor,
         "quark_scan": static.quark_scan,
         "manifest_parse": static.manifest_parse,
         "search_strings": static.search_strings,
