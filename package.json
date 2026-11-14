@@ -1,7 +1,7 @@
 {
   "name": "mobile-re-mcp",
   "version": "1.4.0",
-  "description": "Mobile app security analysis MCP server for Android APK and iOS IPA files",
+  "description": "Android APK security analysis MCP server",
   "bin": {
     "mobile-re-mcp": "dist/index.js"
   },
@@ -24,9 +24,7 @@
     "model-context-protocol",
     "mobile-security",
     "android",
-    "ios",
     "apk",
-    "ipa",
     "security",
     "pentest",
     "reverse-engineering",
@@ -49,13 +47,11 @@
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
     "adm-zip": "^0.6.0",
-    "plist": "^3.1.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.0.0",
     "@types/node": "^26.6.6",
-    "@types/plist": "^3.0.5",
     "typescript": "^7.0.2"
   },
   "engines": {

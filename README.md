@@ -261,7 +261,7 @@ This server runs commands on your phone and your computer, so treat its tools wi
 
 ## The npm server
 
-The npm package is deliberately the opposite temperament: it never runs the app, never touches a device, and works on both platforms. It reads an APK or IPA and tells your assistant what is inside — a natural first step before the Python server, and the only half with iOS support (best on a Mac, where `plutil` and `codesign` live).
+The npm package is deliberately the opposite temperament: it never runs the app, never touches a device. It reads an APK and tells your assistant what is inside — a natural first step before the Python server. Its iOS tools are gone as of 1.4.0 (this package is being retired; the static Android tools live on in the Python package).
 
 ### An example
 
@@ -301,7 +301,7 @@ Version Name : 2.3.1
   → AKIA…DEMO
 ⚠ 1 CRITICAL finding(s) — immediate review required.
 ```
-From there you can keep talking: "Which of those exported components can I drop?" The assistant already has the findings and can answer. iOS works the same way with an IPA and the `ios_*` tools.
+From there you can keep talking: "Which of those exported components can I drop?" The assistant already has the findings and can answer.
 ![Demo recording](docs/demo.gif)
 
 ### Install
@@ -347,12 +347,10 @@ To run from a checkout, use `git clone https://github.com/FlyPhantomFly/mobile-r
 - "Are any components in this APK exported where an attacker could reach them?"
 - "What API endpoints does this APK call?"
 - "Which Firebase project does this app use, and are its keys in the app?"
-- "Scan this IPA for hardcoded keys and tell me where each one was found."
-- "Which third-party SDKs does this iOS app bundle, and which of them track users?"
 
 ### Tools
 
-Every tool takes the file as an absolute path, `apk_path` for Android or `ipa_path` for iOS.
+Every tool takes the file as an absolute path, `apk_path`.
 
 | Tool | What it reports | Needs |
 | --- | --- | --- |
@@ -363,22 +361,15 @@ Every tool takes the file as an absolute path, `apk_path` for Android or `ipa_pa
 | `android_secrets_scanner` | Hardcoded keys and credentials in DEX files, resources and assets | `strings` |
 | `android_native_libraries` | Every `lib/<abi>/*.so` with known packer/RASP/framework/SDK matches and ELF section inspection | nothing |
 | `apk_diff` | Two builds side by side: identity/SDK levels, flags, permission and exported-component deltas, native-library changes (sha256), secret deltas, archive inventory | `aapt`/`aapt2` for the manifest sections, `strings` for secrets |
-| `ios_manifest_analyzer` | Bundle info, ATS settings, URL schemes, background modes, warnings | `plutil` for binary plists |
-| `ios_permissions_checker` | Privacy permission strings ranked HIGH, MEDIUM or LOW | `plutil` for binary plists |
-| `ios_entitlements_checker` | Entitlements, with flags like `get-task-allow` and sandbox exceptions | `codesign` (macOS) |
-| `ios_binary_strings` | URLs, emails, IPs and key-like strings from the Mach-O binary | `strings` |
-| `ios_frameworks_detector` | Bundled frameworks and dylibs, matched against about 60 known SDKs | nothing |
-| `ios_google_services` | The contents of `GoogleService-Info.plist` | `plutil` for binary plists |
-| `ios_secrets_scanner` | Secrets in resource files and in the binary, with severity | `strings` |
 
-Some tools take extra options. `smali_folder` lets the Android tools reuse an existing decompile. `android_api_extractor` also takes `output_format` (`txt` or `postman`). The scanners take `min_length`, and `ios_binary_strings` takes `filter` (`all`, `url`, `key`, `email` or `ip`). `apk_diff` takes `skip_secrets` to leave the (slower) secret-scan diff out.
+Some tools take extra options. `smali_folder` lets the Android tools reuse an existing decompile. `android_api_extractor` also takes `output_format` (`txt` or `postman`). The scanners take `min_length`. `apk_diff` takes `skip_secrets` to leave the (slower) secret-scan diff out.
 
-`aapt`, `apktool`, `strings` and `plutil` need to be on your PATH. `plutil` and `codesign` only exist on macOS. Most real IPAs use binary plists, so on Linux the plist-based iOS tools only work on IPAs with XML plists, and the full iOS set is best run on a Mac. On Windows the tools start without a shell, so `apktool` has to resolve to a real `.exe`, not `apktool.bat`.
+`aapt`, `apktool` and `strings` need to be on your PATH. On Windows the tools start without a shell, so `apktool` has to resolve to a real `.exe`, not `apktool.bat`.
 
 ### Staying safe
 
 - External programs are started with an argument array, never through a shell, so a crafted path cannot inject a command.
-- The file has to exist, be an absolute path and look like a ZIP (`.apk` or `.ipa`).
+- The file has to exist, be an absolute path and look like a ZIP (`.apk`).
 - To limit where the server may read, set `MOBILE_RE_MCP_ALLOWED_DIRS` (separate folders with `:`, or `;` on Windows). For example, in the Claude Desktop entry add `"env": { "MOBILE_RE_MCP_ALLOWED_DIRS": "/home/me/apks" }`.
 - Zip-bomb guard: inputs are capped at 2048 MB and any single decompressed entry at 256 MB (`MOBILE_RE_MCP_MAX_FILE_MB` / `MOBILE_RE_MCP_MAX_ENTRY_MB`, `0` disables a cap). A crafted 2 KB APK that expands to 2 GB can no longer OOM the server — oversized entries are reported as `[skipped: …]` where the tool can continue, and oversized inputs fail with a clear message.
 - An untrusted app is hostile input for `apktool`, `aapt` and `strings`. Keep them updated, and for samples you do not trust, run the server in a VM or container.

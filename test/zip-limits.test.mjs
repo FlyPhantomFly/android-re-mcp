@@ -68,7 +68,7 @@ test("checkPayloadSize throws above the input cap with a clear error", () => {
 });
 
 test("openZip wraps corrupt archives in a normalized error", () => {
-  const p = tmpZipFile("broken.ipa");
+  const p = tmpZipFile("broken.apk");
   fs.writeFileSync(p, "PK\x03\x04but-not-a-zip");
   assert.throws(() => zip.openZip(p), /cannot open .* as a zip archive/);
 });

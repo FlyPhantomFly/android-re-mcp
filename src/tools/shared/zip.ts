@@ -3,13 +3,13 @@ import AdmZip from "adm-zip";
 import type { IZipEntry } from "adm-zip";
 
 /**
- * Size-limited, failure-normalized zip access shared by every APK/IPA tool.
+ * Size-limited, failure-normalized zip access shared by every APK tool.
  *
  * Why this exists (F-NPM-4): adm-zip's entry.getData() fully decompresses
  * before any size check — a crafted, small, highly compressed archive can
  * OOM the server. Caps come from env so a user can tune them:
  *
- *   MOBILE_RE_MCP_MAX_FILE_MB   input APK/IPA cap (default 2048)
+ *   MOBILE_RE_MCP_MAX_FILE_MB   input APK cap (default 2048)
  *   MOBILE_RE_MCP_MAX_ENTRY_MB  one decompressed entry cap (default 256)
  *
  * A value of 0 disables the corresponding cap.
@@ -43,7 +43,7 @@ export class PayloadTooLargeError extends Error {
   }
 }
 
-/** Refuse an obviously oversized input APK/IPA before touching the zip. */
+/** Refuse an obviously oversized input APK before touching the zip. */
 export function checkPayloadSize(filePath: string): void {
   const capMb = maxFileMb();
   if (capMb <= 0) return;
@@ -61,7 +61,7 @@ export function checkPayloadSize(filePath: string): void {
   }
 }
 
-/** Open an APK/IPA with a normalized error message. */
+/** Open an APK with a normalized error message. */
 export function openZip(filePath: string): AdmZip {
   checkPayloadSize(filePath);
   try {

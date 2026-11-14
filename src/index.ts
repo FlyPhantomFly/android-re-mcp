@@ -11,13 +11,6 @@ import { androidGoogleServices } from "./tools/android/google-services.js";
 import { androidSecretsScanner } from "./tools/android/secrets-scanner.js";
 import { androidNativeLibraries } from "./tools/android/native-libraries.js";
 import { apkDiff } from "./tools/android/apk-diff.js";
-import { iosManifestAnalyzer } from "./tools/ios/manifest-analyzer.js";
-import { iosPermissionsChecker } from "./tools/ios/permissions-checker.js";
-import { iosEntitlementsChecker } from "./tools/ios/entitlements-checker.js";
-import { iosBinaryStrings } from "./tools/ios/binary-strings.js";
-import { iosFrameworksDetector } from "./tools/ios/frameworks-detector.js";
-import { iosGoogleServices } from "./tools/ios/google-services.js";
-import { iosSecretsScanner } from "./tools/ios/secrets-scanner.js";
 
 // Single source of truth for the version: package.json (always shipped in the npm package).
 const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
@@ -92,70 +85,6 @@ function createServer(): McpServer {
       inputSchema: z.object(apkDiff.schema),
     },
     apkDiff.handler
-  );
-
-  // iOS tools
-  server.registerTool(
-    "ios_manifest_analyzer",
-    {
-      description: iosManifestAnalyzer.description,
-      inputSchema: z.object(iosManifestAnalyzer.schema),
-    },
-    iosManifestAnalyzer.handler
-  );
-
-  server.registerTool(
-    "ios_permissions_checker",
-    {
-      description: iosPermissionsChecker.description,
-      inputSchema: z.object(iosPermissionsChecker.schema),
-    },
-    iosPermissionsChecker.handler
-  );
-
-  server.registerTool(
-    "ios_entitlements_checker",
-    {
-      description: iosEntitlementsChecker.description,
-      inputSchema: z.object(iosEntitlementsChecker.schema),
-    },
-    iosEntitlementsChecker.handler
-  );
-
-  server.registerTool(
-    "ios_binary_strings",
-    {
-      description: iosBinaryStrings.description,
-      inputSchema: z.object(iosBinaryStrings.schema),
-    },
-    iosBinaryStrings.handler
-  );
-
-  server.registerTool(
-    "ios_frameworks_detector",
-    {
-      description: iosFrameworksDetector.description,
-      inputSchema: z.object(iosFrameworksDetector.schema),
-    },
-    iosFrameworksDetector.handler
-  );
-
-  server.registerTool(
-    "ios_google_services",
-    {
-      description: iosGoogleServices.description,
-      inputSchema: z.object(iosGoogleServices.schema),
-    },
-    iosGoogleServices.handler
-  );
-
-  server.registerTool(
-    "ios_secrets_scanner",
-    {
-      description: iosSecretsScanner.description,
-      inputSchema: z.object(iosSecretsScanner.schema),
-    },
-    iosSecretsScanner.handler
   );
 
   return server;

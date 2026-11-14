@@ -16,7 +16,7 @@ ruff check python && pytest python/tests
 ```
 
 ## How the TypeScript server is laid out
-`src/index.ts` registers the tools. Each tool lives in its own file under `src/tools/android/` or `src/tools/ios/`, and the shared helpers are in `src/tools/shared/`: `patterns.ts` holds every secret pattern, and `safe-exec.ts` runs external programs and checks input files.
+`src/index.ts` registers the tools. Each tool lives in its own file under `src/tools/android/`, and the shared helpers are in `src/tools/shared/`: `patterns.ts` holds every secret pattern, and `safe-exec.ts` runs external programs and checks input files.
 
 ## Adding a tool
 1. Create `src/tools/<platform>/<tool-name>.ts` and export an object with `description`, `schema` (a plain object of zod fields) and `handler`.
@@ -54,10 +54,10 @@ Add an entry to `SECRET_PATTERNS` in `src/tools/shared/patterns.ts`. Both secret
   description: "My Service API key",
 },
 ```
-Risk is one of `CRITICAL`, `HIGH`, `MEDIUM` or `LOW`. To teach `ios_frameworks_detector` about an SDK, add it to `KNOWN_FRAMEWORKS` in `src/tools/ios/frameworks-detector.ts` with a category and a one-line description.
+Risk is one of `CRITICAL`, `HIGH`, `MEDIUM` or `LOW`. To teach the Android tooling about a known native library (packer, RASP, framework, SDK or runtime), add a row to `KNOWN_ANDROID_LIBS` in `src/tools/android/native-libraries.ts` with a pattern, a label and a kind.
 
 ## Pull requests
-Keep each one to a single change, say what changed and why, and run `npm run build` and the parser tests first. If you touched the Python server, run `ruff check python` and `pytest python/tests` too. If you can, try the change on a real APK or IPA, and leave sensitive details out of what you paste. Add a line to `CHANGELOG.md`.
+Keep each one to a single change, say what changed and why, and run `npm run build` and the parser tests first. If you touched the Python server, run `ruff check python` and `pytest python/tests` too. If you can, try the change on a real APK, and leave sensitive details out of what you paste. Add a line to `CHANGELOG.md`.
 
 ## Releasing
 This part is for maintainers. Both packages share one version number and are published from GitHub Actions through trusted publishing, so no registry tokens are stored in GitHub.

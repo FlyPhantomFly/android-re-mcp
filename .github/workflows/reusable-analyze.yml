@@ -4,11 +4,11 @@ on:
   workflow_call:
     inputs:
       file_path:
-        description: Absolute path to the APK or IPA file on the runner
+        description: Absolute path to the APK file on the runner
         required: true
         type: string
       tool:
-        description: Tool name to run (e.g. apk_manifest_analyzer, ios_secrets_scanner)
+        description: Tool name to run (e.g. apk_manifest_analyzer, android_secrets_scanner)
         required: true
         type: string
       extra_args:
