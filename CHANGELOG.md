@@ -5,9 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.0] - Unreleased
+## [1.4.0] - 2026-11-15
 
 ### Consolidation (PyPI ← npm)
+
+### BREAKING
+
+- Console command renamed **`mobile-re-mcp-py` → `android-re-mcp`** (npm users:
+  `mobile-re-mcp` → `android-re-mcp`). No compatibility alias is provided — MCP
+  client configs, shell scripts and `uvx`/`pipx` invocations that reference the
+  old command must be updated. The Python import package (`android_re_mcp`) is
+  unchanged.
+
 
 The npm server (`mobile-re-mcp`) is retired: its static Android tools are
 ported into the Python package, its iOS tools dropped, and its TypeScript
@@ -28,7 +37,7 @@ upgrading: reinstall under the new name and update the env-var prefix in
 client configs.
 
 ### Added (Python)
-- `apk_diff` — build-vs-build diff ported from the npm tool (E-NPM-4 → E-PY-10): identity/SDK levels, security-flag changes, permission and exported-component deltas, native-library sha256 changes, optional secret deltas and an archive inventory. Zero new dependencies — the manifest section reads through the androguard already shipped by `[static]` (missing extra or an unreadable manifest degrades that section honestly), native libs/secrets/inventory are stdlib-only, the secret scan extracts printable strings from `classes*.dex` / `resources.arsc` / text assets instead of shelling out to `strings(1)`, and the npm size caps carry over (`MOBILE_RE_MCP_MAX_FILE_MB`, `MOBILE_RE_MCP_MAX_ENTRY_MB`). Verified live: identical build reports all-same; two different apps show every delta section; manifest-less fixtures degrade with the real reason.
+- `apk_diff` — build-vs-build diff ported from the npm tool (E-NPM-4 → E-PY-10): identity/SDK levels, security-flag changes, permission and exported-component deltas, native-library sha256 changes, optional secret deltas and an archive inventory. Zero new dependencies — the manifest section reads through the androguard already shipped by `[static]` (missing extra or an unreadable manifest degrades that section honestly), native libs/secrets/inventory are stdlib-only, the secret scan extracts printable strings from `classes*.dex` / `resources.arsc` / text assets instead of shelling out to `strings(1)`, and the npm size caps carry over (`ANDROID_RE_MCP_MAX_FILE_MB`, `ANDROID_RE_MCP_MAX_ENTRY_MB`). Verified live: identical build reports all-same; two different apps show every delta section; manifest-less fixtures degrade with the real reason.
 - `android_api_extractor` — Retrofit/OkHttp endpoint extraction ported from the npm tool (E-NPM-5's subject → E-PY-11): walks a smali tree for `Lretrofit2/http/*` runtime annotation blocks (endpoint = the `value = "..."` entry, whitespace-collapsed body as fallback) and OkHttp3 field declarations, with `output_format` of `txt` (structured lists) or `postman` (a ready-to-import Postman v2.1 collection with every endpoint on a `{{base_url}}` variable). Give it `apk_path` and it decompiles first with the apktool the server already wraps, or point `smali_dir` at an existing decompile to skip that step. One port fix: npm's field pattern required a space before `Lokhttp3/`, which real apktool output (`name:Lokhttp3/Type;`) never matches — the port drops the space so canonical field declarations are found. Verified live: real 21 MB APK decompiled end-to-end through the server (honest zero counts — that app carries no annotations or OkHttp-typed fields), plus a canonical-form smali tree extracting 3 annotations and 2 fields into both formats.
 - `android_google_services` — Google/Firebase config extraction ported from the npm tool (E-PY-12): parses a bundled `google-services.json` (exact `assets/` location first, else any entry whose name ends with it) into project info + per-client package/app-id/API-key/OAuth list; with `smali_dir` it scans `res/values/strings.xml` for the ten well-known Google keys as structured `key = value` pairs; without it, `resources.arsc` goes through the five Google patterns from npm's `patterns.ts` (names + risks verbatim) via zero-dependency printable-string extraction instead of `strings(1)`. Each section degrades honestly on its own. The scan machinery (printable strings, size caps, zip-source walk) moved into a shared `handlers/apkscan.py` used by both `apk_diff` and this tool — `apk_diff` behavior unchanged. Verified live on TiviMate: the arsc scan surfaces the app's real Firebase config (API key, `tivimate-233306.firebaseio.com`, appspot bucket); the strings.xml path honestly reports that this app stores none of the ten keys.
 - `manifest_parse` extended with `categorize_permissions: true` (E-PY-13, the npm permissions-checker port): adds `permission_categorization` — the dangerous/normal split with a per-permission reason and npm's risk-summary lines (toll fraud, tracking, covert recording, arbitrary APK installs). The `dangerous_permissions` set grows from 12 hand-picked grants to the npm tool's 40-name triage taxonomy verbatim (runtime-dangerous plus install-time/signature grants worth triage), now matched on the short name like npm (bare `READ_SMS` counts, custom namespaces don't). Without the flag the output is unchanged. Verified live: notesdemo categorizes 4 dangerous + 1 normal with reasons and two summary lines; TermuxBoot reports 0 dangerous / 2 normal / empty summary.
@@ -76,7 +85,7 @@ hardened against hostile archives, and five new tools.
 - The 7 Java-hooking Frida scripts are rebuilt as `frida-compile` bundles with `frida-java-bridge` compiled in — frida 17 removed the `Java` global from script runtimes, so the raw sources died with `ReferenceError: 'Java' is not defined` on a real device (D-9). `build_bundles.sh` reproduces them from `frida_scripts/src/`.
 
 ### Fixed (npm)
-- Zip-bomb guard: inputs are capped at 2048 MB and single decompressed entries at 256 MB (`MOBILE_RE_MCP_MAX_FILE_MB` / `MOBILE_RE_MCP_MAX_ENTRY_MB`, `0` disables), checked before decompression on every APK/IPA read (F-NPM-4).
+- Zip-bomb guard: inputs are capped at 2048 MB and single decompressed entries at 256 MB (`ANDROID_RE_MCP_MAX_FILE_MB` / `ANDROID_RE_MCP_MAX_ENTRY_MB`, `0` disables), checked before decompression on every APK/IPA read (F-NPM-4).
 - One shared iOS binary extractor and one shared scan-result merge replace three drifting copies each (F-NPM-3).
 - `apk_manifest_analyzer` uses the `aapt2` fallback it could already parse (F-NPM-2).
 - The smoke runner is honest about fixtures and coverage, `npm test` runs the hermetic suite, and the small consistency fixes landed: shared `min_length` default, prefix-only framework matching, DexGuard out of the iOS table, Windows ENOENT hint, dead code removal (F-NPM-1, F-NPM-5, E-NPM-7).
