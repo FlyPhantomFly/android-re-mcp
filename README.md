@@ -3,7 +3,7 @@
   <img src="docs/social-preview-light.svg" alt="android-re-mcp" width="100%">
 </picture>
 
-[![PyPI](https://img.shields.io/pypi/v/android-re-mcp?color=3776ab&label=pypi)](https://pypi.org/project/android-re-mcp/) [![CI](https://img.shields.io/github/actions/workflow/status/FlyPhantomFly/mobile-re-mcp/ci.yml?label=CI)](https://github.com/FlyPhantomFly/mobile-re-mcp/actions) [![MIT](https://img.shields.io/badge/license-MIT-10b981)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/android-re-mcp?color=3776ab&label=pypi)](https://pypi.org/project/android-re-mcp/) [![CI](https://img.shields.io/github/actions/workflow/status/FlyPhantomFly/android-re-mcp/ci.yml?label=CI)](https://github.com/FlyPhantomFly/android-re-mcp/actions) [![MIT](https://img.shields.io/badge/license-MIT-10b981)](LICENSE)
 
 android-re-mcp is one repo, one brand, and — as of 1.4.0 — one server. The old npm half (`mobile-re-mcp`) is retired: its static Android tools are folded into the Python package, its iOS tools are gone, and npm shows the package as deprecated.
 

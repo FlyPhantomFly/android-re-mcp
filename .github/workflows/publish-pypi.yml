@@ -4,7 +4,7 @@ name: Publish to PyPI
 # One-time setup (pypi.org -> Your account -> Publishing -> Add a new pending publisher):
 #   PyPI project name : android-re-mcp
 #   Owner             : FlyPhantomFly
-#   Repository        : mobile-re-mcp
+#   Repository        : android-re-mcp
 #   Workflow filename : publish-pypi.yml
 #   Environment       : pypi
 # These values must match this file exactly.

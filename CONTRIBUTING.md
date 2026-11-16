@@ -3,8 +3,8 @@ Bug reports, new detection patterns and new tools are all welcome. For anything 
 
 ## Setting up
 ```bash
-git clone https://github.com/FlyPhantomFly/mobile-re-mcp.git
-cd mobile-re-mcp
+git clone https://github.com/FlyPhantomFly/android-re-mcp.git
+cd android-re-mcp
 python -m venv .venv && . .venv/bin/activate
 pip install -e "python[dev]"
 ruff check python && pytest python/tests
@@ -34,7 +34,7 @@ Risk is one of `HIGH`, `MEDIUM` or `LOW`. To teach the native-library identifica
 Keep each one to a single change, say what changed and why, and run `ruff check python` and `pytest python/tests` first. If you can, try the change on a real APK, and leave sensitive details out of what you paste. Add a line to `CHANGELOG.md`.
 
 ## Releasing
-This part is for maintainers. The package is published from GitHub Actions through PyPI trusted publishing (OIDC), so no PyPI token is stored in GitHub. For the first release, add a pending publisher on pypi.org under Your account, Publishing (project `android-re-mcp`, owner `FlyPhantomFly`, repository `mobile-re-mcp`, workflow `publish-pypi.yml`, environment `pypi`). In GitHub, create the `pypi` environment under Settings, Environments, and add yourself as a required reviewer.
+This part is for maintainers. The package is published from GitHub Actions through PyPI trusted publishing (OIDC), so no PyPI token is stored in GitHub. For the first release, add a pending publisher on pypi.org under Your account, Publishing (project `android-re-mcp`, owner `FlyPhantomFly`, repository `android-re-mcp`, workflow `publish-pypi.yml`, environment `pypi`). In GitHub, create the `pypi` environment under Settings, Environments, and add yourself as a required reviewer.
 
 For every release:
 1. Update `CHANGELOG.md` and set the `version` in `python/pyproject.toml`. Commit and push.
