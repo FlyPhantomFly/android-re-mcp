@@ -26,6 +26,7 @@ import threading
 from pathlib import Path
 from typing import Any, Optional
 
+from android_re_mcp.handlers.caps import output_cap
 from android_re_mcp.frida_scripts.index import (
     get_categories,
     get_script_content,
@@ -92,6 +93,9 @@ class DynamicHandler:
         self._frida_script: Any = None
         self._output_queue: queue.Queue[str] = queue.Queue()
         self._attached_package: Optional[str] = None
+        # E-PY-15: lines drained from the queue but held back by the
+        # output cap, so a later frida_read_output call can still get them.
+        self._pending_output: list[str] = []
 
     # =========================================================================
     # Original tools
@@ -116,6 +120,7 @@ class DynamicHandler:
             self._frida_session = session
             self._attached_package = package
             self._output_queue = queue.Queue()
+            self._pending_output = []  # E-PY-15: a new session starts clean
 
             result = (
                 self._load_script(script_src, config=script_config)
@@ -174,6 +179,7 @@ class DynamicHandler:
             self._frida_session = session
             self._attached_package = package
             self._output_queue = queue.Queue()
+            self._pending_output = []  # E-PY-15: a new session starts clean
 
             result = (
                 self._load_script(script_src, config=script_config)
@@ -202,17 +208,34 @@ class DynamicHandler:
             return {"status": "error", "tool": "frida", "error": str(exc)}
 
     def frida_read_output(self, args: dict) -> dict:  # noqa: ARG002
-        """Drain buffered Frida output messages."""
-        messages: list[str] = []
+        """Drain buffered Frida output messages.
+
+        Capped per call (ANDROID_RE_MCP_MAX_OUTPUT_LINES, default 200 —
+        E-PY-15): excess lines stay buffered on the handler and a later
+        call drains them, so the drain itself never floods the model
+        context. ``cap = 0`` restores the drain-everything behavior.
+        """
+        pending = self._pending_output
         while True:
             try:
-                messages.append(self._output_queue.get_nowait())
+                pending.append(self._output_queue.get_nowait())
             except queue.Empty:
                 break
+        cap = output_cap()
+        shown = pending if cap <= 0 else pending[:cap]
+        self._pending_output = pending[len(shown):]
+        out: dict = {"messages": shown, "count": len(shown)}
+        if self._pending_output:
+            out["truncated"] = True
+            out["buffered"] = len(self._pending_output)
+            out["hint"] = (
+                f"{len(self._pending_output)} more lines buffered. "
+                "Call frida_read_output again to drain them."
+            )
         return {
             "status": "ok",
             "tool": "frida",
-            "output": {"messages": messages, "count": len(messages)},
+            "output": out,
         }
 
     def frida_detach(self, args: dict) -> dict:  # noqa: ARG002
@@ -226,6 +249,7 @@ class DynamicHandler:
         self._frida_session = None
         self._frida_script = None
         self._attached_package = None
+        self._pending_output = []  # E-PY-15: held-back lines die with the session
         return {"status": "ok", "tool": "frida", "output": {"detached": True}}
 
     def frida_status(self, args: dict) -> dict:  # noqa: ARG002
@@ -467,6 +491,7 @@ class DynamicHandler:
             self._frida_session = session
             self._attached_package = package
             self._output_queue = queue.Queue()
+            self._pending_output = []  # E-PY-15: a new session starts clean
 
             result = (
                 self._load_script(script_src, config=script_config)

@@ -21,6 +21,7 @@ from xml.etree import ElementTree
 
 logger = logging.getLogger(__name__)
 
+from android_re_mcp.handlers.caps import output_cap
 from android_re_mcp.paths import scratch_dir
 
 _TIMEOUT = 120
@@ -225,16 +226,32 @@ class DeviceHandler:
 
     def adb_logcat_read(self, args: dict) -> dict:
         lines_wanted = int(args.get("lines", 100))
+        # E-PY-15: clamp oversized reads to the server-wide output cap
+        # (ANDROID_RE_MCP_MAX_OUTPUT_LINES, default 200); the buffer holds
+        # the rest and the report says how much is still queued.
+        cap = output_cap()
+        clamped = bool(cap and lines_wanted > cap)
+        if clamped:
+            lines_wanted = cap
         lines: list[str] = []
         while len(lines) < lines_wanted:
             try:
                 lines.append(self._logcat_queue.get_nowait())
             except queue.Empty:
                 break
+        out: dict = {"lines": lines, "count": len(lines)}
+        if clamped:
+            out["truncated"] = True
+            out["buffered"] = self._logcat_queue.qsize()
+            out["hint"] = (
+                f"Request exceeded the {cap}-line output cap and was truncated "
+                f"to {cap}. Narrow the capture with the adb_logcat_start filter, "
+                "or raise ANDROID_RE_MCP_MAX_OUTPUT_LINES."
+            )
         return {
             "status": "ok",
             "tool": "adb",
-            "output": {"lines": lines, "count": len(lines)},
+            "output": out,
         }
 
     # ── adb_logcat_stop ────────────────────────────────────────────────────
@@ -256,10 +273,26 @@ class DeviceHandler:
             except queue.Empty:
                 break
 
+        out: dict = {"logcat_stopped": True, "remaining_lines": remaining}
+        # E-PY-15: cap the final buffer too — lines beyond the cap are
+        # dropped (unrecoverable once capture stops), so the report counts
+        # them honestly instead of flooding the model context.
+        cap = output_cap()
+        if cap and len(remaining) > cap:
+            dropped = len(remaining) - cap
+            out["remaining_lines"] = remaining[:cap]
+            out["remaining_count"] = len(remaining)
+            out["dropped"] = dropped
+            out["truncated"] = True
+            out["hint"] = (
+                f"Final buffer exceeded the {cap}-line output cap; {dropped} lines "
+                "dropped (unrecoverable after stop). Call adb_logcat_read before "
+                "stopping next time."
+            )
         return {
             "status": "ok",
             "tool": "adb",
-            "output": {"logcat_stopped": True, "remaining_lines": remaining},
+            "output": out,
         }
 
     # ── hermes_decode ─────────────────────────────────────────────────────
