@@ -28,8 +28,9 @@ frida = ["frida>=16.0.0", "frida-tools>=12.0.0"]
 static = ["androguard>=4.0,<5", "apkid>=2.1.0", "apkleaks>=2.6.0"]
 network = ["mitmproxy>=10.0.0"]
 analysis = ["quark-engine>=23.0.0"]
-all = ["android-re-mcp[frida,static,network,analysis]"]
-dev = ["pytest>=8", "ruff>=0.6", "androguard>=4.0,<5"]
+native = ["capstone>=5.0.0"]
+all = ["android-re-mcp[frida,static,network,analysis,native]"]
+dev = ["pytest>=8", "ruff>=0.6", "androguard>=4.0,<5", "capstone>=5.0.0"]
 
 [project.scripts]
 android-re-mcp = "android_re_mcp.__main__:main"

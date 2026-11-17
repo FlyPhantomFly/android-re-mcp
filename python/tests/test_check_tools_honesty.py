@@ -134,7 +134,7 @@ def test_check_tools_drops_unused_entries(tmp_path, monkeypatch):
     monkeypatch.setenv("PATH", str(tmp_path / "empty"))
     (tmp_path / "empty").mkdir(exist_ok=True)
     tools = ct.check_all_tools()["tools"]
-    for gone in ("fridump", "capstone", "keystone-engine"):
+    for gone in ("fridump", "keystone-engine"):
         assert gone not in tools
 
 
