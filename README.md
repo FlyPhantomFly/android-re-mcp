@@ -7,7 +7,7 @@
 
 android-re-mcp is one repo, one brand, and — as of 1.4.0 — one server. The old npm half (`mobile-re-mcp`) is retired: its static Android tools are folded into the Python package, its iOS tools are gone, and npm shows the package as deprecated.
 
-The **Python server**, published on PyPI as `android-re-mcp` (command `android-re-mcp`), has 61 tools. It drives adb, Frida, mitmproxy, apktool and jadx against a real Android device: decompile an app, hook it, read its traffic, patch it, sign it and install it again.
+The **Python server**, published on PyPI as `android-re-mcp` (command `android-re-mcp`), has 67 tools. It drives adb, Frida, mitmproxy, apktool and jadx against a real Android device: decompile an app, hook it, read its traffic, patch it, sign it and install it again.
 
 You ask in plain language, the assistant calls the right tool, and the findings come back.
 
@@ -17,7 +17,7 @@ You ask in plain language, the assistant calls the right tool, and the findings 
 
 ### What exactly it does
 
-`pip install "android-re-mcp[all]"` gives you an MCP server, started as `android-re-mcp`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **61 tools over one Android target at a time**:
+`pip install "android-re-mcp[all]"` gives you an MCP server, started as `android-re-mcp`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **67 tools over one Android target at a time**:
 
 - **Static work on the APK file itself** — apktool and jadx decompilation, ripgrep searches across the decompiled folder, androguard manifest parsing and bytecode cross-references, apkid packer/obfuscator identification, apkleaks secret scanning, quark-engine behaviour rules (`quark_scan`), and an orchestrator (`apk_analyze_full`) that runs all of those in one call and scores the protection tier.
 - **Dynamic work on a running app** — spawn or attach a process with Frida, inject JavaScript, stream script output back, hook SSL pinning, dump and search process memory, trace storage, crypto and network calls from a built-in script collection you can extend with your own scripts.
@@ -44,6 +44,7 @@ It needs Python 3.11 or newer. The base install is just the MCP server. The extr
 | `[static]` | androguard, apkid, apkleaks | `manifest_parse`, `analyze_code`, `find_crypto_usage`, `find_urls`, `apk_identify`, `apk_scan_secrets`, `apk_analyze_full` |
 | `[network]` | mitmproxy | `mitm_start/stop/read_flows/export_har` |
 | `[analysis]` | quark-engine | `quark_scan` (also a best-effort stage of `apk_analyze_full`) |
+| `[native]` | capstone | `so_xrefs`, `rop_gadgets` |
 | `[all]` | everything above | — |
 
 If Frida is already pinned in your environment, install without extras and the server will not touch it.
@@ -203,6 +204,16 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `native_exports` | exported symbols per library | readelf/nm (or built-in ELF parser) |
 | `native_disasm` | radare2 disassembly of a function (asm, graph or pseudocode) | radare2 |
 | `il2cpp_dump` | Unity: dump.cs + script.json from libil2cpp.so + global-metadata.dat | Il2CppDumper |
+
+**Native ELF security & code search (5)** — the capstone cherry-pick (E-PY-16)
+
+| Tool | What it does | Needs |
+| --- | --- | --- |
+| `elf_checksec` | checksec for an ELF: PIE, NX, RELRO, canary, fortify, RUNPATH | nothing (pure Python) |
+| `so_xrefs` | scan-based xrefs to an address in a .so: branches, adrp+add pairs, movz/movk immediates (literal pools/GOT not followed) | capstone |
+| `rop_gadgets` | ROP gadget search ending in ret/bx/jmp-reg; `depth` bounds runs, `filter` narrows (the cap hint names it) | capstone |
+| `native_crypto_constants` | AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64 alphabets, Blowfish P-array — file offset + VA | nothing |
+| `syscall_lookup` | arm64/x86_64 syscall number ↔ name, bundled from kernel headers | nothing |
 
 **Flutter / Dart (3)**
 

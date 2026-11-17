@@ -248,6 +248,8 @@ def check_all_tools() -> dict:
                              used_by=["quark_scan", "apk_analyze_full"]),
         _check_binary("rg", "--version", hint="Manual install required (ripgrep)",
                       used_by=["search_strings"]),
+        _check_python_module("capstone", hint="pip install capstone (the android-re-mcp[native] extra)",
+                             used_by=["so_xrefs", "rop_gadgets"]),
 
         # ── Dynamic instrumentation ────────────────────────────────────────
         _check_python_module("frida", hint="Run android-re-mcp --setup, or install frida yourself",

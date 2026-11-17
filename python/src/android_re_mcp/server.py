@@ -46,6 +46,7 @@ from android_re_mcp.handlers.signing import SigningHandler
 from android_re_mcp.handlers.apkdiff import ApkDiffHandler
 from android_re_mcp.handlers.apiextractor import ApiExtractorHandler
 from android_re_mcp.handlers.googleservices import GoogleServicesHandler
+from android_re_mcp.handlers.sosec import SoSecHandler
 from android_re_mcp.handlers.static import StaticHandler
 from android_re_mcp.setup.check_tools import check_all_tools
 from android_re_mcp.setup.install_tool import install_tool as _install_tool
@@ -532,6 +533,95 @@ TOOL_SCHEMAS: list[dict] = [
                 "output_dir": {"type": "string"},
             },
             "required": ["apk_path"],
+        },
+    },
+    # ── Native ELF security & code search (E-PY-16) ───────────────────────
+    {
+        "name": "so_xrefs",
+        "description": (
+            "Find code references to an address in a .so file (or an APK's "
+            "lib/<abi>): branch targets, adrp+add pairs and movz/movk "
+            "immediates resolved by a capstone scan — literal pools and "
+            "GOT/PLT indirection are not followed. Needs capstone ([native])."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "so_path": {"type": "string", "description": "Absolute path to a .so file"},
+                "apk_path": {"type": "string", "description": "Absolute path to the APK (uses the largest lib/<abi>/*.so)"},
+                "abi": {"type": "string", "default": "arm64-v8a"},
+                "address": {"type": "string", "description": "Virtual address to look up (hex like 0x12340 or decimal)"},
+            },
+            "required": ["address"],
+        },
+    },
+    {
+        "name": "rop_gadgets",
+        "description": (
+            "Find ROP gadgets (runs ending in ret/bx/jmp-reg/call-reg) in a "
+            ".so file or an APK's lib/<abi>, decoded with capstone. depth "
+            "bounds the run (default 5, max 20), filter narrows by substring "
+            "(the truncation hint names it). Needs capstone ([native])."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "so_path": {"type": "string", "description": "Absolute path to a .so file"},
+                "apk_path": {"type": "string", "description": "Absolute path to the APK (uses the largest lib/<abi>/*.so)"},
+                "abi": {"type": "string", "default": "arm64-v8a"},
+                "depth": {"type": "integer", "default": 5, "description": "Max instructions before the terminator (1-20)"},
+                "filter": {"type": "string", "description": "Only gadgets containing this substring (e.g. 'pop')"},
+            },
+        },
+    },
+    {
+        "name": "elf_checksec",
+        "description": (
+            "checksec for an ELF binary: PIE, NX (PT_GNU_STACK), RELRO "
+            "(PT_GNU_RELRO + BIND_NOW), stack canary and fortify symbols, "
+            "RUNPATH/RPATH — pure Python, no capstone needed."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "so_path": {"type": "string", "description": "Absolute path to a .so file"},
+                "apk_path": {"type": "string", "description": "Absolute path to the APK (uses the largest lib/<abi>/*.so)"},
+                "abi": {"type": "string", "default": "arm64-v8a"},
+            },
+        },
+    },
+    {
+        "name": "native_crypto_constants",
+        "description": (
+            "Locate known crypto constant tables inside a .so (or an APK's "
+            "lib/<abi>): AES s-box/inverse, SHA-256/SHA-512 IVs, SHA-1/MD5 "
+            "magic, MD5 T-table, CRC-32 table, TEA/XTEA delta, Base64 "
+            "alphabets, Blowfish P-array. Pure Python; hits carry file "
+            "offset and virtual address when resolvable."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "so_path": {"type": "string", "description": "Absolute path to a .so file"},
+                "apk_path": {"type": "string", "description": "Absolute path to the APK (uses the largest lib/<abi>/*.so)"},
+                "abi": {"type": "string", "default": "arm64-v8a"},
+            },
+        },
+    },
+    {
+        "name": "syscall_lookup",
+        "description": (
+            "arm64/x86_64 syscall number ↔ name table (bundled from Linux "
+            "kernel headers). Pass number for the exact name, or name for a "
+            "substring search. Pure Python, no capstone needed."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "arch": {"type": "string", "enum": ["arm64", "x86_64"], "default": "arm64"},
+                "number": {"type": "integer", "description": "Exact lookup by syscall number"},
+                "name": {"type": "string", "description": "Substring search by name (e.g. 'openat')"},
+            },
         },
     },
     # ── Flutter / Dart — Gap #2 ────────────────────────────────────────────
@@ -1152,6 +1242,7 @@ def create_server() -> Server:
     memory = MemoryHandler()
     native = NativeHandler()
     flutter = FlutterHandler()
+    sosec = SoSecHandler()
     patcher = PatcherHandler()
 
     # Dispatch table: tool_name → callable(args) → dict
@@ -1221,6 +1312,12 @@ def create_server() -> Server:
         "native_exports": native.native_exports,
         "native_disasm": native.native_disasm,
         "il2cpp_dump": native.il2cpp_dump,
+        # native ELF security & code search (E-PY-16)
+        "so_xrefs": sosec.so_xrefs,
+        "rop_gadgets": sosec.rop_gadgets,
+        "elf_checksec": sosec.elf_checksec,
+        "native_crypto_constants": sosec.native_crypto_constants,
+        "syscall_lookup": sosec.syscall_lookup,
         # flutter (Gap #2)
         "flutter_version": flutter.flutter_version,
         "dart_snapshot_info": flutter.dart_snapshot_info,
