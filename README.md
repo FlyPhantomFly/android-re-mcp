@@ -282,6 +282,31 @@ Old npm releases stay on npm and in the git history (the server lived under `src
 
 ---
 
+## Companion servers
+
+Some capabilities are deliberately kept out of this package and paired with it as separate MCP servers — the token cost stays opt-in per project, and each tool keeps its own release cycle.
+
+**smali-lsp** ([github.com/surendrajat/smali-lsp](https://github.com/surendrajat/smali-lsp)) — a Language-Server-grade smali engine (224 Dalvik opcodes, inheritance-aware indexing) with a built-in MCP mode. It is the semantic layer this package deliberately does not reimplement: references, call graphs, workspace symbol search and — most valuably — `smali_diagnostics`, which reports *what the assembler or verifier would reject after a hand edit*. Wire it into the patching loop so a bad edit fails before `apk_rebuild_sign` burns a rebuild:
+
+```
+apk_decompile → smali_index → smali_patch edits → smali_diagnostics → apk_rebuild_sign
+```
+
+Build it once (JDK 17+, `./gradlew shadowJar`) or grab an upstream release, then register it as its own server — it needs an apktool decompile, which `apk_decompile` already produces (`<name>_apktool/`):
+
+```bash
+claude mcp add smali-lsp -- java -jar /path/to/smali-lsp.jar mcp
+```
+
+```jsonc
+// opencode / Claude Desktop config
+{ "smali-lsp": { "type": "local", "command": ["java", "-jar", "/path/to/smali-lsp.jar", "mcp"], "enabled": true } }
+```
+
+Its 14 tools add roughly 0.7k tokens of catalog when enabled — leave it off for sessions that never touch smali. The native-ELF additions this package made in E-PY-16 (checksec, xrefs, gadgets) came from the same consolidation review; the full capstone server was rejected there (25 tools ≈ +3.2k tokens for mostly duplicative capability) — see `docs/code-review-and-extensions.md`.
+
+---
+
 ## Working on it
 
 The Python server lives in [`python/`](python) with its own README, config and tests. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to add a tool or a detection pattern, [SECURITY.md](SECURITY.md) is for reporting vulnerabilities, and [CHANGELOG.md](CHANGELOG.md) lists what changed. [docs/code-review-and-extensions.md](docs/code-review-and-extensions.md) documents the current function of the server, findings from a full review, and the proposed extensions.
