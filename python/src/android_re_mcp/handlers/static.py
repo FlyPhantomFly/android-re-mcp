@@ -98,36 +98,66 @@ class StaticHandler:
     # ── apk_decompile_java ─────────────────────────────────────────────────
 
     def apk_decompile_java(self, args: dict) -> dict:
-        """[TOOL] jadx decompile to Java."""
-        if not _check_tool("jadx"):
-            return _missing("jadx")
+        """[TOOL] jadx decompile to Java.
 
+        Falls back to apktool when jadx is unavailable: the call still
+        succeeds, the result carries ``engine: "apktool"`` and a note that
+        the output is smali — not Java source — so the caller can react
+        (run ``android-re-mcp --setup`` to install jadx 1.5.6).
+        """
         apk_path = args.get("apk_path", "")
-        out_dir = str(Path(apk_path).with_suffix("")) + "_jadx"
+        if _check_tool("jadx"):
+            out_dir = str(Path(apk_path).with_suffix("")) + "_jadx"
 
-        try:
-            proc = subprocess.run(
-                ["jadx", "-d", out_dir, apk_path],
-                capture_output=True,
-                text=True,
-                timeout=_TIMEOUT_LONG,
-            )
-            if proc.returncode == 0:
+            try:
+                proc = subprocess.run(
+                    ["jadx", "-d", out_dir, apk_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=_TIMEOUT_LONG,
+                )
+                if proc.returncode == 0:
+                    return {
+                        "status": "ok",
+                        "tool": "jadx",
+                        "output": {"out_dir": out_dir, "engine": "jadx"},
+                        "raw": proc.stdout,
+                    }
                 return {
-                    "status": "ok",
+                    "status": "error",
                     "tool": "jadx",
-                    "output": {"out_dir": out_dir},
-                    "raw": proc.stdout,
+                    "error": proc.stderr or proc.stdout,
                 }
+            except subprocess.TimeoutExpired:
+                return {"status": "error", "tool": "jadx", "error": "Timeout after 300s"}
+            except Exception as exc:  # noqa: BLE001
+                return {"status": "error", "tool": "jadx", "error": str(exc)}
+
+        # jadx unavailable — degrade to apktool instead of failing the call
+        if not _check_tool("apktool"):
             return {
-                "status": "error",
+                "status": "missing_tool",
                 "tool": "jadx",
-                "error": proc.stderr or proc.stdout,
+                "error": "neither jadx nor apktool is available on PATH.",
+                "hint": "Run android-re-mcp --setup to install both (jadx 1.5.6, apktool 2.12.1).",
             }
-        except subprocess.TimeoutExpired:
-            return {"status": "error", "tool": "jadx", "error": "Timeout after 300s"}
-        except Exception as exc:  # noqa: BLE001
-            return {"status": "error", "tool": "jadx", "error": str(exc)}
+        result = self.apk_decompile({"apk_path": apk_path})
+        if result.get("status") != "ok":
+            return result
+        return {
+            "status": "ok",
+            "tool": "apk_decompile_java",
+            "output": {
+                **result["output"],
+                "engine": "apktool (jadx unavailable)",
+                "fallback": True,
+                "note": (
+                    "jadx is not installed, so the decompile ran with apktool: "
+                    "the out_dir contains smali + resources, not Java source. "
+                    "Run android-re-mcp --setup to install jadx 1.5.6 for Java output."
+                ),
+            },
+        }
 
     # ── apk_identify ───────────────────────────────────────────────────────
 

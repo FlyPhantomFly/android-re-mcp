@@ -108,7 +108,7 @@ Heavy list outputs are token-conserved (E-PY-15): a search, a strings dump, logc
 | Tool | What it does | Needs |
 | --- | --- | --- |
 | `apk_decompile` | apktool decompile (smali + resources), or resources/smali only via `mode` | apktool |
-| `apk_decompile_java` | jadx decompile to Java source | jadx |
+| `apk_decompile_java` | jadx decompile to Java source; falls back to apktool (smali) when jadx is unavailable, flagged with `engine` + note | jadx (apktool fallback) |
 | `apk_identify` | apkid: packers, obfuscators, compilers, anti-tamper | apkid |
 | `apk_scan_secrets` | apkleaks: hardcoded keys and credentials, report saved as JSON | apkleaks |
 | `apk_analyze_full` | runs apkid + apkleaks + manifest + quark in one call, adds framework guess and protection tier | apkid, apkleaks, androguard, (quark-engine) |
