@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed (Python, unreleased batch 3)
 - `apk_decompile_java` degrades to apktool when jadx is unavailable instead of returning `missing_tool`: the call still succeeds, with `engine: "apktool (jadx unavailable)"`, `fallback: true` and a note that `out_dir` holds smali + resources, not Java source (5 new tests, `tests/test_decompile_fallback.py`). jadx present-but-broken is still an honest error — no silent engine swap on real failures.
+- Review-doc hygiene pass (D-2, D-3): `check_tools` dropped the never-invoked probes (`binwalk`, `apk-mitm`, `frida-compile`, `frida-ps`) and the redundant `frida-tools`-module / `mitmproxy`-binary / `mitmproxy`-module probes; the dead legacy `scripts/android-api-extractor/analyze_apk.py` is deleted. CI pins bumped (checkout@v7, setup-python@v7, upload-artifact@v7, download-artifact@v8) — clears the Node-20 deprecation annotations from the publish runs.
 
 ## [1.4.0] - 2026-11-15
 

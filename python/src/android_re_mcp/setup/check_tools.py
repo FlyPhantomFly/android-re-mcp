@@ -256,12 +256,8 @@ def check_all_tools() -> dict:
                              used_by=["frida_spawn", "frida_attach", "frida_inject", "frida_detach",
                                       "frida_status", "frida_memdump", "frida_find_bytes",
                                       "ssl_kill_switch"]),
-        _check_python_module("frida-tools", "frida_tools", hint="Run android-re-mcp --setup, or install frida-tools yourself",
-                             used_by=[]),
         _check_binary("frida", "--version", hint="Run android-re-mcp --setup, or install frida-tools yourself",
                       used_by=["frida_server_push", "frida_spawn_hluda"]),
-        _check_binary("frida-ps", "--version", hint="Run android-re-mcp --setup, or install frida-tools yourself",
-                      used_by=[]),
         _check_binary("objection", "--version", hint="Run android-re-mcp --setup, or install objection yourself",
                       used_by=["objection_run"]),
 
@@ -292,14 +288,8 @@ def check_all_tools() -> dict:
         # ── Network ────────────────────────────────────────────────────────
         _check_binary("mitmdump", "--version", hint="Run android-re-mcp --setup, or install mitmproxy yourself",
                       used_by=["mitm_start", "mitm_stop", "mitm_read_flows", "mitm_export_har"]),
-        _check_binary("mitmproxy", "--version", hint="Run android-re-mcp --setup, or install mitmproxy yourself",
-                      used_by=[]),
-        _check_python_module("mitmproxy", hint="Run android-re-mcp --setup, or install mitmproxy yourself",
-                             used_by=[]),
 
         # ── Binary analysis / RE (optional) ───────────────────────────────
-        _check_binary("binwalk", "--help", hint="Manual install required",
-                      used_by=[]),
         _check_binary("r2", "--version", hint="Manual install required",
                       used_by=["native_disasm"]),
 
@@ -325,12 +315,6 @@ def check_all_tools() -> dict:
             hint="keytool -genkey ...",
             used_by=["apk_sign", "apk_rebuild_sign"],
         ),
-
-        # ── npm tools (optional) ───────────────────────────────────────────
-        _check_binary("apk-mitm", "--version", hint="Run android-re-mcp --setup, or install apk-mitm yourself",
-                      used_by=[]),
-        _check_binary("frida-compile", "--version", hint="Run android-re-mcp --setup, or install frida-compile yourself",
-                      used_by=[]),
 
         # ── Dynamic frameworks (optional) ─────────────────────────────────
         _check_medusa(),
