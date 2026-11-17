@@ -239,7 +239,12 @@ TOOL_SCHEMAS: list[dict] = [
     },
     {
         "name": "search_strings",
-        "description": "ripgrep search across a decompiled output directory.",
+        "description": (
+            "ripgrep search across a decompiled output directory. Matches "
+            "are capped per call (ANDROID_RE_MCP_MAX_OUTPUT_LINES, default "
+            "200) with the honest total preserved — narrow the pattern for "
+            "full detail."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -299,7 +304,11 @@ TOOL_SCHEMAS: list[dict] = [
     },
     {
         "name": "frida_read_output",
-        "description": "Read buffered output from the active Frida session.",
+        "description": (
+            "Drain buffered output from the active Frida session. Capped "
+            "per call (ANDROID_RE_MCP_MAX_OUTPUT_LINES, default 200); "
+            "excess stays buffered for the next call."
+        ),
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
@@ -459,7 +468,9 @@ TOOL_SCHEMAS: list[dict] = [
         "name": "native_strings",
         "description": (
             "Extract printable strings from a .so file or all .so libs in an APK.\n"
-            "Falls back to pure-Python extraction on Windows (no `strings` binary needed)."
+            "Falls back to pure-Python extraction on Windows (no `strings` binary needed).\n"
+            "Per-lib output is capped (ANDROID_RE_MCP_MAX_OUTPUT_LINES, default 200); "
+            "total_strings stays honest and the hint names the narrowing knobs."
         ),
         "inputSchema": {
             "type": "object",
@@ -813,7 +824,11 @@ TOOL_SCHEMAS: list[dict] = [
     },
     {
         "name": "adb_logcat_read",
-        "description": "Read buffered logcat lines.",
+        "description": (
+            "Read buffered logcat lines. A per-call request is clamped to "
+            "the server-wide output cap (ANDROID_RE_MCP_MAX_OUTPUT_LINES, "
+            "default 200); the report counts what stays buffered."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -823,7 +838,11 @@ TOOL_SCHEMAS: list[dict] = [
     },
     {
         "name": "adb_logcat_stop",
-        "description": "Stop logcat capture and return final buffer.",
+        "description": (
+            "Stop logcat capture and return the final buffer, capped at "
+            "ANDROID_RE_MCP_MAX_OUTPUT_LINES (default 200); the dropped "
+            "remainder is counted honestly (it is unrecoverable after stop)."
+        ),
         "inputSchema": {"type": "object", "properties": {}},
     },
     {

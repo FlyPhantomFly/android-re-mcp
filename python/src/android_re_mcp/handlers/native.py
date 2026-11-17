@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = 120
 _TIMEOUT_LONG = 300
+from android_re_mcp.handlers.caps import cap_items
 from android_re_mcp.paths import scratch_dir, tools_dir
 
 _TOOLS_DIR = tools_dir()
@@ -352,16 +353,25 @@ class NativeHandler:
                     "error": "Provide so_path or apk_path"}
 
         all_results: dict[str, dict] = {}
-
+        # E-PY-15: cap each lib's string list (ANDROID_RE_MCP_MAX_OUTPUT_LINES,
+        # default 200) — total_strings stays honest and the hint names the
+        # narrowing knobs, so a big .so can't flood the model context.
         for so in so_files:
             strings_list = self._extract_strings(so, min_len)
             filtered = _filter_interesting_strings(strings_list) if interesting_only else strings_list
-
-            all_results[so.name] = {
+            shown, info = cap_items(
+                filtered,
+                "raise min_len, set interesting_only=false to widen, or run search_strings over the extracted .so",
+            )
+            entry: dict = {
                 "total_strings": len(strings_list),
-                "shown": len(filtered),
-                "strings": filtered,
+                "shown": len(shown),
+                "strings": shown,
             }
+            if info["truncated"]:
+                entry["truncated"] = True
+                entry["hint"] = info["hint"]
+            all_results[so.name] = entry
 
         return {
             "status": "ok",

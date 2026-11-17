@@ -16,6 +16,8 @@ import logging
 import subprocess
 from pathlib import Path
 
+from android_re_mcp.handlers.caps import cap_items
+
 from android_re_mcp.clitools import find_cli as _find_cli
 
 logger = logging.getLogger(__name__)
@@ -423,10 +425,20 @@ class StaticHandler:
                 except (json.JSONDecodeError, KeyError):
                     continue
 
+            # E-PY-15: cap the returned matches (ANDROID_RE_MCP_MAX_OUTPUT_LINES,
+            # default 200) while keeping the honest total — a broad pattern over
+            # a decompiled folder must not flood the model context.
+            shown, info = cap_items(matches, "narrow the pattern or path")
+            out: dict = {"matches": shown, "total": info["total"]}
+            if info["truncated"]:
+                out["shown"] = info["shown"]
+                out["truncated"] = True
+                out["hint"] = info["hint"]
+
             return {
                 "status": "ok",
                 "tool": "ripgrep",
-                "output": {"matches": matches, "total": len(matches)},
+                "output": out,
             }
         except subprocess.TimeoutExpired:
             return {"status": "error", "tool": "ripgrep", "error": "Timeout after 120s"}
