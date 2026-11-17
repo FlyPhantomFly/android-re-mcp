@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `android_api_extractor`'s description stops overclaiming: the OkHttp side reports detected client-field declarations, not extracted URLs.
 - 15 new hermetic tests (`tests/test_output_caps.py`) and 5 new `android_api_extractor` harvest tests (`tests/test_api_extractor.py`); suite now 155 passed + 1 skipped.
 
+### Added (Python, unreleased batch 2)
+- Native ELF security & code search (E-PY-16, commit `52d697e`), the capstone cherry-pick: five tools in the new `handlers/sosec.py` — `so_xrefs` (scan-based xrefs to an address in a .so: branches, adrp+add pairs, movz/movk immediates), `rop_gadgets` (gadget search with `depth`/`filter`), `elf_checksec` (PIE/NX/RELRO/canary/fortify/RUNPATH, pure Python), `native_crypto_constants` (AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64, Blowfish — file offset + VA), `syscall_lookup` (arm64/x86_64 tables bundled from kernel headers). capstone becomes the optional `[native]` extra (added to `[all]` and `[dev]`); the pure-Python three work without it. All list outputs ride the E-PY-15 caps. Catalog grows 62 → 67 tools (+0.9k schema tokens vs the +3.2k the full capstone server would have added). 18 new hermetic tests (`tests/test_sosec.py`); suite now 173 passed + 1 skipped.
+
 ## [1.4.0] - 2026-11-15
 
 ### Consolidation (PyPI ← npm)
