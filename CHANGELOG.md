@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Docs
 - README: tool counts (67), the E-PY-15 cap notes on the affected tool rows, and a new "Companion servers" section pairing [smali-lsp](https://github.com/surendrajat/smali-lsp) into the patch loop (its `smali_diagnostics` pre-validate hand edits before `apk_rebuild_sign`).
 
+### Changed (Python, unreleased batch 3)
+- `apk_decompile_java` degrades to apktool when jadx is unavailable instead of returning `missing_tool`: the call still succeeds, with `engine: "apktool (jadx unavailable)"`, `fallback: true` and a note that `out_dir` holds smali + resources, not Java source (5 new tests, `tests/test_decompile_fallback.py`). jadx present-but-broken is still an honest error — no silent engine swap on real failures.
+
 ## [1.4.0] - 2026-11-15
 
 ### Consolidation (PyPI ← npm)

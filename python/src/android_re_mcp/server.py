@@ -79,7 +79,12 @@ TOOL_SCHEMAS: list[dict] = [
     },
     {
         "name": "apk_decompile_java",
-        "description": "Decompile APK to Java source using jadx.",
+        "description": (
+            "Decompile APK to Java source using jadx (engine: jadx). When "
+            "jadx is unavailable the call degrades to apktool instead of "
+            "failing: status stays ok with engine \"apktool\" and the out_dir "
+            "holds smali, not Java source."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
