@@ -5,18 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.0] - 2026-11-16
 
 ### Added (Python)
 - `android_api_extractor` gains the E-NPM-5 const-string harvest (commit `8cd2023`): every `const-string`/`const-string/jumbo` literal starting with `http://`/`https://` is deduplicated (across files) and host-grouped via `urlsplit`, returned as a `const_string_urls` block with `total`/`shown`/`truncated` counts, an `oversized_skipped` counter (constants over 2k chars are skipped and counted, not returned) and `by_host` groups capped deterministically at 500 URLs (sorted hosts first). An escaped quote ends the capture with the trailing backslash stripped. Postman mode is unchanged. This answers "what endpoints does this APK call?" for apps that build URLs without Retrofit annotations.
 - Token conservation for heavy outputs (E-PY-15, commit `a44711f`), the android-unidbg-mcp strategy: cap the output, keep the honest total, mark the truncation, end with an actionable narrowing hint. New `handlers/caps.py` exposes the server-wide `ANDROID_RE_MCP_MAX_OUTPUT_LINES` cap (read per call, default 200; `0` restores the uncapped behavior exactly). Wired into the five flood-prone tools: `frida_read_output` (capped drain; excess stays buffered for the next call, reset on new session/detach), `adb_logcat_read` (oversized requests clamped, buffered count reported), `adb_logcat_stop` (final buffer capped, dropped lines counted honestly), `search_strings` (matches capped, total kept), `native_strings` (per-lib cap with the narrowing knobs named). Results under the cap are byte-for-byte identical to before; nothing is cut mid-JSON and secret findings are never silently shortened.
+- Native ELF security & code search (E-PY-16, commit `52d697e`), the capstone cherry-pick: five tools in the new `handlers/sosec.py` — `so_xrefs` (scan-based xrefs to an address in a .so: branches, adrp+add pairs, movz/movk immediates), `rop_gadgets` (gadget search with `depth`/`filter`), `elf_checksec` (PIE/NX/RELRO/canary/fortify/RUNPATH, pure Python), `native_crypto_constants` (AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64, Blowfish — file offset + VA), `syscall_lookup` (arm64/x86_64 tables bundled from kernel headers). capstone becomes the optional `[native]` extra (added to `[all]` and `[dev]`); the pure-Python three work without it. All list outputs ride the E-PY-15 caps. Catalog grows 62 → 67 tools (+0.9k schema tokens vs the +3.2k the full capstone server would have added).
 
 ### Changed (Python)
+- **Behavior note for upgraders:** heavy list outputs are capped per call by default (200 lines, `ANDROID_RE_MCP_MAX_OUTPUT_LINES`); set it to `0` for the exact 1.4.0 behavior.
 - `android_api_extractor`'s description stops overclaiming: the OkHttp side reports detected client-field declarations, not extracted URLs.
-- 15 new hermetic tests (`tests/test_output_caps.py`) and 5 new `android_api_extractor` harvest tests (`tests/test_api_extractor.py`); suite now 155 passed + 1 skipped.
+- 38 new hermetic tests (`tests/test_output_caps.py`, `tests/test_sosec.py`, `tests/test_api_extractor.py`); suite now 173 passed + 1 skipped.
 
-### Added (Python, unreleased batch 2)
-- Native ELF security & code search (E-PY-16, commit `52d697e`), the capstone cherry-pick: five tools in the new `handlers/sosec.py` — `so_xrefs` (scan-based xrefs to an address in a .so: branches, adrp+add pairs, movz/movk immediates), `rop_gadgets` (gadget search with `depth`/`filter`), `elf_checksec` (PIE/NX/RELRO/canary/fortify/RUNPATH, pure Python), `native_crypto_constants` (AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64, Blowfish — file offset + VA), `syscall_lookup` (arm64/x86_64 tables bundled from kernel headers). capstone becomes the optional `[native]` extra (added to `[all]` and `[dev]`); the pure-Python three work without it. All list outputs ride the E-PY-15 caps. Catalog grows 62 → 67 tools (+0.9k schema tokens vs the +3.2k the full capstone server would have added). 18 new hermetic tests (`tests/test_sosec.py`); suite now 173 passed + 1 skipped.
+### Docs
+- README: tool counts (67), the E-PY-15 cap notes on the affected tool rows, and a new "Companion servers" section pairing [smali-lsp](https://github.com/surendrajat/smali-lsp) into the patch loop (its `smali_diagnostics` pre-validate hand edits before `apk_rebuild_sign`).
 
 ## [1.4.0] - 2026-11-15
 
