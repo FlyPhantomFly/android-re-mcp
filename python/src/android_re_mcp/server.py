@@ -146,9 +146,11 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "name": "android_api_extractor",
         "description": (
-            "Extract Retrofit HTTP annotations and OkHttp3 fields from smali "
-            "(decompiles with apktool when given apk_path; or reads an "
-            "existing smali_dir). output_format=txt or postman."
+            "Extract API surface from smali: Retrofit HTTP annotations, "
+            "const-string URLs (deduplicated, host-grouped) and OkHttp3 "
+            "client-field declarations (detected fields, not URLs). "
+            "Decompiles with apktool when given apk_path; or reads an "
+            "existing smali_dir. output_format=txt or postman."
         ),
         "inputSchema": {
             "type": "object",
