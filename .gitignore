@@ -13,6 +13,10 @@ node_modules/
 
 # apktool / decompiled output folders
 *_decompiled/
+
+# local-only planning docs (shared with android-unidbg-mcp; do not publish)
+mcp_consideration.md
+mcp-playbook.md
 smali*/
 baksmali*/
 
