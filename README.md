@@ -116,7 +116,7 @@ Heavy list outputs are token-conserved (E-PY-15): a search, a strings dump, logc
 | `android_google_services` | Google/Firebase config: bundled `google-services.json`, ten known keys from `res/values/strings.xml` (`smali_dir`), or a Google-pattern scan of `resources.arsc` | stdlib (`smali_dir` for the strings.xml path) |
 | `quark_scan` | quark-engine behaviour rules: scored matches like "send SMS" or "load dex from external source"; `keywords` filters, the rule set comes from `freshquark` or `rules_dir` | quark-engine |
 | `manifest_parse` | androguard: package, versions, SDK levels, exported components, permissions, debuggable/allowBackup flags; `categorize_permissions` adds a dangerous/normal split with per-permission reasons and a risk summary | androguard |
-| `search_strings` | ripgrep with JSON output over any folder (a decompile, a dump, a HAR) | ripgrep |
+| `search_strings` | ripgrep with JSON output over any folder (a decompile, a dump, a HAR); capped per call with the honest total kept | ripgrep |
 
 **Bytecode deep-dive (3)**
 
@@ -133,7 +133,7 @@ Heavy list outputs are token-conserved (E-PY-15): a search, a strings dump, logc
 | `frida_spawn` | spawn an app with Frida and optionally inject a script | frida, rooted device or gadget |
 | `frida_attach` | attach to an already-running process | same |
 | `frida_inject` | inject another script into the live session | active session |
-| `frida_read_output` | drain what the hooking session printed | active session |
+| `frida_read_output` | drain what the hooking session printed (capped per call; the rest stays buffered) | active session |
 | `frida_detach` | detach cleanly | active session |
 | `frida_status` | frida version, devices, server responsiveness, current session state — the "am I attached?" no-op read | frida |
 | `objection_run` | run any objection command against a package | objection |
@@ -170,7 +170,7 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `adb_shell` | run a shell command on the device (split on the host, safely) | adb |
 | `adb_install` | install an APK (`install -r -t`) | adb |
 | `adb_pull` / `adb_push` | copy files between host and device | adb |
-| `adb_logcat_start` / `read` / `stop` | stream and buffer up to 50k log lines in the background | adb |
+| `adb_logcat_start` / `read` / `stop` | stream and buffer up to 50k log lines in the background; reads are capped per call (`ANDROID_RE_MCP_MAX_OUTPUT_LINES`) | adb |
 | `adb_ui_dump` | the current UI as structured elements (class, text, resource-id, bounds, clickable) | adb |
 | `hermes_decode` | extract and decode the React Native Hermes bundle to readable JS | hermes-dec or hbctool |
 | `scrcpy_start` | mirror the device screen, optionally recording to MP4 | scrcpy |
