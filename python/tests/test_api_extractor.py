@@ -45,6 +45,104 @@ def _smali_tree(tmp_path: Path, content: str = RETROFIT_SMALI) -> str:
     return str(root)
 
 
+URLS_SMALI = """.class public Lcom/example/Net;
+.super Ljava/lang/Object;
+
+.method public constructor <init>()V
+    const-string v0, "https://api.example.com/v1/login"
+    const-string v1, "https://api.example.com/v1/users"
+    const-string v2, "https://api.example.com/v1/login"
+    const-string v3, "http://cdn.example.net/assets/app.png"
+    const-string v4, "AES/GCM/NoPadding"
+    const-string/jumbo v5, "https://ws.example.org/socket"
+    const-string v6, "https://escaped.example.com/path\\"tail"
+    return-void
+.end method
+"""
+
+
+def _write_smali(tmp_path: Path, name: str, content: str) -> str:
+    root = tmp_path / "smali"
+    (root / "com/example").mkdir(parents=True, exist_ok=True)
+    (root / f"com/example/{name}").write_text(content)
+    return str(root)
+
+
+def test_const_string_urls_harvested_deduped_and_host_grouped(tmp_path):
+    root = _write_smali(tmp_path, "Net.smali", URLS_SMALI)
+    # duplicate URL in a second file must not be double-counted
+    _write_smali(tmp_path, "Net2.smali", 'const-string v0, "https://api.example.com/v1/login"\n')
+    result = ApiExtractorHandler().android_api_extractor({"smali_dir": root})
+    out = result["output"]
+    assert result["status"] == "ok"
+    assert out["annotation_count"] == 0
+    assert out["okhttp3_field_count"] == 0
+    cs = out["const_string_urls"]
+    assert cs["total"] == 5  # login/users/cdn/ws/escaped — the dup and AES/GCM are dropped
+    assert cs["truncated"] is False
+    assert cs["shown"] == cs["total"]
+    assert cs["oversized_skipped"] == 0
+    hosts = cs["by_host"]
+    assert list(hosts) == sorted(hosts)  # host-grouped, sorted
+    assert hosts["api.example.com"] == [
+        "https://api.example.com/v1/login",
+        "https://api.example.com/v1/users",
+    ]
+    assert hosts["cdn.example.net"] == ["http://cdn.example.net/assets/app.png"]
+    assert hosts["ws.example.org"] == ["https://ws.example.org/socket"]  # const-string/jumbo
+    assert hosts["escaped.example.com"] == ["https://escaped.example.com/path"]
+
+
+def test_const_string_urls_cap_truncates_deterministically(tmp_path, monkeypatch):
+    from android_re_mcp.handlers import apiextractor as mod
+
+    monkeypatch.setattr(mod, "_MAX_CONST_URLS", 3)
+    root = _write_smali(tmp_path, "Net.smali", URLS_SMALI)
+    out = ApiExtractorHandler().android_api_extractor({"smali_dir": root})["output"]
+    cs = out["const_string_urls"]
+    assert cs["total"] == 5
+    assert cs["shown"] == 3
+    assert cs["truncated"] is True
+    # sorted hosts first: api.example.com (2) then cdn.example.net (1) fill the cap
+    assert list(cs["by_host"]) == ["api.example.com", "cdn.example.net"]
+    assert "escaped.example.com" not in cs["by_host"]
+
+
+def test_const_string_urls_oversized_constants_are_skipped_and_counted(tmp_path, monkeypatch):
+    from android_re_mcp.handlers import apiextractor as mod
+
+    monkeypatch.setattr(mod, "_MAX_URL_LEN", 64)
+    smali = (
+        '.class public LX;\n'
+        'const-string v0, "https://ok.example.com/a"\n'
+        f'const-string v1, "https://blob.example.com/{"a" * 200}"\n'
+    )
+    root = _write_smali(tmp_path, "Net.smali", smali)
+    cs = ApiExtractorHandler().android_api_extractor({"smali_dir": root})["output"]["const_string_urls"]
+    assert cs["total"] == 1
+    assert cs["oversized_skipped"] == 1
+    assert "blob.example.com" not in cs["by_host"]
+
+
+def test_postman_mode_has_no_harvest_section(tmp_path):
+    root = _write_smali(tmp_path, "Net.smali", URLS_SMALI)
+    out = ApiExtractorHandler().android_api_extractor(
+        {"smali_dir": root, "output_format": "postman"}
+    )["output"]
+    assert "const_string_urls" not in out
+    assert out["format"] == "postman"
+
+
+def test_schema_stops_overclaiming_okhttp():
+    from android_re_mcp.server import TOOL_SCHEMAS
+
+    desc = next(
+        t["description"] for t in TOOL_SCHEMAS if t["name"] == "android_api_extractor"
+    )
+    assert "const-string URLs" in desc  # the harvest is advertised
+    assert "not URLs" in desc  # OkHttp honesty: fields, not extracted URLs
+
+
 def test_extracts_annotations_and_okhttp_fields(tmp_path):
     handler = ApiExtractorHandler()
     result = handler.android_api_extractor({"smali_dir": _smali_tree(tmp_path)})
