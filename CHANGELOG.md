@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-11-17
+
+### Changed (Python)
+- `apk_decompile_java` degrades to apktool when jadx is unavailable instead of returning `missing_tool`: the call still succeeds, with `engine: "apktool (jadx unavailable)"`, `fallback: true` and a note that `out_dir` holds smali + resources, not Java source (5 new tests, `tests/test_decompile_fallback.py`). jadx present-but-broken is still an honest error — no silent engine swap on real failures.
+- Review-doc hygiene pass (D-2, D-3): `check_tools` dropped the never-invoked probes (`binwalk`, `apk-mitm`, `frida-compile`, `frida-ps`) and the redundant `frida-tools`-module / `mitmproxy`-binary / `mitmproxy`-module probes; the dead legacy `scripts/android-api-extractor/analyze_apk.py` is deleted. CI pins bumped (checkout@v7, setup-python@v7, upload-artifact@v7, download-artifact@v8) — clears the Node-20 deprecation annotations from the publish runs.
+
+### Added (Python)
+- DEX surgery via DexFile (E-PY-17): seven `dex_*` tools over the new pinned [`dexfile-cli`](https://github.com/FlyPhantomFly/dexfile-cli) jar (v0.1.2, MIT — redistribution of DexFile/Smali/AndroidMisc) — `dex_info`, `dex_extract`, `dex_convert` (old-ART vdex/cdex → 035; 035 → 041 containers), `dex_patch` (const-string/rename/retarget-invoke/flip-flags/replace-method-body, `.bak` discipline, per-op matched counts), `dex_assemble`, `dex_split` (64K balancing) and `dex_swap` (pure-Python zip swap closing the no-rebuild fast loop: `dex_extract → dex_patch → dex_swap → apk_sign`). The jar is a pinned `--setup` download; `check_tools` gains its probe. Phase-0 spike findings recorded in the review doc (vdex027+ carries no embedded dex; cdex round-trip proven; baksmali reads 041 containers fine). A review pass after landing fixed three CLI issues (container-input honesty, integer-flag validation, 10× magic-scan) and three handler issues (stored-entry compression preserved in the zip swap — resources.arsc; dex-entry-only matching; mkstemp fd leak), released as dexfile-cli v0.1.1→v0.1.2. 13 dex tests; catalog 67 → 74 tools.
+
+
 ## [1.5.0] - 2026-11-16
 
 ### Added (Python)
@@ -19,13 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 - README: tool counts (67), the E-PY-15 cap notes on the affected tool rows, and a new "Companion servers" section pairing [smali-lsp](https://github.com/surendrajat/smali-lsp) into the patch loop (its `smali_diagnostics` pre-validate hand edits before `apk_rebuild_sign`).
-
-### Changed (Python, unreleased batch 3)
-- `apk_decompile_java` degrades to apktool when jadx is unavailable instead of returning `missing_tool`: the call still succeeds, with `engine: "apktool (jadx unavailable)"`, `fallback: true` and a note that `out_dir` holds smali + resources, not Java source (5 new tests, `tests/test_decompile_fallback.py`). jadx present-but-broken is still an honest error — no silent engine swap on real failures.
-- Review-doc hygiene pass (D-2, D-3): `check_tools` dropped the never-invoked probes (`binwalk`, `apk-mitm`, `frida-compile`, `frida-ps`) and the redundant `frida-tools`-module / `mitmproxy`-binary / `mitmproxy`-module probes; the dead legacy `scripts/android-api-extractor/analyze_apk.py` is deleted. CI pins bumped (checkout@v7, setup-python@v7, upload-artifact@v7, download-artifact@v8) — clears the Node-20 deprecation annotations from the publish runs.
-
-### Added (Python, unreleased batch 4)
-- DEX surgery via DexFile (E-PY-17): seven `dex_*` tools over the new pinned [`dexfile-cli`](https://github.com/FlyPhantomFly/dexfile-cli) jar (v0.1.2, MIT — redistribution of DexFile/Smali/AndroidMisc) — `dex_info`, `dex_extract`, `dex_convert` (old-ART vdex/cdex → 035; 035 → 041 containers), `dex_patch` (const-string/rename/retarget-invoke/flip-flags/replace-method-body, `.bak` discipline, per-op matched counts), `dex_assemble`, `dex_split` (64K balancing) and `dex_swap` (pure-Python zip swap closing the no-rebuild fast loop: `dex_extract → dex_patch → dex_swap → apk_sign`). The jar is a pinned `--setup` download; `check_tools` gains its probe. Phase-0 spike findings recorded in the review doc (vdex027+ carries no embedded dex; cdex round-trip proven; baksmali reads 041 containers fine). A review pass after landing fixed three CLI issues (container-input honesty, integer-flag validation, 10× magic-scan) and three handler issues (stored-entry compression preserved in the zip swap — resources.arsc; dex-entry-only matching; mkstemp fd leak), released as dexfile-cli v0.1.1. 13 dex tests; catalog 67 → 74 tools.
 
 ## [1.4.0] - 2026-11-15
 
