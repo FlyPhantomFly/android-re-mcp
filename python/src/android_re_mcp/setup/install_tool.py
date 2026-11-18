@@ -52,6 +52,10 @@ _PINNED: dict[str, tuple[str, str]] = {
         "https://github.com/Genymobile/scrcpy/releases/download/v5.0.1/scrcpy-win64-v5.0.1.zip",
         "b12a2c4ee8be317422451fc7dcf8ee20a71b5ea7ef9ad73ddd825a25316227a5",
     ),
+    "dexfile-cli.jar": (
+        "https://github.com/FlyPhantomFly/dexfile-cli/releases/download/v0.1.0/dexfile-cli.jar",
+        "7e21dfb991b02edf1bb3ff02db116b39402f8e03f342f61aac022d61ffcf9f8c",
+    ),
 }
 
 _PIP_TOOLS: dict[str, str] = {
@@ -68,10 +72,7 @@ _PIP_TOOLS: dict[str, str] = {
     "hermes-dec": "hermes-dec",
 }
 
-_NPM_TOOLS: dict[str, str] = {
-    "apk-mitm": "apk-mitm",
-    "frida-compile": "frida-compile",
-}
+_NPM_TOOLS: dict[str, str] = {}  # empty since the 1.4.0 npm retirement; kept as an explicit marker
 
 # Tools with no automated recipe — the assistant must run the manual steps.
 # 'medusa' is deliberately absent from _PIP_TOOLS: the PyPI package 'medusa'
@@ -268,6 +269,16 @@ def _npm_install(display_name: str, package: str) -> dict:
         return {"status": "error", "error": str(exc)}
 
 
+def _install_dexfile_cli() -> dict:
+    def run() -> dict:
+        td = tools_dir()
+        _download("dexfile-cli.jar", td / "dexfile-cli.jar")
+        return {"status": "ok", "message": "dexfile-cli 0.1.0 installed and verified "
+                "(java 17+ required on PATH; see https://github.com/FlyPhantomFly/dexfile-cli)"}
+
+    return _result(run)
+
+
 # ---------------------------------------------------------------------------
 # Routing
 # ---------------------------------------------------------------------------
@@ -279,6 +290,7 @@ _BINARY_INSTALLERS = {
     "il2cppdumper": _install_il2cppdumper,
     "adb": _install_adb,
     "scrcpy": _install_scrcpy,
+    "dexfile-cli": _install_dexfile_cli,
 }
 
 

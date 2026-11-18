@@ -7,7 +7,7 @@
 
 android-re-mcp is one repo, one brand, and — as of 1.4.0 — one server. The old npm half (`mobile-re-mcp`) is retired: its static Android tools are folded into the Python package, its iOS tools are gone, and npm shows the package as deprecated.
 
-The **Python server**, published on PyPI as `android-re-mcp` (command `android-re-mcp`), has 67 tools. It drives adb, Frida, mitmproxy, apktool and jadx against a real Android device: decompile an app, hook it, read its traffic, patch it, sign it and install it again.
+The **Python server**, published on PyPI as `android-re-mcp` (command `android-re-mcp`), has 74 tools. It drives adb, Frida, mitmproxy, apktool and jadx against a real Android device: decompile an app, hook it, read its traffic, patch it, sign it and install it again.
 
 You ask in plain language, the assistant calls the right tool, and the findings come back.
 
@@ -17,7 +17,7 @@ You ask in plain language, the assistant calls the right tool, and the findings 
 
 ### What exactly it does
 
-`pip install "android-re-mcp[all]"` gives you an MCP server, started as `android-re-mcp`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **67 tools over one Android target at a time**:
+`pip install "android-re-mcp[all]"` gives you an MCP server, started as `android-re-mcp`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **74 tools over one Android target at a time**:
 
 - **Static work on the APK file itself** — apktool and jadx decompilation, ripgrep searches across the decompiled folder, androguard manifest parsing and bytecode cross-references, apkid packer/obfuscator identification, apkleaks secret scanning, quark-engine behaviour rules (`quark_scan`), and an orchestrator (`apk_analyze_full`) that runs all of those in one call and scores the protection tier.
 - **Dynamic work on a running app** — spawn or attach a process with Frida, inject JavaScript, stream script output back, hook SSL pinning, dump and search process memory, trace storage, crypto and network calls from a built-in script collection you can extend with your own scripts.
@@ -49,7 +49,7 @@ It needs Python 3.11 or newer. The base install is just the MCP server. The extr
 
 If Frida is already pinned in your environment, install without extras and the server will not touch it.
 
-`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0 and Il2CppDumper 6.7.46 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
+`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0, Il2CppDumper 6.7.46 and dexfile-cli 0.1.0 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
 
 ### Connect it
 
@@ -94,6 +94,7 @@ Ask in plain language, and the assistant picks the tools. Some prompts and what 
 - "Track this app's network traffic." (`mitm_start`, then `adb reverse tcp:8080 tcp:8080`, open the app, `mitm_read_flows`, `mitm_export_har`)
 - "Bypass SSL pinning in com.example.app and watch the requests." (`ssl_kill_switch` or a `frida_run_script` of `ssl_pinning_universal`)
 - "Patch the license check in the smali, rebuild, sign and install it." (`smali_patch`, `apk_rebuild_sign`, `adb_install`)
+- "Swap one string in classes.dex without rebuilding the whole APK." (`dex_extract`, `dex_patch`, `dex_swap`, `apk_sign`, `adb_install` — the dex-only fast loop: no apktool resource decode, no resource rebuild)
 - "Dump the app's memory and find the session key." (`frida_attach`, `frida_find_bytes`, `frida_memdump`)
 
 The server also carries seven guided prompts (`master-workflow`, `first-look`, `rasp-assess`, `bypass-ssl`, `bypass-root`, `bypass-frida`, `stuck`) and keeps per-app notes so a later session can pick up where the last one stopped (`memory_read`, `memory_write`).
@@ -215,6 +216,18 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `native_crypto_constants` | AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64 alphabets, Blowfish P-array — file offset + VA | nothing |
 | `syscall_lookup` | arm64/x86_64 syscall number ↔ name, bundled from kernel headers | nothing |
 
+**DEX surgery (7)** — the DexFile cherry-pick (E-PY-17, [dexfile-cli](https://github.com/FlyPhantomFly/dexfile-cli))
+
+| Tool | What it does | Needs |
+| --- | --- | --- |
+| `dex_info` | version, target API, class/method/string counts, class list; magic-scans flat dex, 041 containers and wrapped cdex/dex (vdex/packer blobs) | dexfile-cli.jar, java 17+ |
+| `dex_extract` | pull every `classes*.dex` out of an APK (041 containers split per part) | dexfile-cli.jar |
+| `dex_convert` | read any version → write the target (old-ART vdex/cdex → 035 for jadx; 035 → 041 container) | dexfile-cli.jar |
+| `dex_patch` | surgical dex-model edits: `replace-const-string`, `rename`, `retarget-invoke`, `flip-flags`, `replace-method-body` (smali text); `.bak` on first in-place modify; per-op matched counts | dexfile-cli.jar |
+| `dex_assemble` | one smali class → dex (`SmaliIO`; the text must carry `.locals` and `.end method`) | dexfile-cli.jar |
+| `dex_split` | shard a class list across dex files under the 64K-reference limit (`DexIO.balanceAll`) | dexfile-cli.jar |
+| `dex_swap` | swap a patched dex back into an APK copy, other entries byte-identical (pure Python, no jar) | nothing |
+
 **Flutter / Dart (3)**
 
 | Tool | What it does | Needs |
@@ -303,7 +316,7 @@ claude mcp add smali-lsp -- java -jar /path/to/smali-lsp.jar mcp
 { "smali-lsp": { "type": "local", "command": ["java", "-jar", "/path/to/smali-lsp.jar", "mcp"], "enabled": true } }
 ```
 
-Its 14 tools add roughly 0.7k tokens of catalog when enabled — leave it off for sessions that never touch smali. The native-ELF additions this package made in E-PY-16 (checksec, xrefs, gadgets) came from the same consolidation review; the full capstone server was rejected there (25 tools ≈ +3.2k tokens for mostly duplicative capability) — see `docs/code-review-and-extensions.md`.
+Its 14 tools add roughly 0.7k tokens of catalog when enabled — leave it off for sessions that never touch smali. The native-ELF additions this package made in E-PY-16 (checksec, xrefs, gadgets) and the DEX surgery in E-PY-17 (`dexfile-cli`, a pinned fat jar invoked like apktool — **not** a companion server) came from the same consolidation reviews; the full capstone server was rejected there (25 tools ≈ +3.2k tokens for mostly duplicative capability) — see `docs/code-review-and-extensions.md`.
 
 ---
 
