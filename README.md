@@ -51,7 +51,7 @@ It needs Python 3.11 or newer. The base install is just the MCP server. The extr
 
 If Frida is already pinned in your environment, install without extras and the server will not touch it.
 
-`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0, Il2CppDumper 6.7.46 and dexfile-cli 0.1.4 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
+`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0, Il2CppDumper 6.7.46 and dexfile-cli 0.1.5 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
 
 ### Connect it
 
@@ -218,13 +218,13 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `native_crypto_constants` | AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64 alphabets, Blowfish P-array — file offset + VA | nothing |
 | `syscall_lookup` | arm64/x86_64 syscall number ↔ name, bundled from kernel headers | nothing |
 
-**DEX surgery (7)** — added in the DexFile integration review ([dexfile-cli 0.1.4](https://github.com/FlyPhantomFly/dexfile-cli))
+**DEX surgery (7)** — added in the DexFile integration review ([dexfile-cli 0.1.5](https://github.com/FlyPhantomFly/dexfile-cli))
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
 | `dex_info` | version, target API, class/method/string counts, class list; magic-scans flat dex, 041 containers, wrapped cdex/dex (vdex parts incl. modern-era vdex, packer blobs, dey odex wrappers) | dexfile-cli.jar, java 17+ |
 | `dex_extract` | pull every `classes*.dex` out of an APK (041 containers split per part) | dexfile-cli.jar |
-| `dex_convert` | read any version → write the target (old-ART vdex/cdex → 037 by default — API 28+ era; flat dex → 035 for jadx; 035 → 041 container) | dexfile-cli.jar |
+| `dex_convert` | read any version → write the target (vdex/cdex → 037 by default — dex037 was introduced in API 24 and covers the cdex era; flat dex → 035 for jadx; 035 → 041 container); odex instructions written verbatim with an `odex_instructions` count | dexfile-cli.jar |
 | `dex_patch` | surgical dex-model edits: `replace-const-string`, `rename`, `retarget-invoke`, `flip-flags`, `replace-method-body` (smali text); `.bak` on first in-place modify; per-op matched counts | dexfile-cli.jar |
 | `dex_assemble` | one smali class → dex (`SmaliIO`; the text must carry `.locals` and `.end method`) | dexfile-cli.jar |
 | `dex_split` | shard a class list across dex files under the 64K-reference limit (`DexIO.balanceAll`) | dexfile-cli.jar |
