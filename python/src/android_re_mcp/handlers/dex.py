@@ -17,6 +17,7 @@ rebuild); the smali_patch → apk_rebuild_sign loop stays the general path.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -167,7 +168,8 @@ class DexHandler:
         try:
             fd, ops_name = tempfile.mkstemp(prefix="dex-ops-", suffix=".json", dir=data_dir())
             ops_file = Path(ops_name)
-            ops_file.write_text(json.dumps(ops), encoding="utf-8")
+            with os.fdopen(fd, "w") as fh:
+                json.dump(ops, fh)
             cli_args = ["patch", dex_path, "--ops", str(ops_file)]
             if out_path:
                 cli_args += ["--out", out_path]
@@ -290,15 +292,17 @@ class DexHandler:
         replaced = False
         try:
             with zipfile.ZipFile(apk_path) as src, \
-                    zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as dst:
+                    zipfile.ZipFile(tmp, "w") as dst:
                 for info in src.infolist():
                     data = src.read(info.filename)
                     if info.filename == entry:
                         data = dex_bytes
                         replaced = True
-                    dst.writestr(info.filename, data)
+                    # preserve each entry's original compression — resources.arsc
+                    # must stay STORED (uncompressed) or modern Android refuses it
+                    dst.writestr(info, data)
             if not replaced:
-                with zipfile.ZipFile(tmp, "a", zipfile.ZIP_DEFLATED) as dst:
+                with zipfile.ZipFile(tmp, "a") as dst:
                     dst.writestr(entry, dex_bytes)
             tmp.replace(out_path)
         except zipfile.BadZipFile as exc:
@@ -318,19 +322,21 @@ class DexHandler:
 
     @staticmethod
     def _find_dex_entry(apk_path: str, dex_path: str) -> str:
-        """Match by identical bytes first, then by classes*.dex naming."""
+        """Match by identical bytes first (classes*.dex only), then by size."""
         import hashlib
 
         dex_sha = hashlib.sha256(Path(dex_path).read_bytes()).hexdigest()
+        dex_size = Path(dex_path).stat().st_size
         with zipfile.ZipFile(apk_path) as z:
-            names = z.namelist()
-            for name in names:
-                if hashlib.sha256(z.read(name)).hexdigest() == dex_sha:
-                    return name
-            dexes = sorted(n for n in names
+            # only the dex entries are candidates — hashing every entry of a
+            # 100 MB APK would be pure waste
+            dexes = sorted(n for n in z.namelist()
                            if n.startswith("classes") and n.endswith(".dex"))
             for name in dexes:
-                if len(z.read(name)) == Path(dex_path).stat().st_size:
+                if hashlib.sha256(z.read(name)).hexdigest() == dex_sha:
+                    return name
+            for name in dexes:
+                if len(z.read(name)) == dex_size:
                     return name
             return dexes[0] if dexes else ""
 

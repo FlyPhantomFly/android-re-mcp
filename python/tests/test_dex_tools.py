@@ -104,6 +104,25 @@ def test_dex_swap_needs_no_jar(tmp_path):
         assert z.read("AndroidManifest.xml") == b"<manifest/>"  # other entries byte-identical
 
 
+def test_dex_swap_preserves_entry_compression(tmp_path):
+    # resources.arsc must stay STORED (uncompressed) or modern Android refuses it
+    apk = tmp_path / "app.apk"
+    with zipfile.ZipFile(apk, "w") as z:
+        z.writestr("AndroidManifest.xml", "<manifest/>")  # default DEFLATED
+        stored = zipfile.ZipInfo("resources.arsc")
+        stored.compress_type = zipfile.ZIP_STORED
+        z.writestr(stored, b"\x00arsc-bytes")
+        z.writestr("classes.dex", b"\x00old")
+    patched = tmp_path / "classes.dex"
+    patched.write_bytes(b"\x00new")
+    out = DexHandler().dex_swap({"apk_path": str(apk), "dex_path": str(patched)})
+    assert out["status"] == "ok"
+    with zipfile.ZipFile(apk) as z:
+        assert z.getinfo("resources.arsc").compress_type == zipfile.ZIP_STORED
+        assert z.read("resources.arsc") == b"\x00arsc-bytes"
+        assert z.read("classes.dex") == b"\x00new"
+
+
 # ── ops validation (hermetic) ─────────────────────────────────────────────
 
 def test_ops_validation_rejects_unknown_op():
