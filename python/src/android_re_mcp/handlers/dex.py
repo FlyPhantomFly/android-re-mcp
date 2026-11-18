@@ -136,16 +136,43 @@ class DexHandler:
     # ── dex_convert ───────────────────────────────────────────────────────
 
     def dex_convert(self, args: dict) -> dict:
-        """[TOOL] Convert between dex versions (old-ART vdex/cdex → 035 for jadx)."""
+        """[TOOL] Convert between dex versions (vdex/cdex → 037 by default, flat dex → 035)."""
         in_path = args.get("in_path") or args.get("dex_path") or ""
-        version = args.get("target_version", "035")
+        version = args.get("target_version")
+        default_note = None
+        if not version:
+            version, default_note = self._default_target(in_path)
         cli_args = ["convert", in_path, "--to", version]
         if args.get("output_path"):
             cli_args += ["--out", args["output_path"]]
         result = self._run("dex_convert", cli_args)
         if result.get("status") == "ok":
-            result.setdefault("note", "round-trips re-serialize: semantic content survives, layout does not")
+            notes = []
+            if default_note:
+                notes.append(default_note)
+            notes.append("round-trips re-serialize: semantic content survives, layout does not")
+            result["note"] = "; ".join(notes)
         return result
+
+    @staticmethod
+    def _default_target(in_path: str) -> tuple[str, str | None]:
+        """Pick the convert target when the caller doesn't force one.
+
+        Legacy-ART inputs (vdex wrapper or bare cdex) carry Android 9 (API 28)
+        era code, so the closest standard target is DEX037, not 035 — writing
+        035 would mislabel content that legitimately needs 26+ semantics.
+        Flat dex (the jadx-decompile case) stays 035 for maximum reader
+        compatibility. Returns (version, note).
+        """
+        try:
+            with open(in_path, "rb") as fh:
+                magic = fh.read(4)
+        except OSError:
+            return "035", None
+        if magic in (b"vdex", b"cdex"):
+            return "037", (f"legacy-ART input ({magic.decode(errors='replace')}…): target "
+                           "defaulted to 037 (API 28+ era) — pass target_version to override")
+        return "035", None
 
     # ── dex_patch ─────────────────────────────────────────────────────────
 
