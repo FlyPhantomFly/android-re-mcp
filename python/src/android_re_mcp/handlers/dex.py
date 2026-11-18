@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -279,6 +280,151 @@ class DexHandler:
         dex_path = args.get("dex_path", "")
         out_dir = args.get("output_dir") or self._default_dir(dex_path, "_split")
         return self._run("dex_split", ["split", dex_path, "--out", out_dir])
+
+    # ── dex_read_class_outline ────────────────────────────────────────────
+
+    def dex_read_class_outline(self, args: dict) -> dict:
+        """[TOOL] Per-class dex outline without decompiling (dexfile-cli outline)."""
+        required = self._require("dex_read_class_outline")
+        if isinstance(required, dict):
+            return required
+        jar, java = required
+        class_name = args.get("class_name", "")
+        if not class_name:
+            return {"status": "error", "tool": "dex_read_class_outline",
+                    "error": "class_name is required (dotted, e.g. com.example.Foo)"}
+        dex_path = args.get("dex_path", "")
+        apk_path = args.get("apk_path", "")
+
+        targets: list[str] = []
+        if dex_path:
+            targets.append(dex_path)
+        elif apk_path and Path(apk_path).is_file():
+            # try every classes*.dex inside the APK until the class is found
+            scratch = Path(data_dir()) / "outline"
+            try:
+                with zipfile.ZipFile(apk_path) as z:
+                    for name in sorted(n for n in z.namelist()
+                                       if n.startswith("classes") and n.endswith(".dex")):
+                        p = scratch / Path(apk_path).stem / name
+                        p.parent.mkdir(parents=True, exist_ok=True)
+                        if not p.exists():
+                            p.write_bytes(z.read(name))
+                        targets.append(str(p))
+            except (zipfile.BadZipFile, OSError) as exc:
+                return {"status": "error", "tool": "dex_read_class_outline", "error": str(exc)}
+        else:
+            return {"status": "error", "tool": "dex_read_class_outline",
+                    "error": "provide dex_path or apk_path"}
+
+        last = None
+        for target in targets:
+            result = self._run("dex_read_class_outline",
+                               ["outline", target, "--class", class_name])
+            if result.get("status") == "ok":
+                return result
+            last = result
+        return last or {"status": "error", "tool": "dex_read_class_outline",
+                        "error": "no dex targets to search"}
+
+    # ── dex_read_pseudocode ───────────────────────────────────────────────
+
+    def dex_read_pseudocode(self, args: dict) -> dict:
+        """[TOOL] Targeted Java pseudocode for one class via an incremental jadx cache."""
+        apk_path = args.get("apk_path", "")
+        class_name = args.get("class_name", "")
+        method = args.get("method")
+        if not apk_path or not Path(apk_path).is_file():
+            return {"status": "error", "tool": "dex_read_pseudocode",
+                    "error": f"apk_path '{apk_path}' not found"}
+        if not class_name:
+            return {"status": "error", "tool": "dex_read_pseudocode",
+                    "error": "class_name is required (dotted, e.g. com.example.Foo)"}
+        jadx = shutil.which("jadx")
+        if jadx is None:
+            return {"status": "missing_tool", "tool": "dex_read_pseudocode",
+                    "error": "jadx not found on PATH.",
+                    "hint": "Run android-re-mcp --setup"}
+
+        stem = Path(apk_path).stem or "apk"
+        cache_dir = Path(args.get("cache_dir") or (data_dir() / "jadx-cache" / stem))
+        # jadx --single-class writes <out>/sources/<path>/<Class>.java
+        rel = class_name.replace(".", "/")
+        candidates = [cache_dir / "sources" / f"{rel}.java",
+                      cache_dir / f"{rel}.java"]
+        source_file = next((c for c in candidates if c.is_file()), None)
+
+        if source_file is None:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                proc = subprocess.run(
+                    [jadx, "--single-class", class_name, "--no-res",
+                     "-d", str(cache_dir), apk_path],
+                    capture_output=True, text=True, timeout=600)
+            except subprocess.TimeoutExpired:
+                return {"status": "error", "tool": "dex_read_pseudocode",
+                        "error": "jadx --single-class timed out after 600s"}
+            hits = sorted(cache_dir.rglob(f"{rel.rsplit('/', 1)[-1]}.java"))
+            if not hits and proc.returncode != 0:
+                return {"status": "error", "tool": "dex_read_pseudocode",
+                        "error": f"jadx failed on '{class_name}': "
+                                 f"{(proc.stderr or proc.stdout).strip()[:400]}",
+                        "hint": "use dex_read_class_outline for the structure (smali-level)"}
+            source_file = hits[0] if hits else None
+            if source_file is None:
+                return {"status": "error", "tool": "dex_read_pseudocode",
+                        "error": f"jadx produced no source for '{class_name}'",
+                        "hint": "use dex_read_class_outline for the structure"}
+
+        text = source_file.read_text(encoding="utf-8", errors="replace")
+        lines = text.splitlines()
+        total = len(lines)
+        if method:
+            lines = self._extract_method(lines, method)
+            if lines is None:
+                return {"status": "error", "tool": "dex_read_pseudocode",
+                        "error": f"method '{method}' not found in '{class_name}' (brace-matched slice)"}
+
+        offset = max(0, int(args.get("offset_lines", 0) or 0))
+        max_lines = max(1, min(int(args.get("max_lines", 400) or 400), 2000))
+        window = lines[offset:offset + max_lines]
+        numbered = "\n".join(f"{i:>4}| {line}" for i, line in
+                            enumerate(window, start=offset + 1))
+        out: dict = {"class": class_name, "source": str(source_file),
+                     "total_lines": total, "offset_lines": offset,
+                     "lines": len(window), "code": numbered,
+                     "note": "jadx pseudocode from the incremental single-class cache"}
+        if method:
+            out["method"] = method
+        if offset + len(window) < total:
+            out["truncated"] = True
+            out["hint"] = f"offset_lines={offset + len(window)} for the next page"
+        return {"status": "ok", "tool": "dex_read_pseudocode", "output": out}
+
+    @staticmethod
+    def _extract_method(lines: list[str], method: str) -> list[str] | None:
+        """Brace-matched slice of one method from Java pseudocode."""
+        start = None
+        for i, line in enumerate(lines):
+            if re.search(rf"\b{re.escape(method)}\s*\(", line):
+                start = i
+                break
+        if start is None:
+            return None
+        depth = 0
+        started = False
+        out = []
+        for j in range(start, len(lines)):
+            out.append(lines[j])
+            for ch in lines[j]:
+                if ch == "{":
+                    depth += 1
+                    started = True
+                elif ch == "}":
+                    depth -= 1
+            if started and depth <= 0:
+                return out
+        return out
 
     # ── dex_swap (pure Python — the fast loop's zip step) ─────────────────
 

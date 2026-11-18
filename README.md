@@ -9,7 +9,7 @@ android-re-mcp is an MCP server for Android reverse engineering.
 
 You point it at a real device and a target app, then just ask: *what is this app, what's protecting it, and how do I get past that?* 
 
-The assistant picks from 74 tools: decompile, hook, trace traffic, dump memory, patch smali or dex, sign and reinstall, and walks you through the answer.
+The assistant picks from 87 tools: decompile, hook, trace traffic, dump memory, patch smali or dex, read the resource table, patch native code, sign and reinstall, and walks you through the answer.
 
 It's one package: PyPI: `android-re-mcp`
 
@@ -19,7 +19,7 @@ It's one package: PyPI: `android-re-mcp`
 
 ### What it does exactly
 
-`pip install "android-re-mcp[all]"` gives you an MCP server, started as `android-re-mcp`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **74 tools over one Android target at a time**:
+`pip install "android-re-mcp[all]"` gives you an MCP server, started as `android-re-mcp`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **87 tools over one Android target at a time**:
 
 - **Static work on the APK file itself** — apktool and jadx decompilation, ripgrep searches across the decompiled folder, androguard manifest parsing and bytecode cross-references, apkid packer/obfuscator identification, apkleaks secret scanning, quark-engine behaviour rules (`quark_scan`), and an orchestrator (`apk_analyze_full`) that runs all of those in one call and scores the protection tier.
 - **Dynamic work on a running app** — spawn or attach a process with Frida, inject JavaScript, stream script output back, hook SSL pinning, dump and search process memory, trace storage, crypto and network calls from a built-in script collection you can extend with your own scripts.
@@ -51,7 +51,7 @@ It needs Python 3.11 or newer. The base install is just the MCP server. The extr
 
 If Frida is already pinned in your environment, install without extras and the server will not touch it.
 
-`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0, Il2CppDumper 6.7.46 and dexfile-cli 0.1.5 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
+`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0, Il2CppDumper 6.7.46 and dexfile-cli 0.1.6 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
 
 ### Connect it
 
@@ -97,6 +97,10 @@ Ask in plain language, and the assistant picks the tools. Some prompts and what 
 - "Bypass SSL pinning in com.example.app and watch the requests." (`ssl_kill_switch` or a `frida_run_script` of `ssl_pinning_universal`)
 - "Patch the license check in the smali, rebuild, sign and install it." (`smali_patch`, `apk_rebuild_sign`, `adb_install`)
 - "Swap one string in classes.dex without rebuilding the whole APK." (`dex_extract`, `dex_patch`, `dex_swap`, `apk_sign`, `adb_install` — the dex-only fast loop: no apktool resource decode, no resource rebuild)
+- "Which scheme is this APK signed with, and when does the cert expire?" (`apk_read_signature`)
+- "Is this app's integrity intact, and are there duplicate zip entries?" (`zip_test`, `apk_build_check`)
+- "Patch the license string inside libnative.so and swap it back." (`native_patch_string` or `native_patch_instructions`, `zip_update`, `apk_sign`)
+- "Where does @string/app_name point, and who references that id?" (`resource_table_list`, `resource_read`, `resource_xref`)
 - "Dump the app's memory and find the session key." (`frida_attach`, `frida_find_bytes`, `frida_memdump`)
 
 The server also carries seven guided prompts (`master-workflow`, `first-look`, `rasp-assess`, `bypass-ssl`, `bypass-root`, `bypass-frida`, `stuck`) and keeps per-app notes so a later session can pick up where the last one stopped (`memory_read`, `memory_write`).
@@ -217,8 +221,11 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `rop_gadgets` | ROP gadget search ending in ret/bx/jmp-reg; `depth` bounds runs, `filter` narrows (the cap hint names it) | capstone |
 | `native_crypto_constants` | AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64 alphabets, Blowfish P-array — file offset + VA | nothing |
 | `syscall_lookup` | arm64/x86_64 syscall number ↔ name, bundled from kernel headers | nothing |
+| `native_map_address` | virtual address ↔ file offset via PT_LOAD segments (both directions), with the covering segment's type/flags and exec status | nothing |
+| `native_patch_string` | patch a UTF-8 string inside a .so in place: zero-padded to the original length, `expected_text` guarded, `.bak` first | nothing |
+| `native_patch_instructions` | keystone-assembled replacement instructions at a virtual address: `expected_hex` guarded, arch-correct NOP padding, `.bak` first | keystone-engine (`[native]` extra) |
 
-**DEX surgery (7)** — added in the DexFile integration review ([dexfile-cli 0.1.5](https://github.com/FlyPhantomFly/dexfile-cli))
+**DEX surgery (9)** — added in the DexFile integration review ([dexfile-cli 0.1.6](https://github.com/FlyPhantomFly/dexfile-cli))
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
@@ -229,6 +236,23 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `dex_assemble` | one smali class → dex (`SmaliIO`; the text must carry `.locals` and `.end method`) | dexfile-cli.jar |
 | `dex_split` | shard a class list across dex files under the 64K-reference limit (`DexIO.balanceAll`) | dexfile-cli.jar |
 | `dex_swap` | swap a patched dex back into an APK copy, other entries byte-identical (pure Python, no jar) | nothing |
+| `dex_read_class_outline` | per-class dex outline without decompiling: super, interfaces, access flags, fields (name/type/flags), methods (name/descriptor/flags/registers) | dexfile-cli.jar |
+| `dex_read_pseudocode` | targeted Java pseudocode for one class via jadx `--single-class` (fast incremental cache); line paging, `method` gives a brace-matched slice | jadx |
+
+**APK/zip surgery & checks (8)** — the MT-MCP adoption batch
+
+| Tool | What it does | Needs |
+| --- | --- | --- |
+| `apk_read_signature` | signing metadata: scheme matrix (v1–v4, sourceStamp via apksigner), signer digests, cert subject/issuer/serial/validity/keys via openssl on the META-INF certs; unsigned → ok/verifies:false | apksigner (optional), openssl (optional) |
+| `zip_test` | full integrity audit: CRC every entry, duplicate names, method histogram, encrypted entries, bad entries, trailing bytes, STORE-only dex smell | nothing |
+| `zip_extract` | named entries → files: explicit entry→dest, zip-slip refused, byte-faithful, per-entry results | nothing |
+| `zip_update` | generalized APK-entry surgery: `add`/`replace`/`patch` (expected_hex guard)/`rename`/`delete`; untouched entries byte-identical; `expected_sha256` concurrency guard; `.bak` first | nothing |
+| `apk_build_check` | pre-build linting before `apk_rebuild_sign`: manifest, aapt2 resource-compile check, dex sanity (dexfile-cli), duplicate/pending-edit detection (`.bak` scan); blockers carry codes + fix hints | nothing (aapt2/dexfile-cli optional) |
+| `resource_table_list` | structured resources.arsc view via `aapt2 dump resources`: packages, types, entries (id + name) | aapt2 (build-tools) |
+| `resource_read` | resolve concrete variants: ids (`0x7f13010b`) or type/name refs (`string/app_name`) → per-config values, `@ref` chains followed | nothing |
+| `resource_xref` | find where a resource id is used: hex grep across an apktool decompile (smali + res xml) | androguard (name-form ids), an apktool decompile |
+
+**Native ELF patching (2)** — the MT-MCP adoption batch
 
 **Flutter / Dart (3)**
 

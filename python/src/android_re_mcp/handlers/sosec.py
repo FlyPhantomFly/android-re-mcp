@@ -28,6 +28,7 @@ Honest limits (documented in each tool):
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 
 from android_re_mcp.handlers.caps import cap_items
@@ -527,6 +528,262 @@ class SoSecHandler:
             out["truncated"] = True
             out["hint"] = info["hint"]
         return {"status": "ok", "tool": "native_crypto_constants", "output": out}
+
+    # ── native_map_address ────────────────────────────────────────────────
+
+    @staticmethod
+    def _program_headers(data: bytes) -> list[dict] | None:
+        """``[{type, flags, offset, vaddr, filesz, memsz}]`` for ELF32/64 LE.
+
+        ``None`` when the program-header table is unreadable (packed blobs).
+        """
+        if len(data) < 0x34 or data[:4] != _ELF_MAGIC:
+            return None
+        is64 = data[4] == 2
+        if data[5] != 1:
+            return None
+        try:
+            if is64:
+                phoff = int.from_bytes(data[0x20:0x28], "little")
+                phentsize = int.from_bytes(data[0x36:0x38], "little")
+                phnum = int.from_bytes(data[0x38:0x3A], "little")
+            else:
+                phoff = int.from_bytes(data[0x1C:0x20], "little")
+                phentsize = int.from_bytes(data[0x2A:0x2C], "little")
+                phnum = int.from_bytes(data[0x2C:0x2E], "little")
+            if not phoff or not phnum or phoff + phnum * phentsize > len(data):
+                return None
+            out = []
+            for i in range(phnum):
+                base = phoff + i * phentsize
+                p_type = int.from_bytes(data[base:base + 4], "little")
+                if is64:
+                    flags = int.from_bytes(data[base + 4:base + 8], "little")
+                    offset = int.from_bytes(data[base + 8:base + 16], "little")
+                    vaddr = int.from_bytes(data[base + 16:base + 24], "little")
+                    filesz = int.from_bytes(data[base + 32:base + 40], "little")
+                    memsz = int.from_bytes(data[base + 40:base + 48], "little")
+                else:
+                    offset = int.from_bytes(data[base + 4:base + 8], "little")
+                    vaddr = int.from_bytes(data[base + 8:base + 12], "little")
+                    filesz = int.from_bytes(data[base + 16:base + 20], "little")
+                    memsz = int.from_bytes(data[base + 20:base + 24], "little")
+                    flags = int.from_bytes(data[base + 24:base + 28], "little")
+                out.append({"type": p_type, "flags": flags, "offset": offset,
+                            "vaddr": vaddr, "filesz": filesz, "memsz": memsz})
+            return out
+        except (IndexError, ValueError):
+            return None
+
+    _PT_LOAD = 1
+    _PT_TYPE_NAMES = {1: "LOAD", 2: "DYNAMIC", 4: "NOTE", 6: "PHDR",
+                      0x6474E550: "GNU_EH_FRAME", 0x6474E551: "GNU_STACK",
+                      0x6474E552: "GNU_RELRO"}
+
+    def native_map_address(self, args: dict) -> dict:
+        """[TOOL] Map a virtual address to a file offset (and back) via PT_LOAD."""
+        loaded = _load_so(args, "native_map_address")
+        if isinstance(loaded, dict):
+            return loaded
+        name, data = loaded
+
+        address = str(args.get("address", "")).strip()
+        kind = args.get("address_kind", "va")
+        if kind not in ("va", "file_offset"):
+            return {"status": "error", "tool": "native_map_address",
+                    "error": "address_kind must be 'va' or 'file_offset'"}
+        try:
+            addr = int(address, 0)
+        except ValueError:
+            return {"status": "error", "tool": "native_map_address",
+                    "error": f"address '{address}' is not a number (hex like 0x12340 or decimal)"}
+
+        segments = self._program_headers(data)
+        if not segments:
+            return {"status": "error", "tool": "native_map_address",
+                    "error": f"no readable program-header table in '{name}' "
+                             "(packed or stripped blobs cannot be mapped)"}
+        for seg in segments:
+            if seg["type"] != self._PT_LOAD:
+                continue
+            if kind == "va" and seg["vaddr"] <= addr < seg["vaddr"] + seg["memsz"]:
+                file_offset = seg["offset"] + (addr - seg["vaddr"])
+                return self._map_result(name, addr, kind, "file_offset",
+                                        file_offset, seg, file_offset < seg["offset"] + seg["filesz"])
+            if kind == "file_offset" and seg["offset"] <= addr < seg["offset"] + seg["filesz"]:
+                va = seg["vaddr"] + (addr - seg["offset"])
+                return self._map_result(name, addr, kind, "va", va, seg, True)
+        return {"status": "error", "tool": "native_map_address",
+                "error": f"{kind} 0x{addr:x} is not mapped by any PT_LOAD segment in '{name}'"}
+
+    @staticmethod
+    def _map_result(name: str, addr: int, in_kind: str, out_kind: str,
+                    out_addr: int, seg: dict, inside_exec: bool) -> dict:
+        return {"status": "ok", "tool": "native_map_address", "output": {
+            "lib": name,
+            "input": f"0x{addr:x}", "kind": in_kind, out_kind: f"0x{out_addr:x}",
+            "segment": {"type": SoSecHandler._PT_TYPE_NAMES.get(seg["type"], f"type{seg['type']}"),
+                        "flags": seg["flags"], "vaddr": f"0x{seg['vaddr']:x}",
+                        "filesz": seg["filesz"]},
+            "inside_exec": bool(seg["flags"] & 0x1),
+            "mapped_in_exec": inside_exec,
+        }}
+
+    # ── native_patch_string ───────────────────────────────────────────────
+
+    def native_patch_string(self, args: dict) -> dict:
+        """[TOOL] Patch a UTF-8 string inside a .so (zero-padded, expected-text guarded)."""
+        loaded = _load_so(args, "native_patch_string")
+        if isinstance(loaded, dict):
+            return loaded
+        name, data = loaded
+        expected = args.get("expected_text", "")
+        replacement = args.get("replacement_text", "")
+        padding = args.get("padding_mode", "zero")
+        if not expected:
+            return {"status": "error", "tool": "native_patch_string",
+                    "error": "expected_text is required (the exact current string)"}
+        if padding not in ("zero",):
+            return {"status": "error", "tool": "native_patch_string",
+                    "error": "padding_mode must be 'zero' (the 'shift' mode is rejected — it moves offsets)"}
+        expected_bytes = expected.encode("utf-8")
+        replacement_bytes = replacement.encode("utf-8")
+        if len(replacement_bytes) > len(expected_bytes):
+            return {"status": "error", "tool": "native_patch_string",
+                    "error": f"replacement is {len(replacement_bytes)} bytes but the expected string is "
+                             f"{len(expected_bytes)} — shorter only (the binary cannot shift)"}
+        occurrences = [m.start() for m in re.finditer(re.escape(expected_bytes), data)]
+        if not occurrences:
+            return {"status": "error", "tool": "native_patch_string",
+                    "error": f"expected_text not found in '{name}' — copy it exactly from "
+                             f"native_strings output"}
+        sites = []
+        patched = bytearray(data)
+        padded = replacement_bytes + b"\x00" * (len(expected_bytes) - len(replacement_bytes))
+        for off in occurrences:
+            before = data[off:off + len(expected_bytes)]
+            patched[off:off + len(expected_bytes)] = padded
+            va = _va_of_offset(data, off)
+            sites.append({"file_offset": off, "address": f"0x{va:x}" if va else None,
+                          "before_hex": before.hex(), "after_hex": padded.hex(),
+                          "bytes_written": len(expected_bytes)})
+        out_path = args.get("output_path")
+        target = Path(out_path) if out_path else Path(name)
+        if out_path is None:
+            bak = target.with_name(target.name + ".bak")
+            if not bak.exists():
+                shutil.copy2(target, bak)
+        target.write_bytes(bytes(patched))
+        return {"status": "ok", "tool": "native_patch_string", "output": {
+            "lib": name, "out": str(target), "occurrences": len(sites), "sites": sites,
+            "note": "the remainder is zero-padded; re-sign/repack afterwards "
+                    "(zip_update swap back into the APK, then apk_sign)"}}
+
+    # ── native_patch_instructions ─────────────────────────────────────────
+
+    def native_patch_instructions(self, args: dict) -> dict:
+        """[TOOL] Assemble replacement instructions (keystone) into a .so at an address."""
+        loaded = _load_so(args, "native_patch_instructions")
+        if isinstance(loaded, dict):
+            return loaded
+        name, data = loaded
+
+        address = str(args.get("address", "")).strip()
+        expected_hex = str(args.get("expected_hex", "")).replace(" ", "").lower()
+        assembly = args.get("replacement_assembly", "")
+        padding = args.get("padding_mode", "nop")
+        if not address or not expected_hex or not assembly:
+            return {"status": "error", "tool": "native_patch_instructions",
+                    "error": "address, expected_hex and replacement_assembly are all required"}
+        if padding not in ("nop",):
+            return {"status": "error", "tool": "native_patch_instructions",
+                    "error": "padding_mode must be 'nop'"}
+        try:
+            addr = int(address, 0)
+        except ValueError:
+            return {"status": "error", "tool": "native_patch_instructions",
+                    "error": f"address '{address}' is not a number"}
+        try:
+            expected = bytes.fromhex(expected_hex)
+        except ValueError as exc:
+            return {"status": "error", "tool": "native_patch_instructions",
+                    "error": f"bad expected_hex: {exc}"}
+
+        segments = self._program_headers(data)
+        file_offset = None
+        if segments:
+            for seg in segments:
+                if seg["type"] == self._PT_LOAD and seg["vaddr"] <= addr < seg["vaddr"] + seg["memsz"]:
+                    file_offset = seg["offset"] + (addr - seg["vaddr"])
+                    break
+        if file_offset is None:
+            return {"status": "error", "tool": "native_patch_instructions",
+                    "error": f"address 0x{addr:x} is not mapped in '{name}' (no PT_LOAD covers it)"}
+        if file_offset + len(expected) > len(data):
+            return {"status": "error", "tool": "native_patch_instructions",
+                    "error": "address extends past end of file"}
+
+        machine = _elf_machine(data)
+        try:
+            assembled = self._assemble(machine, assembly, addr)
+        except ImportError:
+            return {"status": "missing_tool", "tool": "native_patch_instructions",
+                    "error": "keystone-engine is not installed in this Python environment.",
+                    "hint": "pip install keystone-engine (the android-re-mcp[native] extra)."}
+        except RuntimeError as exc:
+            return {"status": "error", "tool": "native_patch_instructions", "error": str(exc)}
+        if len(assembled) > len(expected):
+            return {"status": "error", "tool": "native_patch_instructions",
+                    "error": f"assembled code is {len(assembled)} bytes but the expected block is "
+                             f"{len(expected)} — shorter only (the binary cannot shift)"}
+        actual = data[file_offset:file_offset + len(expected)]
+        if actual != expected:
+            return {"status": "error", "tool": "native_patch_instructions",
+                    "error": f"expected_hex mismatch — bytes at 0x{addr:x} are "
+                             f"{actual.hex()}, not {expected.hex()}"}
+        padded = assembled + self._nop_fill(machine, len(expected) - len(assembled))
+        patched = bytearray(data)
+        patched[file_offset:file_offset + len(padded)] = padded
+
+        out_path = args.get("output_path")
+        target = Path(out_path) if out_path else Path(name)
+        if out_path is None:
+            bak = target.with_name(target.name + ".bak")
+            if not bak.exists():
+                shutil.copy2(target, bak)
+        target.write_bytes(bytes(patched))
+        return {"status": "ok", "tool": "native_patch_instructions", "output": {
+            "lib": name, "out": str(target), "address": f"0x{addr:x}",
+            "file_offset": file_offset, "before_hex": actual.hex(),
+            "after_hex": padded.hex(), "bytes_written": len(padded),
+            "assembled_bytes": len(assembled),
+            "note": "re-sign/repack afterwards (zip_update swap back, then apk_sign)"}}
+
+    @staticmethod
+    def _assemble(machine: int, assembly: str, address: int) -> bytes:
+        import keystone as ks_mod
+        arch_map = {183: (ks_mod.KS_ARCH_ARM64, ks_mod.KS_MODE_LITTLE_ENDIAN),
+                    40: (ks_mod.KS_ARCH_ARM, ks_mod.KS_MODE_ARM),
+                    62: (ks_mod.KS_ARCH_X86, ks_mod.KS_MODE_64),
+                    3: (ks_mod.KS_ARCH_X86, ks_mod.KS_MODE_32)}
+        if machine not in arch_map:
+            raise RuntimeError(f"machine {_MACHINE_NAMES.get(machine, machine)} is not supported "
+                               "(supported: AArch64, ARM, x86, x86_64)")
+        arch, mode = arch_map[machine]
+        ks = ks_mod.Ks(arch, mode)
+        try:
+            encoded, _count = ks.asm(assembly, addr=address)
+        except ks_mod.KsError as exc:
+            raise RuntimeError(f"keystone assembly failed: {exc}") from exc
+        return bytes(bytearray(encoded))
+
+    @staticmethod
+    def _nop_fill(machine: int, size: int) -> bytes:
+        if machine == 183:  # arm64: 4-byte NOP
+            return (b"\x1f\x20\x03\xd5" * ((size + 3) // 4))[:size]
+        if machine == 40:  # arm: MOV R0,R0
+            return (b"\x00\x00\xa0\xe1" * ((size + 3) // 4))[:size]
+        return b"\x90" * size  # x86/x64: 1-byte NOP
 
     # ── syscall_lookup ────────────────────────────────────────────────────
 

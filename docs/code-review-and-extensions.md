@@ -14,7 +14,7 @@ Companion files: this document extends the current README's [tool tables](../REA
 
 One GitHub-flavoured codebase in `python/src/android_re_mcp/`:
 
-- `server.py` — declares all 74 tool schemas in one `TOOL_SCHEMAS` list, wires them to 12 handler classes in a dispatch table, and serves resources (5 knowledge packs) and prompts (7 guided playbooks). Transports: stdio (default) and SSE (loopback, bearer-token enforced off-loopback).
+- `server.py` — declares all 87 tool schemas in one `TOOL_SCHEMAS` list, wires them to 13 handler classes in a dispatch table, and serves resources (5 knowledge packs) and prompts (7 guided playbooks). Transports: stdio (default) and SSE (loopback, bearer-token enforced off-loopback).
 - `handlers/*.py` — the actual work: `static.py` (apktool/jadx/apkid/apkleaks/androguard), `dynamic.py` (Frida sessions, script library, hluda, memory), `device.py` (adb, logcat, scrcpy, hermes), `network.py` (mitmproxy), `patcher.py` + `signing.py` (smali edit, gadget embed, uber-apk-signer), `native.py` / `flutter.py` (radare2, Il2CppDumper, Blutter), `rasp.py` (vendor fingerprints + bypass scripts), `memory.py` (per-target notes).
 - `guard.py` — validates every call before dispatch: path deny-lists, `ANDROID_RE_MCP_ALLOWED_DIRS`, `ANDROID_RE_MCP_DISABLE_TOOLS`, per-argument regexes.
 - `paths.py` / `config.py` — `~/.local/share/android-re-mcp` for all writes (0700), `~/.config/android-re-mcp/config.toml` for `[signing]` settings, `~/tools` for downloaded binaries.
@@ -305,6 +305,53 @@ New findings made while fixing Part 1/2 items. They are logged here instead of f
 | D-9 | The 7 Java-hooking scripts used the classic `Java` global, which frida 17 removed from **both** script runtimes (QuickJS and V8) — verified empirically on-device: every spawn+inject produced `ReferenceError: 'Java' is not defined`, invisible to `node --check`. **Fixed** in-commit: the scripts ship as `frida-compile` bundles with `frida-java-bridge` compiled in (`frida_scripts/build_bundles.sh` from `frida_scripts/src/`; `memory_scan` stays raw — it is pure-native). Guards: the bridge-marker test in `test_handlers.py` plus the config-protocol checks, which the bundles preserve (`recv("config")` ×2). Verified live: all 7 spawn+inject cleanly on com.android.settings with zero error messages. | `frida_scripts/` | fixed in-commit |
 
 
+
+---
+
+## E-PY-18. MT-MCP adoption — 13 tools from MT Manager's MCP (2026-11-18)
+
+Source: live capture of "MT MCP" v0.2.0 (67 tools, MT Manager 2.26.11, `bin.mt.plus`), full
+schema dump in `~/jadx-emu/protected_apks/test_apks/mt_mcp/tools_raw.json`. Redundancy matrix
+against android-re-mcp's catalog: 12 tools adopted as 13 (the resource trio), the rest skipped
+as covered by existing tools or plain PC shell. Plan: `mt-mcp-android-re-implementation-plan.md`
+(same directory) — implementation followed its T1/T2 order, T3 deferred as written.
+
+- **APK/zip surgery & checks (8)** — `handlers/apkops.py` (`ApkOpsHandler`): `apk_read_signature`
+  (apksigner scheme matrix + openssl META-INF cert details; unsigned → ok/verifies:false),
+  `zip_test` (CRC-every-entry audit, duplicate names, method histogram, encrypted/bad entries,
+  trailing bytes, STORE-dex smell), `zip_extract` (explicit entry→dest, zip-slip refused,
+  per-entry results), `zip_update` (generalizes `dex_swap`: add/replace/patch with
+  `expected_hex` guards/rename/delete, `expected_sha256` concurrency guard, META-INF renames
+  refused, untouched entries byte-identical via original ZipInfo reuse, `.apk.bak` first),
+  `apk_build_check` (pre-build linting: manifest AXML magic, aapt2 resource-compile with
+  SDK discovery, dexfile-cli dex sanity, duplicate/pending-edit `.bak` scan; blockers carry
+  codes + fix hints), `resource_table_list` (aapt2 dump resources parsed: packages/types/
+  entries), `resource_read` (ids or type/name → per-config values, `@ref` chains),
+  `resource_xref` (hex grep across an apktool decompile).
+- **Native patching (3)** — `handlers/sosec.py`: `native_map_address` (VA↔file-offset via
+  PT_LOAD, both directions, exec status), `native_patch_string` (zero-padded, `expected_text`
+  guarded, all occurrences, `.bak` first), `native_patch_instructions` (keystone assembly,
+  `expected_hex` guarded, arch-correct NOP padding — arm64/arm/x86/x64; keystone-engine joins
+  the `[native]` extra).
+- **DEX reads (2)** — `handlers/dex.py`: `dex_read_class_outline` (dexfile-cli `outline`
+  subcommand, v0.1.6; searches every classes*.dex of an APK), `dex_read_pseudocode` (jadx
+  `--single-class` incremental cache, line paging, brace-matched `method` slices; smali-level
+  fallback hinted on jadx failure).
+- **MT conventions adopted** (not tools): `expected_*` guards on byte-level ops, optional
+  `expected_sha256` concurrency guard, per-op results, next-step hints.
+- **Integration facts learned:** androguard 4.x logs through **loguru** (stdlib levels never
+  silence it — `loguru.disable("androguard")` is the mute); aapt2 lives under
+  `$ANDROID_HOME/build-tools/*` (SDK layout discovery added); notesdemo.apk is unsigned in the
+  apksigner sense (missing META-INF/MANIFEST.MF) — signature tools report verifies:false honestly;
+  jadx omits default constructors from single-class output (method slices tested on the cache
+  hit path).
+- *Tests:* `tests/test_mt_adopt.py` — 30 cases: hermetic zip/signature/native-map/patcher/
+  build-check coverage (corrupt + duplicate-name fixtures, traversal attacks, expected-mismatch
+  aborts with zero writes, too-long rejections) plus androguard/jadx/dexfile-cli-gated live runs
+  (AppCloner table + app_name resolution + xref, notesdemo pseudocode, dexfile-cli outline).
+- *Status:* **done** — catalog 74 → 87 tools. `dexfile-cli` bumped to v0.1.6 (outline subcommand;
+  parallel-session v0.1.3–v0.1.5 carried real-ART cdex reads, odex handling, LegacyRewriter, and
+  the cdex→DEX037 conversion default).
 
 ---
 
