@@ -49,7 +49,7 @@ It needs Python 3.11 or newer. The base install is just the MCP server. The extr
 
 If Frida is already pinned in your environment, install without extras and the server will not touch it.
 
-`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0, Il2CppDumper 6.7.46 and dexfile-cli 0.1.1 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
+`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0, Il2CppDumper 6.7.46 and dexfile-cli 0.1.2 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
 
 ### Connect it
 
@@ -216,7 +216,7 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `native_crypto_constants` | AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64 alphabets, Blowfish P-array — file offset + VA | nothing |
 | `syscall_lookup` | arm64/x86_64 syscall number ↔ name, bundled from kernel headers | nothing |
 
-**DEX surgery (7)** — the DexFile cherry-pick (E-PY-17, [dexfile-cli 0.1.1](https://github.com/FlyPhantomFly/dexfile-cli))
+**DEX surgery (7)** — the DexFile cherry-pick (E-PY-17, [dexfile-cli 0.1.2](https://github.com/FlyPhantomFly/dexfile-cli))
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
