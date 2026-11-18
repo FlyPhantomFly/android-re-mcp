@@ -1,79 +1,59 @@
 <svg width="1280" height="640" viewBox="0 0 1280 640" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
-  <!-- Background -->
   <rect width="1280" height="640" fill="#0d1117"/>
-  <!-- Top accent bar -->
-  <rect width="1280" height="6" fill="#38bdf8"/>
+  <rect width="1280" height="340" fill="#38bdf8" fill-opacity="0.05"/>
+  <rect width="1280" height="4" fill="#38bdf8"/>
 
-  <!-- Shield icon area -->
-  <g transform="translate(560, 90)">
-    <path d="M80 10 L140 35 L140 90 Q140 135 80 155 Q20 135 20 90 L20 35 Z" fill="#38bdf8" opacity="0.12"/>
-    <path d="M80 10 L140 35 L140 90 Q140 135 80 155 Q20 135 20 90 L20 35 Z" fill="none" stroke="#38bdf8" stroke-width="3"/>
-    <text x="80" y="100" text-anchor="middle" font-size="48" fill="#38bdf8">🔍</text>
+  <!-- dex magic watermark -->
+  <text x="1216" y="596" text-anchor="end" font-family="ui-monospace, 'Cascadia Code', Menlo, monospace" font-size="22" fill="#1c2938" letter-spacing="4">dex\n035</text>
+
+  <!-- overline -->
+  <text x="640" y="150" text-anchor="middle" font-size="17" fill="#7dd3fc" letter-spacing="6" font-weight="600">ANDROID REVERSE ENGINEERING · MODEL CONTEXT PROTOCOL</text>
+
+  <!-- title -->
+  <text x="640" y="248" text-anchor="middle" font-size="72" font-weight="800" fill="#f1f5f9" letter-spacing="-2">android-re-mcp</text>
+
+  <!-- subtitle -->
+  <text x="640" y="306" text-anchor="middle" font-size="26" fill="#94a3b8">Decompile it. Hook it. Trace its traffic. Patch it. Sign it. Install it back.</text>
+
+  <!-- divider -->
+  <line x1="400" y1="344" x2="880" y2="344" stroke="#1e293b" stroke-width="1.5"/>
+
+  <!-- capability pills -->
+  <g transform="translate(0, 386)" font-size="17" font-weight="500">
+    <rect x="128" y="0" width="150" height="44" rx="22" fill="#0c2d48" stroke="#38bdf8" stroke-opacity="0.35"/>
+    <text x="203" y="28" text-anchor="middle" fill="#7dd3fc">74 tools</text>
+
+    <rect x="298" y="0" width="140" height="44" rx="22" fill="#0c2d48" stroke="#38bdf8" stroke-opacity="0.35"/>
+    <text x="368" y="28" text-anchor="middle" fill="#7dd3fc">adb</text>
+
+    <rect x="458" y="0" width="140" height="44" rx="22" fill="#0c2d48" stroke="#38bdf8" stroke-opacity="0.35"/>
+    <text x="528" y="28" text-anchor="middle" fill="#7dd3fc">Frida</text>
+
+    <rect x="618" y="0" width="160" height="44" rx="22" fill="#0c2d48" stroke="#38bdf8" stroke-opacity="0.35"/>
+    <text x="698" y="28" text-anchor="middle" fill="#7dd3fc">mitmproxy</text>
+
+    <rect x="798" y="0" width="140" height="44" rx="22" fill="#0c2d48" stroke="#38bdf8" stroke-opacity="0.35"/>
+    <text x="868" y="28" text-anchor="middle" fill="#7dd3fc">apktool</text>
+
+    <rect x="958" y="0" width="120" height="44" rx="22" fill="#0c2d48" stroke="#38bdf8" stroke-opacity="0.35"/>
+    <text x="1018" y="28" text-anchor="middle" fill="#7dd3fc">jadx</text>
   </g>
 
-  <!-- Title -->
-  <text x="640" y="270" text-anchor="middle" font-size="58" font-weight="700" fill="#f1f5f9" letter-spacing="-1">android-re-mcp</text>
+  <!-- dex surgery pill row -->
+  <g transform="translate(0, 452)" font-size="17" font-weight="500">
+    <rect x="203" y="0" width="180" height="44" rx="22" fill="#132a3f" stroke="#7dd3fc" stroke-opacity="0.25"/>
+    <text x="293" y="28" text-anchor="middle" fill="#bae6fd">DEX surgery</text>
 
-  <!-- Subtitle -->
-  <text x="640" y="320" text-anchor="middle" font-size="24" fill="#94a3b8" font-weight="400">Mobile App Security Analysis · MCP Server for Claude</text>
+    <rect x="403" y="0" width="220" height="44" rx="22" fill="#132a3f" stroke="#7dd3fc" stroke-opacity="0.25"/>
+    <text x="513" y="28" text-anchor="middle" fill="#bae6fd">native ELF analysis</text>
 
-  <!-- Divider -->
-  <line x1="440" y1="350" x2="840" y2="350" stroke="#1e293b" stroke-width="1.5"/>
+    <rect x="643" y="0" width="180" height="44" rx="22" fill="#132a3f" stroke="#7dd3fc" stroke-opacity="0.25"/>
+    <text x="733" y="28" text-anchor="middle" fill="#bae6fd">RASP bypass</text>
 
-  <!-- Tool pills - row 1 (Android) -->
-  <g transform="translate(0, 370)">
-    <rect x="120" y="0" width="220" height="36" rx="18" fill="#0c2d48" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.4"/>
-    <text x="230" y="23" text-anchor="middle" font-size="14" fill="#7dd3fc" font-weight="500">apk_manifest_analyzer</text>
-
-    <rect x="360" y="0" width="220" height="36" rx="18" fill="#0c2d48" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.4"/>
-    <text x="470" y="23" text-anchor="middle" font-size="14" fill="#7dd3fc" font-weight="500">apk_permissions_checker</text>
-
-    <rect x="600" y="0" width="200" height="36" rx="18" fill="#0c2d48" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.4"/>
-    <text x="700" y="23" text-anchor="middle" font-size="14" fill="#7dd3fc" font-weight="500">android_api_extractor</text>
-
-    <rect x="820" y="0" width="220" height="36" rx="18" fill="#0c2d48" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.4"/>
-    <text x="930" y="23" text-anchor="middle" font-size="14" fill="#7dd3fc" font-weight="500">android_secrets_scanner</text>
-
-    <rect x="1060" y="0" width="100" height="36" rx="18" fill="#0c2d48" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.4"/>
-    <text x="1110" y="23" text-anchor="middle" font-size="14" fill="#7dd3fc" font-weight="500">+more</text>
+    <rect x="843" y="0" width="180" height="44" rx="22" fill="#132a3f" stroke="#7dd3fc" stroke-opacity="0.25"/>
+    <text x="933" y="28" text-anchor="middle" fill="#bae6fd">token conservation</text>
   </g>
 
-  <!-- Tool pills - row 2 (iOS) -->
-  <g transform="translate(0, 420)">
-    <rect x="120" y="0" width="200" height="36" rx="18" fill="#1e0a2e" stroke="#a855f7" stroke-width="1" stroke-opacity="0.4"/>
-    <text x="220" y="23" text-anchor="middle" font-size="14" fill="#c084fc" font-weight="500">ios_manifest_analyzer</text>
-
-    <rect x="340" y="0" width="210" height="36" rx="18" fill="#1e0a2e" stroke="#a855f7" stroke-width="1" stroke-opacity="0.4"/>
-    <text x="445" y="23" text-anchor="middle" font-size="14" fill="#c084fc" font-weight="500">ios_entitlements_checker</text>
-
-    <rect x="570" y="0" width="210" height="36" rx="18" fill="#1e0a2e" stroke="#a855f7" stroke-width="1" stroke-opacity="0.4"/>
-    <text x="675" y="23" text-anchor="middle" font-size="14" fill="#c084fc" font-weight="500">ios_frameworks_detector</text>
-
-    <rect x="800" y="0" width="190" height="36" rx="18" fill="#1e0a2e" stroke="#a855f7" stroke-width="1" stroke-opacity="0.4"/>
-    <text x="895" y="23" text-anchor="middle" font-size="14" fill="#c084fc" font-weight="500">ios_secrets_scanner</text>
-
-    <rect x="1010" y="0" width="150" height="36" rx="18" fill="#1e0a2e" stroke="#a855f7" stroke-width="1" stroke-opacity="0.4"/>
-    <text x="1085" y="23" text-anchor="middle" font-size="14" fill="#c084fc" font-weight="500">ios_binary_strings</text>
-  </g>
-
-  <!-- Bottom tagline -->
-  <text x="640" y="530" text-anchor="middle" font-size="18" fill="#475569">Android APK  ·  iOS IPA  ·  Claude AI  ·  No Code Required</text>
-
-  <!-- Bottom badges -->
-  <g transform="translate(490, 555)">
-    <rect width="90" height="26" rx="5" fill="#0369a1"/>
-    <text x="45" y="18" text-anchor="middle" font-size="13" fill="white" font-weight="600">TypeScript</text>
-  </g>
-  <g transform="translate(595, 555)">
-    <rect width="60" height="26" rx="5" fill="#4f46e5"/>
-    <text x="30" y="18" text-anchor="middle" font-size="13" fill="white" font-weight="600">MCP</text>
-  </g>
-  <g transform="translate(670, 555)">
-    <rect width="70" height="26" rx="5" fill="#059669"/>
-    <text x="35" y="18" text-anchor="middle" font-size="13" fill="white" font-weight="600">MIT</text>
-  </g>
-  <g transform="translate(755, 555)">
-    <rect width="70" height="26" rx="5" fill="#b45309"/>
-    <text x="35" y="18" text-anchor="middle" font-size="13" fill="white" font-weight="600">npm</text>
-  </g>
+  <!-- footer -->
+  <text x="640" y="572" text-anchor="middle" font-size="17" fill="#64748b">pip install "android-re-mcp[all]" · python 3.11+ · MIT</text>
 </svg>
