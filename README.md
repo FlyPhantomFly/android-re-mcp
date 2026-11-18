@@ -5,14 +5,17 @@
 
 [![version](https://img.shields.io/pypi/v/android-re-mcp?style=flat-square&logo=pypi&logoColor=white&label=version&color=0e7490)](https://pypi.org/project/android-re-mcp/) [![tests](https://img.shields.io/github/actions/workflow/status/FlyPhantomFly/android-re-mcp/ci.yml?style=flat-square&label=tests&color=10b981)](https://github.com/FlyPhantomFly/android-re-mcp/actions) [![code style](https://img.shields.io/badge/code%20style-ruff-261230?style=flat-square&logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/) [![python](https://img.shields.io/badge/python-3.11%2B-0e7490?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/android-re-mcp/) [![dexfile-cli](https://img.shields.io/github/v/release/FlyPhantomFly/dexfile-cli?style=flat-square&label=dexfile-cli&color=0e7490)](https://github.com/FlyPhantomFly/dexfile-cli/releases) [![license](https://img.shields.io/badge/license-MIT-10b981?style=flat-square)](LICENSE)
 
-android-re-mcp is an MCP server for Android reverse engineering. You point it at a real device and a target app, then just ask: *what is this app, what's protecting it, and how do I get past that?* The assistant picks from 74 tools — decompile, hook, trace traffic, dump memory, patch smali or dex, sign and reinstall — and walks you through the answer.
+android-re-mcp is an MCP server for Android reverse engineering. 
+
+You point it at a real device and a target app, then just ask: *what is this app, what's protecting it, and how do I get past that?* 
+
+The assistant picks from 74 tools: decompile, hook, trace traffic, dump memory, patch smali or dex, sign and reinstall, and walks you through the answer.
 
 It's one package: PyPI: `android-re-mcp`
 
 ---
 
-## The Python server 
-(the PyPI package)
+## The Python server (the PyPI package)
 
 ### What it does exactly
 
