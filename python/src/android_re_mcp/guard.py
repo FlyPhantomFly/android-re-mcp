@@ -29,6 +29,7 @@ OUTPUT_SUFFIXES = {
     "dex_convert": {"output_path": {".dex", ".cdex", ".vdex", ".container", ".jar"}},
     "dex_patch": {"output_path": {".dex", ".cdex", ".vdex", ".container", ".jar"}},
     "dex_assemble": {"output_path": {".dex", ".jar"}},
+    "dex_swap": {"output_apk": {".apk"}},
 }
 
 _SYMBOL = re.compile(r"(0x[0-9a-fA-F]{1,16}|[A-Za-z0-9_.@]{1,200})")
