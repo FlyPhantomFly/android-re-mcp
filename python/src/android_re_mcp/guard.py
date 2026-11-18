@@ -15,8 +15,9 @@ from typing import Any
 
 # Host-side file arguments, by tool argument name.
 PATH_KEYS = {
-    "apk_path", "bundle_path", "capture_path", "gadget_path", "local", "new_path", "old_path",
-    "output_apk", "output_dir", "output_path", "path", "record_file", "smali_dir", "so_path",
+    "apk_path", "bundle_path", "capture_path", "dex_path", "gadget_path", "in_path", "local",
+    "new_path", "old_path", "output_apk", "output_dir", "output_path", "path", "record_file",
+    "smali_dir", "so_path",
 }
 # Where each of those is written rather than read.
 WRITE_KEYS = {"local", "output_apk", "output_dir", "output_path", "record_file"}
@@ -25,6 +26,9 @@ OUTPUT_SUFFIXES = {
     "mitm_export_har": {"output_path": {".har", ".json"}},
     "scrcpy_screenshot": {"output_path": {".png"}},
     "scrcpy_start": {"record_file": {".mp4", ".mkv"}},
+    "dex_convert": {"output_path": {".dex", ".cdex", ".vdex", ".container", ".jar"}},
+    "dex_patch": {"output_path": {".dex", ".cdex", ".vdex", ".container", ".jar"}},
+    "dex_assemble": {"output_path": {".dex", ".jar"}},
 }
 
 _SYMBOL = re.compile(r"(0x[0-9a-fA-F]{1,16}|[A-Za-z0-9_.@]{1,200})")

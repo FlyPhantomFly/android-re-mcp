@@ -45,6 +45,7 @@ from android_re_mcp.handlers.rasp import RaspHandler
 from android_re_mcp.handlers.signing import SigningHandler
 from android_re_mcp.handlers.apkdiff import ApkDiffHandler
 from android_re_mcp.handlers.apiextractor import ApiExtractorHandler
+from android_re_mcp.handlers.dex import DexHandler
 from android_re_mcp.handlers.googleservices import GoogleServicesHandler
 from android_re_mcp.handlers.sosec import SoSecHandler
 from android_re_mcp.handlers.static import StaticHandler
@@ -627,6 +628,144 @@ TOOL_SCHEMAS: list[dict] = [
                 "number": {"type": "integer", "description": "Exact lookup by syscall number"},
                 "name": {"type": "string", "description": "Substring search by name (e.g. 'openat')"},
             },
+        },
+    },
+    # ── DEX surgery (E-PY-17, dexfile-cli) ────────────────────────────────
+    {
+        "name": "dex_info",
+        "description": (
+            "Read-only dex metadata: version, target API, class/method/string "
+            "counts, map items. Reads flat dex, dex 041 containers, and "
+            "magic-scans wrapped cdex/dex inside vdex or packer-shuffled "
+            "blobs. Needs dexfile-cli.jar (dexfile-cli --setup)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "dex_path": {"type": "string", "description": "Absolute path to a dex/container/vdex file"},
+                "classes": {"type": "boolean", "description": "Also list class names (capped)"},
+                "limit": {"type": "integer", "default": 200},
+            },
+            "required": ["dex_path"],
+        },
+    },
+    {
+        "name": "dex_extract",
+        "description": (
+            "Pull every classes*.dex out of an APK (or copy/scan a dex/vdex) "
+            "into an output dir; dex 041 containers are split per part. "
+            "Needs dexfile-cli.jar."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "apk_path": {"type": "string", "description": "Absolute path to the APK"},
+                "dex_path": {"type": "string", "description": "Or: a single dex/container file"},
+                "output_dir": {"type": "string", "description": "Defaults under the data dir"},
+            },
+        },
+    },
+    {
+        "name": "dex_convert",
+        "description": (
+            "Convert between dex versions (e.g. old-ART vdex/cdex with "
+            "embedded dex → 035 for jadx; 035 → 041 container). Round-trips "
+            "re-serialize: semantic content survives, layout does not. "
+            "cdex write is deliberately not exposed (not PathClassLoader-loadable)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "in_path": {"type": "string", "description": "Absolute path to dex/container/vdex"},
+                "target_version": {
+                    "type": "string", "enum": ["035", "036", "037", "038", "039", "040", "041"],
+                    "default": "035",
+                },
+                "output_path": {"type": "string"},
+            },
+            "required": ["in_path"],
+        },
+    },
+    {
+        "name": "dex_patch",
+        "description": (
+            "Surgical dex-model edits without decompiling the APK: "
+            "replace-const-string, rename (class/method/field), "
+            "retarget-invoke, flip-flags, replace-method-body (smali text, "
+            "must carry .locals and .end method). Writes a .bak on first "
+            "in-place modify; per-op results report what matched. Fast loop: "
+            "dex_extract → dex_patch → zip the dex back → apk_sign."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "dex_path": {"type": "string"},
+                "ops": {
+                    "type": "array",
+                    "description": (
+                        "JSON operations, e.g. {\"op\":\"replace-const-string\",\"old\":\"...\","
+                        "\"new\":\"...\"} | {\"op\":\"rename\",\"target\":\"class\",\"class\":\"a.b.C\","
+                        "\"new_name\":\"a.b.D\"} | {\"op\":\"retarget-invoke\",\"class\":\"a.b.C\","
+                        "\"name\":\"foo\",\"to_class\":\"x.y.Z\"} | {\"op\":\"flip-flags\","
+                        "\"class\":\"a.b.C\",\"set\":[\"STATIC\"]} | {\"op\":\"replace-method-body\","
+                        "\"class\":\"a.b.C\",\"method\":\"m\",\"smali\":\"...\"}"),
+                    "items": {"type": "object"},
+                },
+                "output_path": {"type": "string", "description": "Default: in-place (.bak written first)"},
+            },
+            "required": ["dex_path", "ops"],
+        },
+    },
+    {
+        "name": "dex_assemble",
+        "description": (
+            "Assemble ONE smali class into a dex (SmaliIO) — complements "
+            "(not replaces) folder-level smali/baksmali. The smali text must "
+            "carry .locals/.registers and .end method."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "smali_text": {"type": "string", "description": "A full single-class smali source"},
+                "path": {"type": "string", "description": "Or: absolute path to a .smali file"},
+                "output_path": {"type": "string"},
+            },
+        },
+    },
+    {
+        "name": "dex_split",
+        "description": (
+            "Shard a dex's classes across multiple dex files under the 64K "
+            "reference limit (DexIO.balanceAll) — the injection path for "
+            "apps at/near the limit. The balancer decides the shard count."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "dex_path": {"type": "string"},
+                "output_dir": {"type": "string", "description": "Defaults under the data dir"},
+            },
+            "required": ["dex_path"],
+        },
+    },
+    {
+        "name": "dex_swap",
+        "description": (
+            "Swap a patched dex back into an APK copy, every other entry "
+            "byte-identical (pure-Python zipfile rewrite — no jar needed). "
+            "Match is by identical bytes first, then classes*.dex size, or "
+            "pass entry_name. The first in-place swap writes an .apk.bak; "
+            "sign with apk_sign afterwards."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "apk_path": {"type": "string"},
+                "dex_path": {"type": "string", "description": "The patched dex file"},
+                "entry_name": {"type": "string", "description": "Defaults to an auto-matched classes*.dex"},
+                "output_apk": {"type": "string", "description": "Default: in-place (.apk.bak written first)"},
+            },
+            "required": ["apk_path", "dex_path"],
         },
     },
     # ── Flutter / Dart — Gap #2 ────────────────────────────────────────────
@@ -1248,6 +1387,7 @@ def create_server() -> Server:
     native = NativeHandler()
     flutter = FlutterHandler()
     sosec = SoSecHandler()
+    dex = DexHandler()
     patcher = PatcherHandler()
 
     # Dispatch table: tool_name → callable(args) → dict
@@ -1323,6 +1463,14 @@ def create_server() -> Server:
         "elf_checksec": sosec.elf_checksec,
         "native_crypto_constants": sosec.native_crypto_constants,
         "syscall_lookup": sosec.syscall_lookup,
+        # dex surgery (E-PY-17)
+        "dex_info": dex.dex_info,
+        "dex_extract": dex.dex_extract,
+        "dex_convert": dex.dex_convert,
+        "dex_patch": dex.dex_patch,
+        "dex_assemble": dex.dex_assemble,
+        "dex_split": dex.dex_split,
+        "dex_swap": dex.dex_swap,
         # flutter (Gap #2)
         "flutter_version": flutter.flutter_version,
         "dart_snapshot_info": flutter.dart_snapshot_info,

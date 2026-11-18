@@ -295,7 +295,9 @@ def check_all_tools() -> dict:
 
         # ── Signing & JAR tools ────────────────────────────────────────────
         _check_java_jar("uber-apk-signer", jar_path, used_by=["apk_sign", "apk_rebuild_sign", "inject_gadget"]),
-        _check_file(
+        _check_java_jar("dexfile-cli", str(tools_dir / "dexfile-cli.jar"),
+                        used_by=["dex_info", "dex_extract", "dex_convert", "dex_patch",
+                                 "dex_assemble", "dex_split"]),        _check_file(
             "smali.jar", [str(tools_dir / "smali.jar")],
             hint="apktool bundles smali; standalone jars are on Maven Central (com.android.tools.smali)",
             used_by=[],
