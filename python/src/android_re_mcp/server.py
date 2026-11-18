@@ -668,10 +668,12 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "name": "dex_convert",
         "description": (
-            "Convert between dex versions (e.g. old-ART vdex/cdex with "
-            "embedded dex → 035 for jadx; 035 → 041 container). Round-trips "
-            "re-serialize: semantic content survives, layout does not. "
-            "cdex write is deliberately not exposed (not PathClassLoader-loadable)."
+            "Convert between dex versions. Default target is smart: "
+            "old-ART vdex/cdex (API 28+ era) → 037, flat dex → 035 for jadx; "
+            "pass target_version to force another (e.g. 035 → 041 container). "
+            "Round-trips re-serialize: semantic content survives, layout does "
+            "not. cdex write is deliberately not exposed (not "
+            "PathClassLoader-loadable)."
         ),
         "inputSchema": {
             "type": "object",

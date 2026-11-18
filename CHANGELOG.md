@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed (Python)
+- `dex_convert`'s default target is now cdex-aware: legacy-ART inputs (bare `cdex` or a `vdex` wrapper) default to **037** — cdex 001 carries Android 9 (API 28) era code, and 037 (API 26+) is the closest standard dex version, so rewriting down to 035 mislabels it. Flat dex keeps the 035 default (maximum reader compatibility for jadx), and an explicit `target_version` always wins. The result's `note` names the defaulted target when it fires; the CLI-side counterpart lands in dexfile-cli (patch rewrites cdex to 037 from v0.1.3 on). Hermetic test for all four default paths in `tests/test_dex_tools.py`.
+- `dexfile-cli` pin bumped v0.1.2 → v0.1.3 (sha256 `6925efb8…`): the jar's `patch` now rewrites cdex to DEX037. `dex_convert`'s new 037 default works against either pin (convert `--to` predates it).
+
 ## [1.6.0] - 2026-11-17
 
 ### Changed (Python)

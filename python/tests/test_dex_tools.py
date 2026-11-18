@@ -203,6 +203,41 @@ def test_dex_info_caps_classes_list(monkeypatch):
     assert out["total"] == 300
 
 
+# ── convert default target (hermetic, faked CLI) ──────────────────────────
+
+def test_convert_default_target_by_magic(fake_run, tmp_path):
+    """vdex/cdex inputs default to 037 (API 28+ era); flat dex stays 035."""
+    h = DexHandler()
+
+    vdex = tmp_path / "base.vdex"
+    vdex.write_bytes(b"vdex\x0010\x00" + b"\x00" * 16)
+    out_v = h.dex_convert({"in_path": str(vdex)})
+    args_v = fake_run["cli_args"]
+    assert args_v[args_v.index("--to") + 1] == "037"
+    assert "037" in out_v["note"] and "target_version" in out_v["note"]
+
+    cdex = tmp_path / "base.cdex"
+    cdex.write_bytes(b"cdex001\x00" + b"\x00" * 16)
+    h.dex_convert({"in_path": str(cdex)})
+    args_c = fake_run["cli_args"]
+    assert args_c[args_c.index("--to") + 1] == "037"
+
+    flat = tmp_path / "plain.dex"
+    flat.write_bytes(b"dex\n035\x00" + b"\x00" * 16)
+    h.dex_convert({"in_path": str(flat)})
+    args_f = fake_run["cli_args"]
+    assert args_f[args_f.index("--to") + 1] == "035"
+
+    # an explicit target_version always wins, whatever the magic says
+    h.dex_convert({"in_path": str(vdex), "target_version": "035"})
+    args_e = fake_run["cli_args"]
+    assert args_e[args_e.index("--to") + 1] == "035"
+
+    # an unreadable/missing input must not crash the default pick
+    version, note = DexHandler._default_target(str(tmp_path / "nope.vdex"))
+    assert (version, note) == ("035", None)
+
+
 # ── guard wiring ──────────────────────────────────────────────────────────
 
 def test_guard_refuses_dash_dex_path(tmp_path):
