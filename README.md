@@ -7,13 +7,14 @@
 
 android-re-mcp is an MCP server for Android reverse engineering. You point it at a real device and a target app, then just ask: *what is this app, what's protecting it, and how do I get past that?* The assistant picks from 74 tools — decompile, hook, trace traffic, dump memory, patch smali or dex, sign and reinstall — and walks you through the answer.
 
-It's one package (PyPI: `android-re-mcp`, command `android-re-mcp`). The old npm half (`mobile-re-mcp`) was retired in 1.4.0 — its static Android tools live on here, its iOS tools are gone, and npm shows the old package as deprecated.
+It's one package: PyPI: `android-re-mcp`
 
 ---
 
-## The Python server (the PyPI package)
+## The Python server 
+(the PyPI package)
 
-### What exactly it does
+### What it does exactly
 
 `pip install "android-re-mcp[all]"` gives you an MCP server, started as `android-re-mcp`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **74 tools over one Android target at a time**:
 
@@ -279,12 +280,6 @@ This server runs commands on your phone and your computer, so treat its tools wi
 
 ---
 
-## The npm server (retired)
-
-The npm package `mobile-re-mcp` was retired in 1.4.0 — its static Android tools live on in this package, its iOS tools are gone, and npm shows the old package as deprecated with a pointer here. Old releases stay on npm and in the git history (the server lived under `src/` before 1.4.0). Install this package instead.
-
----
-
 ## Companion servers
 
 Some capabilities are deliberately kept out of this package and paired with it as separate MCP servers — the token cost stays opt-in per project, and each tool keeps its own release cycle.
@@ -292,7 +287,7 @@ Some capabilities are deliberately kept out of this package and paired with it a
 **smali-lsp** ([github.com/surendrajat/smali-lsp](https://github.com/surendrajat/smali-lsp)) — a Language-Server-grade smali engine (224 Dalvik opcodes, inheritance-aware indexing) with a built-in MCP mode. It is the semantic layer this package deliberately does not reimplement: references, call graphs, workspace symbol search and — most valuably — `smali_diagnostics`, which reports *what the assembler or verifier would reject after a hand edit*. Wire it into the patching loop so a bad edit fails before `apk_rebuild_sign` burns a rebuild:
 
 ```
-apk_decompile → smali_index → smali_patch edits → smali_diagnostics → apk_rebuild_sign
+apk_decompile -> smali_index -> smali_patch edits -> smali_diagnostics -> apk_rebuild_sign
 ```
 
 Build it once (JDK 17+, `./gradlew shadowJar`) or grab an upstream release, then register it as its own server — it needs an apktool decompile, which `apk_decompile` already produces (`<name>_apktool/`):
