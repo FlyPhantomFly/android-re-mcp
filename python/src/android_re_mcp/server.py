@@ -44,6 +44,7 @@ from android_re_mcp.handlers.patcher import PatcherHandler
 from android_re_mcp.handlers.rasp import RaspHandler
 from android_re_mcp.handlers.signing import SigningHandler
 from android_re_mcp.handlers.apkdiff import ApkDiffHandler
+from android_re_mcp.handlers.apkops import ApkOpsHandler
 from android_re_mcp.handlers.apiextractor import ApiExtractorHandler
 from android_re_mcp.handlers.dex import DexHandler
 from android_re_mcp.handlers.googleservices import GoogleServicesHandler
@@ -630,6 +631,67 @@ TOOL_SCHEMAS: list[dict] = [
             },
         },
     },
+    {
+        "name": "native_map_address",
+        "description": (
+            "Map a virtual address ↔ file offset in a .so via its PT_LOAD "
+            "segments (both directions), with the covering segment's type/"
+            "flags and whether the address sits in executable memory. "
+            "Unmapped addresses are honest errors. Pure Python."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "so_path": {"type": "string"}, "apk_path": {"type": "string"},
+                "address": {"type": "string", "description": "Hex like 0x12340 or decimal"},
+                "address_kind": {"type": "string", "enum": ["va", "file_offset"], "default": "va"},
+            },
+            "required": ["address"],
+        },
+    },
+    {
+        "name": "native_patch_string",
+        "description": (
+            "Patch a UTF-8 string inside a .so in place: every occurrence of "
+            "expected_text is replaced, zero-padded to the original length "
+            "(shorter only — the binary cannot shift); expected_text must "
+            "exist or the call aborts with zero writes. Pairs with "
+            "zip_update swap-back and apk_sign."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "so_path": {"type": "string"}, "apk_path": {"type": "string"},
+                "expected_text": {"type": "string", "description": "The exact current string"},
+                "replacement_text": {"type": "string", "description": "≤ the expected length; zero-padded"},
+                "padding_mode": {"type": "string", "enum": ["zero"], "default": "zero"},
+                "output_path": {"type": "string", "description": "Default: in-place (.bak first)"},
+            },
+            "required": ["expected_text", "replacement_text"],
+        },
+    },
+    {
+        "name": "native_patch_instructions",
+        "description": (
+            "Assemble replacement instructions (keystone) into a .so at a "
+            "virtual address: expected_hex must match the current bytes "
+            "(stale-offset protection), the assembled code must fit the "
+            "expected block (NOP-padded, arch-correct). keystone-engine is "
+            "the optional [native] extra."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "so_path": {"type": "string"}, "apk_path": {"type": "string"},
+                "address": {"type": "string", "description": "Virtual address (hex)"},
+                "expected_hex": {"type": "string", "description": "The current bytes at that address"},
+                "replacement_assembly": {"type": "string", "description": "Assembly for the arch, e.g. 'mov x0, #1'"},
+                "padding_mode": {"type": "string", "enum": ["nop"], "default": "nop"},
+                "output_path": {"type": "string", "description": "Default: in-place (.bak first)"},
+            },
+            "required": ["address", "expected_hex", "replacement_assembly"],
+        },
+    },
     # ── DEX surgery (E-PY-17, dexfile-cli) ────────────────────────────────
     {
         "name": "dex_info",
@@ -770,6 +832,185 @@ TOOL_SCHEMAS: list[dict] = [
                 "output_apk": {"type": "string", "description": "Default: in-place (.apk.bak written first)"},
             },
             "required": ["apk_path", "dex_path"],
+        },
+    },
+    {
+        "name": "dex_read_class_outline",
+        "description": (
+            "Per-class dex outline without decompiling: super, interfaces, "
+            "access flags, fields (name/type/flags), methods "
+            "(name/descriptor/flags/registers). With apk_path every "
+            "classes*.dex is searched. Needs dexfile-cli.jar."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "dex_path": {"type": "string", "description": "Absolute path to a dex file"},
+                "apk_path": {"type": "string", "description": "Or: the APK (all classes*.dex searched)"},
+                "class_name": {"type": "string", "description": "Dotted name, e.g. com.example.Foo"},
+            },
+            "required": ["class_name"],
+        },
+    },
+    {
+        "name": "dex_read_pseudocode",
+        "description": (
+            "Targeted Java pseudocode for one class via jadx "
+            "--single-class (fast incremental cache under the data dir; "
+            "reuses an existing cache). Line-window paging; `method` gives "
+            "a brace-matched slice. On jadx failure use "
+            "dex_read_class_outline for the smali-level structure."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "apk_path": {"type": "string"},
+                "class_name": {"type": "string", "description": "Dotted name"},
+                "method": {"type": "string", "description": "Slice one method"},
+                "cache_dir": {"type": "string", "description": "Default: data dir /jadx-cache/<apk-stem>"},
+                "offset_lines": {"type": "integer", "default": 0},
+                "max_lines": {"type": "integer", "default": 400},
+            },
+            "required": ["apk_path", "class_name"],
+        },
+    },
+    # ── APK/zip surgery & checks (MT-MCP adoption) ────────────────────────
+    {
+        "name": "apk_read_signature",
+        "description": (
+            "Read signing metadata from an APK: scheme matrix (v1/v2/v3/"
+            "v3.1/v4/sourceStamp via apksigner when on PATH), signer "
+            "digests, and certificate subject/issuer/serial/validity/keys "
+            "via openssl on the META-INF certs. Unsigned → ok/verifies:false."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"apk_path": {"type": "string"}},
+            "required": ["apk_path"],
+        },
+    },
+    {
+        "name": "zip_test",
+        "description": (
+            "Full zip/APK integrity audit: CRC every entry, duplicate names, "
+            "method histogram, encrypted entries, bad entries, trailing "
+            "bytes after EOCD; APK extras (STORE-only dex alignment smell)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"zip_path": {"type": "string"}, "apk_path": {"type": "string"}},
+        },
+    },
+    {
+        "name": "zip_extract",
+        "description": (
+            "Extract named zip/APK entries: explicit entry→dest only, "
+            "zip-slip refused, byte-faithful, per-entry results — one bad "
+            "entry never fails the batch."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "zip_path": {"type": "string"}, "apk_path": {"type": "string"},
+                "entries": {"type": "array", "items": {"type": "string"},
+                            "description": "Entry names, e.g. ['AndroidManifest.xml', 'res/values/strings.xml']"},
+                "output_dir": {"type": "string", "description": "Default: data dir /apkops/<stem>_extract"},
+                "overwrite": {"type": "boolean", "default": False},
+            },
+        },
+    },
+    {
+        "name": "zip_update",
+        "description": (
+            "Generalized zip surgery on an APK copy (generalizes dex_swap): "
+            "ops add{entry_path,from_file|content}, replace{…}, "
+            "patch{entry_path,byte_offset,expected_hex,replacement_hex}, "
+            "rename{from,to}, delete{entry_path}. patch requires length "
+            "equality + expected_hex match; every untouched entry is copied "
+            "byte-identical (compression preserved); rename/delete of "
+            "META-INF entries is guarded; optional expected_sha256 "
+            "concurrency guard; in-place writes a .apk.bak first. Re-sign "
+            "with apk_sign afterwards."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "zip_path": {"type": "string"}, "apk_path": {"type": "string"},
+                "ops": {"type": "array", "items": {"type": "object"}},
+                "output_apk": {"type": "string", "description": "Default: in-place (.bak first)"},
+                "expected_sha256": {"type": "string",
+                                    "description": "Aborts unless the input still hashes to this"},
+            },
+            "required": ["ops"],
+        },
+    },
+    {
+        "name": "apk_build_check",
+        "description": (
+            "Pre-build linting before apk_rebuild_sign: manifest presence/"
+            "parse, resource-compile check (aapt2 when found on PATH or in "
+            "the SDK), dex sanity via dexfile-cli, duplicate/pending-edit "
+            "detection (.bak scan), signing note. blockers carry codes + "
+            "fix hints."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "smali_dir": {"type": "string", "description": "An apktool decompile"},
+                "apk_path": {"type": "string", "description": "Or: an APK"},
+            },
+        },
+    },
+    {
+        "name": "resource_table_list",
+        "description": (
+            "Structured resources.arsc view: packages, types, entries "
+            "(id + name), via androguard. Filter by type_name/package."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "apk_path": {"type": "string"},
+                "type_name": {"type": "string", "description": "e.g. 'string', 'layout'"},
+                "package": {"type": "string"},
+                "limit": {"type": "integer", "default": 200},
+            },
+            "required": ["apk_path"],
+        },
+    },
+    {
+        "name": "resource_read",
+        "description": (
+            "Resolve concrete resource variants: ids (0x7f13010b) or "
+            "type/name refs (string/app_name) → per-config values, with "
+            "optional @ref chain following (resolve_depth)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "apk_path": {"type": "string"},
+                "ids": {"type": "array", "items": {"type": "string"},
+                        "description": "e.g. ['0x7f13010b', 'string/app_name']"},
+                "resolve_depth": {"type": "integer", "default": 1},
+            },
+            "required": ["ids"],
+        },
+    },
+    {
+        "name": "resource_xref",
+        "description": (
+            "Find where a resource id is used: hex grep of the id across an "
+            "apktool decompile (smali + res xml). Name-form ids resolve via "
+            "the APK's arsc first. Needs smali_dir (run apk_decompile)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "apk_path": {"type": "string", "description": "For name-form id resolution"},
+                "resource_id": {"type": "string", "description": "'0x7f13010b' or 'string/app_name'"},
+                "smali_dir": {"type": "string", "description": "An apktool decompile"},
+            },
+            "required": ["resource_id", "smali_dir"],
         },
     },
     # ── Flutter / Dart — Gap #2 ────────────────────────────────────────────
@@ -1392,6 +1633,7 @@ def create_server() -> Server:
     flutter = FlutterHandler()
     sosec = SoSecHandler()
     dex = DexHandler()
+    apkops = ApkOpsHandler()
     patcher = PatcherHandler()
 
     # Dispatch table: tool_name → callable(args) → dict
@@ -1467,6 +1709,9 @@ def create_server() -> Server:
         "elf_checksec": sosec.elf_checksec,
         "native_crypto_constants": sosec.native_crypto_constants,
         "syscall_lookup": sosec.syscall_lookup,
+        "native_map_address": sosec.native_map_address,
+        "native_patch_string": sosec.native_patch_string,
+        "native_patch_instructions": sosec.native_patch_instructions,
         # dex surgery (E-PY-17)
         "dex_info": dex.dex_info,
         "dex_extract": dex.dex_extract,
@@ -1475,6 +1720,17 @@ def create_server() -> Server:
         "dex_assemble": dex.dex_assemble,
         "dex_split": dex.dex_split,
         "dex_swap": dex.dex_swap,
+        "dex_read_class_outline": dex.dex_read_class_outline,
+        "dex_read_pseudocode": dex.dex_read_pseudocode,
+        # MT-MCP adoption: apk/zip surgery, signatures, resources, build checks
+        "apk_read_signature": apkops.apk_read_signature,
+        "zip_test": apkops.zip_test,
+        "zip_extract": apkops.zip_extract,
+        "zip_update": apkops.zip_update,
+        "apk_build_check": apkops.apk_build_check,
+        "resource_table_list": apkops.resource_table_list,
+        "resource_read": apkops.resource_read,
+        "resource_xref": apkops.resource_xref,
         # flutter (Gap #2)
         "flutter_version": flutter.flutter_version,
         "dart_snapshot_info": flutter.dart_snapshot_info,

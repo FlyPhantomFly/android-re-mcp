@@ -17,6 +17,7 @@ node_modules/
 # local-only planning docs (shared with android-unidbg-mcp; do not publish)
 mcp_consideration.md
 mcp-playbook.md
+mt-mcp-android-re-implementation-plan.md
 smali*/
 baksmali*/
 

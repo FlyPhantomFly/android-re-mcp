@@ -15,12 +15,12 @@ from typing import Any
 
 # Host-side file arguments, by tool argument name.
 PATH_KEYS = {
-    "apk_path", "bundle_path", "capture_path", "dex_path", "gadget_path", "in_path", "local",
-    "new_path", "old_path", "output_apk", "output_dir", "output_path", "path", "record_file",
-    "smali_dir", "so_path",
+    "apk_path", "bundle_path", "cache_dir", "capture_path", "dex_path", "from_file", "gadget_path",
+    "in_path", "local", "new_path", "old_path", "output_apk", "output_dir", "output_path", "path",
+    "record_file", "smali_dir", "so_path",
 }
 # Where each of those is written rather than read.
-WRITE_KEYS = {"local", "output_apk", "output_dir", "output_path", "record_file"}
+WRITE_KEYS = {"cache_dir", "local", "output_apk", "output_dir", "output_path", "record_file"}
 # Output files must keep one of these suffixes (tool -> key -> suffixes).
 OUTPUT_SUFFIXES = {
     "mitm_export_har": {"output_path": {".har", ".json"}},

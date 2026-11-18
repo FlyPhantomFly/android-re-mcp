@@ -53,8 +53,8 @@ _PINNED: dict[str, tuple[str, str]] = {
         "b12a2c4ee8be317422451fc7dcf8ee20a71b5ea7ef9ad73ddd825a25316227a5",
     ),
     "dexfile-cli.jar": (
-        "https://github.com/FlyPhantomFly/dexfile-cli/releases/download/v0.1.5/dexfile-cli.jar",
-        "c5482979c26498d573eb6ed3d45c2855d8f7e0606c2bacca3977c209b7615401",
+        "https://github.com/FlyPhantomFly/dexfile-cli/releases/download/v0.1.6/dexfile-cli.jar",
+        "11d8f2159ee4d1b585d0042a509eaeaa2f5e41a3fdebe576c19209e1ed2a9c56",
     ),
 }
 
