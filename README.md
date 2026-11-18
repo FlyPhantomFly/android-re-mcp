@@ -5,11 +5,9 @@
 
 [![PyPI](https://img.shields.io/pypi/v/android-re-mcp?color=3776ab&label=pypi)](https://pypi.org/project/android-re-mcp/) [![CI](https://img.shields.io/github/actions/workflow/status/FlyPhantomFly/android-re-mcp/ci.yml?label=CI)](https://github.com/FlyPhantomFly/android-re-mcp/actions) [![MIT](https://img.shields.io/badge/license-MIT-10b981)](LICENSE)
 
-android-re-mcp is one repo, one brand, and — as of 1.4.0 — one server. The old npm half (`mobile-re-mcp`) is retired: its static Android tools are folded into the Python package, its iOS tools are gone, and npm shows the package as deprecated.
+android-re-mcp is an MCP server for Android reverse engineering. You point it at a real device and a target app, then just ask: *what is this app, what's protecting it, and how do I get past that?* The assistant picks from 74 tools — decompile, hook, trace traffic, dump memory, patch smali or dex, sign and reinstall — and walks you through the answer.
 
-The **Python server**, published on PyPI as `android-re-mcp` (command `android-re-mcp`), has 74 tools. It drives adb, Frida, mitmproxy, apktool and jadx against a real Android device: decompile an app, hook it, read its traffic, patch it, sign it and install it again.
-
-You ask in plain language, the assistant calls the right tool, and the findings come back.
+It's one package (PyPI: `android-re-mcp`, command `android-re-mcp`). The old npm half (`mobile-re-mcp`) was retired in 1.4.0 — its static Android tools live on here, its iOS tools are gone, and npm shows the old package as deprecated.
 
 ---
 
@@ -56,7 +54,7 @@ If Frida is already pinned in your environment, install without extras and the s
 Claude Code:
 
 ```bash
-claude mcp add mobile-re-py -- android-re-mcp
+claude mcp add android-re -- android-re-mcp
 ```
 
 opencode, in `~/.config/opencode/opencode.json`:
@@ -64,7 +62,7 @@ opencode, in `~/.config/opencode/opencode.json`:
 ```json
 {
   "mcp": {
-    "mobile-re-py": { "type": "local", "command": ["/path/to/venv/bin/android-re-mcp"], "enabled": true }
+    "android-re": { "type": "local", "command": ["/path/to/venv/bin/android-re-mcp"], "enabled": true }
   }
 }
 ```
@@ -74,14 +72,14 @@ Claude Desktop, in `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "mobile-re-py": { "command": "/path/to/venv/bin/android-re-mcp" }
+    "android-re": { "command": "/path/to/venv/bin/android-re-mcp" }
   }
 }
 ```
 
 Use the full path to the command if it lives in a virtualenv. Any other client needs only the command, with no arguments. stdio is the default transport; `--transport sse --port 8765` also works, listens on 127.0.0.1 only, and any other `--host` needs `ANDROID_RE_MCP_TOKEN`, which clients send as a bearer token.
 
-Start with a check of what you have: ask "Run check_tools", and the assistant lists which tools it found (with versions) and which are missing, with install hints. On a set-up machine it should report `ok`; a fully-loaded box typically shows 30+ available.
+Start with a check of what you have: ask "Run check_tools", and the assistant lists which tools it found (with versions) and which are missing, with install hints. On a set-up machine nearly everything reports available — only the optional extras you skipped show as missing.
 
 ### A first session
 
@@ -102,7 +100,7 @@ The server also carries seven guided prompts (`master-workflow`, `first-look`, `
 ### The tool set
 
 Every tool returns structured JSON with a `status` field (`ok`, `error`, `missing_tool`) — your assistant can chain calls. File arguments are absolute paths validated by the guard. `apk_decompile` and `apk_decompile_java` land next to the APK (`<name>_apktool/`, `<name>_jadx/`); dumps and captures go to the private data folder.
-Heavy list outputs are token-conserved (E-PY-15): a search, a strings dump, logcat and Frida script output are capped per call (default 200 lines, `ANDROID_RE_MCP_MAX_OUTPUT_LINES`) with the honest total kept and an actionable narrowing hint — the android-unidbg-mcp pattern, so one call can't flood the model's context.
+Heavy list outputs are token-conserved: a search, a strings dump, logcat and Frida script output are capped per call (default 200 lines, `ANDROID_RE_MCP_MAX_OUTPUT_LINES`) with the honest total kept and an actionable narrowing hint, so one call can't flood the model's context.
 
 **Static analysis (11)**
 
@@ -206,7 +204,7 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `native_disasm` | radare2 disassembly of a function (asm, graph or pseudocode) | radare2 |
 | `il2cpp_dump` | Unity: dump.cs + script.json from libil2cpp.so + global-metadata.dat | Il2CppDumper |
 
-**Native ELF security & code search (5)** — the capstone cherry-pick (E-PY-16)
+**Native ELF security & code search (5)** — added in the capstone integration review
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
@@ -216,7 +214,7 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `native_crypto_constants` | AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64 alphabets, Blowfish P-array — file offset + VA | nothing |
 | `syscall_lookup` | arm64/x86_64 syscall number ↔ name, bundled from kernel headers | nothing |
 
-**DEX surgery (7)** — the DexFile cherry-pick (E-PY-17, [dexfile-cli 0.1.2](https://github.com/FlyPhantomFly/dexfile-cli))
+**DEX surgery (7)** — added in the DexFile integration review ([dexfile-cli 0.1.2](https://github.com/FlyPhantomFly/dexfile-cli))
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
@@ -283,15 +281,7 @@ This server runs commands on your phone and your computer, so treat its tools wi
 
 ## The npm server (retired)
 
-The npm package `mobile-re-mcp` was retired in 1.4.0. Its static Android tools live on in this package — `manifest_parse` covers the manifest and permission checks, `apk_scan_secrets` the secret scan, plus `apk_diff`, `android_api_extractor` and `android_google_services` — and its iOS tools are gone.
-
-npm marks the package deprecated with a pointer here. Install this package instead:
-
-```bash
-pip install "android-re-mcp[all]"
-```
-
-Old npm releases stay on npm and in the git history (the server lived under `src/` before 1.4.0).
+The npm package `mobile-re-mcp` was retired in 1.4.0 — its static Android tools live on in this package, its iOS tools are gone, and npm shows the old package as deprecated with a pointer here. Old releases stay on npm and in the git history (the server lived under `src/` before 1.4.0). Install this package instead.
 
 ---
 
@@ -316,7 +306,7 @@ claude mcp add smali-lsp -- java -jar /path/to/smali-lsp.jar mcp
 { "smali-lsp": { "type": "local", "command": ["java", "-jar", "/path/to/smali-lsp.jar", "mcp"], "enabled": true } }
 ```
 
-Its 14 tools add roughly 0.7k tokens of catalog when enabled — leave it off for sessions that never touch smali. The native-ELF additions this package made in E-PY-16 (checksec, xrefs, gadgets) and the DEX surgery in E-PY-17 (`dexfile-cli`, a pinned fat jar invoked like apktool — **not** a companion server) came from the same consolidation reviews; the full capstone server was rejected there (25 tools ≈ +3.2k tokens for mostly duplicative capability) — see `docs/code-review-and-extensions.md`.
+Its 14 tools add roughly 0.7k tokens of catalog when enabled — leave it off for sessions that never touch smali. The other integrations came from the same consolidation reviews: the native-ELF suite and the dex surgery are pinned-jar or in-package tools here (the full capstone server was rejected — 25 tools for mostly duplicative capability), all documented in `docs/code-review-and-extensions.md`.
 
 ---
 
