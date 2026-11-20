@@ -431,6 +431,7 @@ def test_dex_read_pseudocode_on_real_apk():
     assert out["source"].endswith(".java")
 
 
+@PSEUDO
 def test_dex_read_pseudocode_method_slice_hit_path(tmp_path):
     # jadx omits default constructors, so the slice is tested on the cache
     # hit path with a handwritten Java file (no jadx run needed)

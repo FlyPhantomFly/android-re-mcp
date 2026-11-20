@@ -1,0 +1,39 @@
+{
+  "skill_name": "android-re-mcp-audit",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Audit android-re-mcp's dexfile-cli integration in this checkout. I need to know whether dexfile-cli actually works here, not just whether test files mention it. Produce a dated audit-<Mon>.<Day>.log at the repository root, add it to .gitignore, and do not modify any product code.",
+      "expected_output": "A dated audit log at the repo root with a dexfile-cli verdict backed by jar/SHA/java evidence, real test counts, check_tools used_by analysis, and a limitations section; .gitignore updated; no product code changed.",
+      "files": [],
+      "assertions": [
+        "Creates an audit log at the repository root named audit-<Mon>.<Day>.log",
+        "Adds the audit log filename to .gitignore",
+        "Records the dexfile-cli jar path and its SHA-256, and whether it matches the SHA pinned in install_tool.py",
+        "Records that java is available (and its version) or explains the missing-java case",
+        "Runs the dex test file and reports passed/failed/skipped counts rather than only claiming tests exist",
+        "States whether the real-jar roundtrip tests ran or were skipped",
+        "Reports the live check_tools dexfile-cli entry and flags that dex_read_class_outline is absent from its used_by list",
+        "Includes a verdict with confidence and a limitations section",
+        "Leaves product source untouched; git status shows only .gitignore and the audit log"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Do a full independent code audit of android-re-mcp before I trust the latest release. Review the Python server, handlers, guard, setup, and tests; record evidence and any drift between TOOL_SCHEMAS, _dispatch, and check_tools. Write the results to a dated audit log at the repo root and add it to .gitignore. Do not change product code.",
+      "expected_output": "A dated audit log covering server wiring, guard/setup, and tests, with registry drift evidence (schema vs dispatch vs used_by), full-suite counts, categorized failures, findings with severity/confidence, and limitations; .gitignore updated; no product code changed.",
+      "files": [],
+      "assertions": [
+        "Creates an audit log at the repository root named audit-<Mon>.<Day>.log",
+        "Adds the audit log filename to .gitignore",
+        "Reports TOOL_SCHEMAS and _dispatch counts and whether any schema entry lacks a dispatch target or vice versa",
+        "Checks that check_tools used_by entries name real tools and covers jar-dependent dex handlers",
+        "Runs the full pytest suite and reports passed/failed/skipped counts",
+        "Categorizes each failing test as code, environment, or test harness rather than calling every failure a bug",
+        "Includes findings with severity, confidence, file references, and evidence commands",
+        "Includes a limitations section and a conclusion about what was and was not verified",
+        "Leaves product source untouched; git status shows only .gitignore and the audit log"
+      ]
+    }
+  ]
+}

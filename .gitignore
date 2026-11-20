@@ -20,6 +20,7 @@ mcp-playbook.md
 mt-mcp-android-re-implementation-plan.md
 smali*/
 baksmali*/
+plans*/
 
 # Environment & secrets
 .env
@@ -39,7 +40,11 @@ Thumbs.db
 
 # Logs
 *.log
+audit-Nov.18.log
 npm-debug.log*
+
+# Skill evaluation workspace (local only)
+skills/android-re-mcp-audit-workspace/
 
 # Claude memory (local only)
 .claude/
