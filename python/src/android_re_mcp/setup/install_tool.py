@@ -53,8 +53,8 @@ _PINNED: dict[str, tuple[str, str]] = {
         "b12a2c4ee8be317422451fc7dcf8ee20a71b5ea7ef9ad73ddd825a25316227a5",
     ),
     "dexfile-cli.jar": (
-        "https://github.com/FlyPhantomFly/dexfile-cli/releases/download/v0.1.6/dexfile-cli.jar",
-        "11d8f2159ee4d1b585d0042a509eaeaa2f5e41a3fdebe576c19209e1ed2a9c56",
+        "https://github.com/FlyPhantomFly/dexfile-cli/releases/download/v0.1.7/dexfile-cli.jar",
+        "30625bf2444d5fd273e6bd0f3458d12952444bc52ee3cbd1bee1a7a137dc175e",
     ),
 }
 
@@ -273,7 +273,7 @@ def _install_dexfile_cli() -> dict:
     def run() -> dict:
         td = tools_dir()
         _download("dexfile-cli.jar", td / "dexfile-cli.jar")
-        return {"status": "ok", "message": "dexfile-cli 0.1.5 installed and verified "
+        return {"status": "ok", "message": "dexfile-cli 0.1.7 installed and verified "
                 "(java 17+ required on PATH; see https://github.com/FlyPhantomFly/dexfile-cli)"}
 
     return _result(run)

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed (Python)
+- `dexfile-cli` pin bumped v0.1.6 → v0.1.7 (sha256 `30625bf2…`): a docs release — v0.1.6 shipped the `outline` subcommand without advertising it (missing from the usage text and the README table); both now list it, verified live against a real M3-era framework class. The MCP surface is unchanged: `dex_read_class_outline` and `dex_read_pseudocode` (added with v0.1.6's tool batch) are untouched.
+
 ## [1.7.0] - 2026-11-20
 
 ### Changed (Python)
