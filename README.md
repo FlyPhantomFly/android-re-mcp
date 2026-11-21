@@ -134,7 +134,7 @@ Heavy list outputs are token-conserved: a search, a strings dump, logcat and Fri
 | `find_crypto_usage` | list every javax.crypto / java.security call site and which API it uses | androguard |
 | `find_urls` | all URLs and hostnames from bytecode constants and assets, sorted into api/auth endpoints | androguard |
 
-**Frida sessions (6)**
+**Frida sessions (7)**
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
@@ -178,7 +178,7 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `adb_shell` | run a shell command on the device (split on the host, safely) | adb |
 | `adb_install` | install an APK (`install -r -t`) | adb |
 | `adb_pull` / `adb_push` | copy files between host and device | adb |
-| `adb_logcat_start` / `read` / `stop` | stream and buffer up to 50k log lines in the background; reads are capped per call (`ANDROID_RE_MCP_MAX_OUTPUT_LINES`) | adb |
+| `adb_logcat_start` / `adb_logcat_read` / `adb_logcat_stop` | stream and buffer up to 50k log lines in the background; reads are capped per call (`ANDROID_RE_MCP_MAX_OUTPUT_LINES`) | adb |
 | `adb_ui_dump` | the current UI as structured elements (class, text, resource-id, bounds, clickable) | adb |
 | `hermes_decode` | extract and decode the React Native Hermes bundle to readable JS | hermes-dec or hbctool |
 | `scrcpy_start` | mirror the device screen, optionally recording to MP4 | scrcpy |
@@ -221,9 +221,6 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `rop_gadgets` | ROP gadget search ending in ret/bx/jmp-reg; `depth` bounds runs, `filter` narrows (the cap hint names it) | capstone |
 | `native_crypto_constants` | AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64 alphabets, Blowfish P-array — file offset + VA | nothing |
 | `syscall_lookup` | arm64/x86_64 syscall number ↔ name, bundled from kernel headers | nothing |
-| `native_map_address` | virtual address ↔ file offset via PT_LOAD segments (both directions), with the covering segment's type/flags and exec status | nothing |
-| `native_patch_string` | patch a UTF-8 string inside a .so in place: zero-padded to the original length, `expected_text` guarded, `.bak` first | nothing |
-| `native_patch_instructions` | keystone-assembled replacement instructions at a virtual address: `expected_hex` guarded, arch-correct NOP padding, `.bak` first | keystone-engine (`[native]` extra) |
 
 **DEX surgery (9)** — added in the DexFile integration review ([dexfile-cli 0.1.6](https://github.com/FlyPhantomFly/dexfile-cli))
 
@@ -252,7 +249,13 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `resource_read` | resolve concrete variants: ids (`0x7f13010b`) or type/name refs (`string/app_name`) → per-config values, `@ref` chains followed | nothing |
 | `resource_xref` | find where a resource id is used: hex grep across an apktool decompile (smali + res xml) | androguard (name-form ids), an apktool decompile |
 
-**Native ELF patching (2)** — the MT-MCP adoption batch
+**Native ELF patching (3)** — the MT-MCP adoption batch
+
+| Tool | What it does | Needs |
+| --- | --- | --- |
+| `native_map_address` | virtual address ↔ file offset via PT_LOAD segments (both directions), with the covering segment's type/flags and exec status | nothing |
+| `native_patch_string` | patch a UTF-8 string inside a .so in place: zero-padded to the original length, `expected_text` guarded, `.bak` first | nothing |
+| `native_patch_instructions` | keystone-assembled replacement instructions at a virtual address: `expected_hex` guarded, arch-correct NOP padding, `.bak` first | keystone-engine (`[native]` extra) |
 
 **Flutter / Dart (3)**
 
@@ -269,11 +272,16 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `rasp_identify` | vendor fingerprinting (Guardsquare, Arxan, Promon, Zimperium, custom) from APK entry names and apkid, plus a full native-library inventory: per-ABI ELF listing, known packer/RASP/framework/SDK/runtime identification, stripped/packed section-table signals | optional apkid |
 | `rasp_bypass` | returns a ready Frida script for vendor + protection (root, SSL, Frida detection, integrity, emulator) | nothing |
 
-**Per-target notes (2)** and **Setup (2)**
+**Per-target notes (2)**
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
 | `memory_read` / `memory_write` | session notes per package, pre-seeded with a findings template so follow-up sessions can resume | nothing |
+
+**Setup (2)**
+
+| Tool | What it does | Needs |
+| --- | --- | --- |
 | `check_tools` | full inventory of your toolchain with versions, paths, install hints and the MCP tools that use each entry (`used_by`); pip CLIs are probed as executables, and the `medusa` entry refuses the SSH-cracker namesake | nothing |
 | `install_tool` | install a missing tool from a pinned SHA-256-checked download, pip or npm; `medusa`/`fridump` deliberately have no auto-recipe (name-collision / unused) | off unless `ANDROID_RE_MCP_ALLOW_INSTALL=1` |
 
