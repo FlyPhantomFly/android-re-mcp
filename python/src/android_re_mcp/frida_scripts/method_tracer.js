@@ -2920,6 +2920,7 @@
     getArtMethodSpec: () => getArtMethodSpec,
     getArtThreadFromEnv: () => getArtThreadFromEnv,
     getArtThreadSpec: () => getArtThreadSpec,
+    isMethodDeoptimized: () => isMethodDeoptimized,
     makeArtClassLoaderVisitor: () => makeArtClassLoaderVisitor,
     makeArtClassVisitor: () => makeArtClassVisitor,
     makeMethodMangler: () => makeMethodMangler,
@@ -3071,6 +3072,7 @@
             return clone(thisPtr, threadPtr, numTargetBytes);
           };
         },
+        _ZN3art7Runtime22CreateCalleeSaveMethodEv: ["art::Runtime::CreateCalleeSaveMethod", "pointer", ["pointer"]],
         _ZN3art3Dbg14SetJdwpAllowedEb: ["art::Dbg::SetJdwpAllowed", "void", ["bool"]],
         _ZN3art3Dbg13ConfigureJdwpERKNS_4JDWP11JdwpOptionsE: ["art::Dbg::ConfigureJdwp", "void", ["pointer"]],
         _ZN3art31InternalDebuggerControlCallback13StartDebuggerEv: ["art::InternalDebuggerControlCallback::StartDebugger", "void", ["pointer"]],
@@ -3090,6 +3092,7 @@
         },
         _ZN3art7Runtime19DeoptimizeBootImageEv: ["art::Runtime::DeoptimizeBootImage", "void", ["pointer"]],
         _ZN3art15instrumentation15Instrumentation10DeoptimizeEPNS_9ArtMethodE: ["art::Instrumentation::Deoptimize", "void", ["pointer", "pointer"]],
+        _ZN3art15instrumentation15Instrumentation13IsDeoptimizedEPNS_9ArtMethodE: ["art::Instrumentation::IsDeoptimized", "bool", ["pointer", "pointer"]],
         // Android >= 11
         _ZN3art3jni12JniIdManager14DecodeMethodIdEP10_jmethodID: ["art::jni::JniIdManager::DecodeMethodId", "pointer", ["pointer", "pointer"]],
         _ZN3art3jni12JniIdManager13DecodeFieldIdEP9_jfieldID: ["art::jni::JniIdManager::DecodeFieldId", "pointer", ["pointer", "pointer"]],
@@ -3102,6 +3105,9 @@
         },
         _ZN3art3Dbg15gDebuggerActiveE: function(address) {
           this.isDebuggerActive = () => !!address.readU8();
+        },
+        _ZN3art15gUseUserfaultfdE: function(address) {
+          this.isUserfaultfdGcActive = !!address.readU8();
         }
       },
       optionals: /* @__PURE__ */ new Set([
@@ -3120,6 +3126,7 @@
         "_ZN3art6mirror6Object5CloneEPNS_6ThreadE",
         "_ZN3art6mirror6Object5CloneEPNS_6ThreadEm",
         "_ZN3art6mirror6Object5CloneEPNS_6ThreadEj",
+        "_ZN3art7Runtime22CreateCalleeSaveMethodEv",
         "_ZN3art22IndirectReferenceTable3AddEjPNS_6mirror6ObjectE",
         "_ZN3art22IndirectReferenceTable3AddENS_15IRTSegmentStateENS_6ObjPtrINS_6mirror6ObjectEEE",
         "_ZN3art2gc4Heap12VisitObjectsEPFvPNS_6mirror6ObjectEPvES5_",
@@ -3140,11 +3147,13 @@
         "_ZN3art3Dbg13ConfigureJdwpERKNS_4JDWP11JdwpOptionsE",
         "_ZN3art31InternalDebuggerControlCallback13StartDebuggerEv",
         "_ZN3art3Dbg15gDebuggerActiveE",
+        "_ZN3art15gUseUserfaultfdE",
         "_ZN3art15instrumentation15Instrumentation20EnableDeoptimizationEv",
         "_ZN3art15instrumentation15Instrumentation20DeoptimizeEverythingEPKc",
         "_ZN3art15instrumentation15Instrumentation20DeoptimizeEverythingEv",
         "_ZN3art7Runtime19DeoptimizeBootImageEv",
         "_ZN3art15instrumentation15Instrumentation10DeoptimizeEPNS_9ArtMethodE",
+        "_ZN3art15instrumentation15Instrumentation13IsDeoptimizedEPNS_9ArtMethodE",
         "_ZN3art3Dbg9StartJdwpEv",
         "_ZN3art3Dbg8GoActiveEv",
         "_ZN3art3Dbg21RequestDeoptimizationERKNS_21DeoptimizationRequestE",
@@ -3301,7 +3310,7 @@
         ["pointer", "pointer", "pointer"]
       );
       const errorPtr = Memory.alloc(pointerSize5);
-      const success = ensurePluginLoaded(runtime2, Memory.allocUtf8String("libopenjdkjvmti.so"), errorPtr);
+      const success = withoutDebuggableTransition(() => ensurePluginLoaded(runtime2, Memory.allocUtf8String("libopenjdkjvmti.so"), errorPtr));
       if (!success) {
         return;
       }
@@ -3320,12 +3329,41 @@
     });
     return env;
   }
+  function withoutDebuggableTransition(loadPlugin) {
+    let finishSetup = null;
+    const skipFinishSetup = new NativeCallback(() => {
+    }, "void", ["pointer"]);
+    const dlsymListener = Interceptor.attach(Process.getModuleByName("libdl.so").getExportByName("dlsym"), {
+      onEnter(args) {
+        this.isPluginInitializer = args[1].readCString() === "ArtPlugin_Initialize";
+      },
+      onLeave() {
+        if (!this.isPluginInitializer) {
+          return;
+        }
+        finishSetup = Process.getModuleByName("libopenjdkjvmti.so").findExportByName("_ZN12openjdkjvmti12DeoptManager11FinishSetupEv");
+        if (finishSetup !== null) {
+          Interceptor.replace(finishSetup, skipFinishSetup);
+        }
+      }
+    });
+    try {
+      return loadPlugin();
+    } finally {
+      dlsymListener.detach();
+      if (finishSetup !== null) {
+        Interceptor.revert(finishSetup);
+      }
+      Interceptor.flush();
+    }
+  }
   function ensureClassInitialized(env, classRef) {
     const api2 = getApi();
     if (api2.flavor !== "art") {
       return;
     }
-    env.getClassName(classRef);
+    env.getFieldId(classRef, "x", "Z");
+    env.exceptionClear();
   }
   function getArtVMSpec(api2) {
     return {
@@ -3753,7 +3791,7 @@
       const apiLevel = getAndroidApiLevel();
       const entrypointFieldSize = apiLevel <= 21 ? 8 : pointerSize5;
       const expectedAccessFlags = kAccPublic | kAccStatic | kAccFinal | kAccNative;
-      const relevantAccessFlagsMask = ~(kAccFastInterpreterToInterpreterInvoke | kAccPublicApi | kAccNterpInvokeFastPathFlag) >>> 0;
+      const relevantAccessFlagsMask = ~(kAccFastInterpreterToInterpreterInvoke | kAccPublicApi | kAccNterpInvokeFastPathFlag | kAccNterpEntryPointFastPathFlag) >>> 0;
       let jniCodeOffset = null;
       let accessFlagsOffset = null;
       let remaining = 2;
@@ -5544,7 +5582,25 @@ std_string_get_data (StdString * str)
       const thread = api2["art::Thread::CurrentFromGdb"]();
       return api2["art::mirror::Object::Clone"](method, thread);
     }
+    if (api2.isUserfaultfdGcActive) {
+      return cloneArtMethodInLinearAlloc(method, vm3);
+    }
     return Memory.dup(method, getArtMethodSpec(vm3).size);
+  }
+  function cloneArtMethodInLinearAlloc(method, vm3) {
+    const key = method.toString();
+    let clone = linearAllocClones.get(key);
+    if (clone === void 0) {
+      const api2 = getApi();
+      vm3.perform((env) => {
+        withRunnableArtThread(vm3, env, () => {
+          clone = api2["art::Runtime::CreateCalleeSaveMethod"](api2.artRuntime);
+          Memory.copy(clone, method, getArtMethodSpec(vm3).size);
+        });
+      });
+      linearAllocClones.set(key, clone);
+    }
+    return clone;
   }
   function deoptimizeMethod(vm3, env, method) {
     requestDeoptimization(vm3, env, kSelectiveDeoptimization, method);
@@ -5560,6 +5616,21 @@ std_string_get_data (StdString * str)
     withRunnableArtThread(vm3, env, (thread) => {
       api2["art::Runtime::DeoptimizeBootImage"](api2.artRuntime);
     });
+  }
+  function isMethodDeoptimized(vm3, env, method) {
+    const api2 = getApi();
+    if (getAndroidApiLevel() < 24) {
+      throw new Error("This API is only available on Android >= 7.0");
+    }
+    const instrumentation = api2.artInstrumentation;
+    if (instrumentation === null) {
+      throw new Error("Unable to find Instrumentation class in ART; please file a bug");
+    }
+    let deoptimized = false;
+    withRunnableArtThread(vm3, env, () => {
+      deoptimized = !!api2["art::Instrumentation::IsDeoptimized"](instrumentation, method);
+    });
+    return deoptimized;
   }
   function requestDeoptimization(vm3, env, kind, method) {
     const api2 = getApi();
@@ -5912,7 +5983,16 @@ std_string_get_data (StdString * str)
           reachedEndOfBlock = true;
           break;
         }
-        const insn = Instruction.parse(current);
+        let insn;
+        try {
+          insn = Instruction.parse(current);
+        } catch (e) {
+          if (lastInsn !== null) {
+            reachedEndOfBlock = true;
+            break;
+          }
+          throw e;
+        }
         const { mnemonic } = insn;
         lastInsn = insn;
         const currentAddress = current.and(thumbBitRemovalMask);
@@ -6182,13 +6262,13 @@ std_string_get_data (StdString * str)
     blocksOrdered.splice(blocksOrdered.indexOf(entryBlock), 1);
     blocksOrdered.unshift(entryBlock);
     const writer = new Arm64Writer(buffer, { pc });
-    writer.putBLabel("performTransition");
     const invokeCallback = pc.add(writer.offset);
     writer.putPushAllXRegisters();
     writer.putCallAddressWithArguments(callback, ["x0"]);
     writer.putPopAllXRegisters();
     writer.putRet();
-    writer.putLabel("performTransition");
+    writer.flush();
+    const performEntry = pc.add(writer.offset);
     let foundCore = false;
     let threadReg = null;
     let realImplReg = null;
@@ -6297,7 +6377,7 @@ std_string_get_data (StdString * str)
     if (!foundCore) {
       throwThreadStateTransitionParseError();
     }
-    return new NativeFunction(pc, "void", ["pointer"], nativeFunctionOptions3);
+    return new NativeFunction(performEntry, "void", ["pointer"], nativeFunctionOptions3);
   }
   function throwThreadStateTransitionParseError() {
     throw new Error("Unable to parse ART internals; please file a bug");
@@ -6388,7 +6468,7 @@ std_string_get_data (StdString * str)
     }
     return offset;
   }
-  var jsizeSize, pointerSize5, readU32, readPointer, writeU32, writePointer, kAccPublic, kAccStatic, kAccFinal, kAccNative, kAccFastNative, kAccCriticalNative, kAccFastInterpreterToInterpreterInvoke, kAccSkipAccessChecks, kAccSingleImplementation, kAccNterpEntryPointFastPathFlag, kAccNterpInvokeFastPathFlag, kAccPublicApi, kAccXposedHookedMethod, kPointer, kFullDeoptimization, kSelectiveDeoptimization, THUMB_BIT_REMOVAL_MASK, X86_JMP_MAX_DISTANCE, ARM64_ADRP_MAX_DISTANCE, ENV_VTABLE_OFFSET_EXCEPTION_CLEAR, ENV_VTABLE_OFFSET_FATAL_ERROR, DVM_JNI_ENV_OFFSET_SELF, DVM_CLASS_OBJECT_OFFSET_VTABLE_COUNT, DVM_CLASS_OBJECT_OFFSET_VTABLE, DVM_OBJECT_OFFSET_CLAZZ, DVM_METHOD_SIZE, DVM_METHOD_OFFSET_ACCESS_FLAGS, DVM_METHOD_OFFSET_METHOD_INDEX, DVM_METHOD_OFFSET_REGISTERS_SIZE, DVM_METHOD_OFFSET_OUTS_SIZE, DVM_METHOD_OFFSET_INS_SIZE, DVM_METHOD_OFFSET_SHORTY, DVM_METHOD_OFFSET_JNI_ARG_INFO, DALVIK_JNI_RETURN_VOID, DALVIK_JNI_RETURN_FLOAT, DALVIK_JNI_RETURN_DOUBLE, DALVIK_JNI_RETURN_S8, DALVIK_JNI_RETURN_S4, DALVIK_JNI_RETURN_S2, DALVIK_JNI_RETURN_U2, DALVIK_JNI_RETURN_S1, DALVIK_JNI_NO_ARG_INFO, DALVIK_JNI_RETURN_SHIFT, STD_STRING_SIZE, STD_VECTOR_SIZE, AF_UNIX, SOCK_STREAM, getArtRuntimeSpec, getArtInstrumentationSpec, getArtMethodSpec, getArtThreadSpec, getArtManagedStackSpec, getArtThreadStateTransitionImpl, getAndroidVersion, getAndroidCodename, getAndroidApiLevel, getArtApexVersion, getArtQuickFrameInfoGetterThunk, makeCxxMethodWrapperReturningPointerByValue, nativeFunctionOptions3, artThreadStateTransitions, cachedApi, cachedArtClassLinkerSpec, MethodMangler, artController, inlineHooks, patchedClasses, artQuickInterceptors, thunkPage, thunkOffset, taughtArtAboutReplacementMethods, taughtArtAboutMethodInstrumentation, backtraceModule, jdwpSessions, socketpair, trampolineAllocator, instrumentationOffsetParsers, instrumentationPointerParser, jniIdsIndirectionOffsetParsers, artQuickTrampolineParsers, systemPropertyGet, PROP_VALUE_MAX, ArtClassVisitor, ArtClassLoaderVisitor, WalkKind, ArtStackVisitor, ArtMethod, thunkRelocators, thunkWriters, artGetOatQuickMethodHeaderInlinedCopyHandler, InlineHook, Backtrace, artQuickCodeReplacementTrampolineWriters, artQuickCodePrologueWriters, artQuickCodeHookRedirectSize, ArtQuickCodeInterceptor, ArtMethodMangler, DalvikMethodMangler, JdwpSession, threadStateTransitionRecompilers, StdString, StdVector, HandleVector, BHS_OFFSET_LINK, BHS_OFFSET_NUM_REFS, BHS_SIZE, kNumReferencesVariableSized, BaseHandleScope, VSHS_OFFSET_SELF, VSHS_OFFSET_CURRENT_SCOPE, VSHS_SIZE, VariableSizedHandleScope, FixedSizeHandleScope, objectVisitorPredicateFactories;
+  var jsizeSize, pointerSize5, readU32, readPointer, writeU32, writePointer, kAccPublic, kAccStatic, kAccFinal, kAccNative, kAccFastNative, kAccCriticalNative, kAccFastInterpreterToInterpreterInvoke, kAccSkipAccessChecks, kAccSingleImplementation, kAccNterpEntryPointFastPathFlag, kAccNterpInvokeFastPathFlag, kAccPublicApi, kAccXposedHookedMethod, kPointer, kFullDeoptimization, kSelectiveDeoptimization, THUMB_BIT_REMOVAL_MASK, X86_JMP_MAX_DISTANCE, ARM64_ADRP_MAX_DISTANCE, ENV_VTABLE_OFFSET_EXCEPTION_CLEAR, ENV_VTABLE_OFFSET_FATAL_ERROR, DVM_JNI_ENV_OFFSET_SELF, DVM_CLASS_OBJECT_OFFSET_VTABLE_COUNT, DVM_CLASS_OBJECT_OFFSET_VTABLE, DVM_OBJECT_OFFSET_CLAZZ, DVM_METHOD_SIZE, DVM_METHOD_OFFSET_ACCESS_FLAGS, DVM_METHOD_OFFSET_METHOD_INDEX, DVM_METHOD_OFFSET_REGISTERS_SIZE, DVM_METHOD_OFFSET_OUTS_SIZE, DVM_METHOD_OFFSET_INS_SIZE, DVM_METHOD_OFFSET_SHORTY, DVM_METHOD_OFFSET_JNI_ARG_INFO, DALVIK_JNI_RETURN_VOID, DALVIK_JNI_RETURN_FLOAT, DALVIK_JNI_RETURN_DOUBLE, DALVIK_JNI_RETURN_S8, DALVIK_JNI_RETURN_S4, DALVIK_JNI_RETURN_S2, DALVIK_JNI_RETURN_U2, DALVIK_JNI_RETURN_S1, DALVIK_JNI_NO_ARG_INFO, DALVIK_JNI_RETURN_SHIFT, STD_STRING_SIZE, STD_VECTOR_SIZE, AF_UNIX, SOCK_STREAM, getArtRuntimeSpec, getArtInstrumentationSpec, getArtMethodSpec, getArtThreadSpec, getArtManagedStackSpec, getArtThreadStateTransitionImpl, getAndroidVersion, getAndroidCodename, getAndroidApiLevel, getArtApexVersion, getArtQuickFrameInfoGetterThunk, makeCxxMethodWrapperReturningPointerByValue, nativeFunctionOptions3, artThreadStateTransitions, cachedApi, cachedArtClassLinkerSpec, MethodMangler, artController, inlineHooks, patchedClasses, linearAllocClones, artQuickInterceptors, thunkPage, thunkOffset, taughtArtAboutReplacementMethods, taughtArtAboutMethodInstrumentation, backtraceModule, jdwpSessions, socketpair, trampolineAllocator, instrumentationOffsetParsers, instrumentationPointerParser, jniIdsIndirectionOffsetParsers, artQuickTrampolineParsers, systemPropertyGet, PROP_VALUE_MAX, ArtClassVisitor, ArtClassLoaderVisitor, WalkKind, ArtStackVisitor, ArtMethod, thunkRelocators, thunkWriters, artGetOatQuickMethodHeaderInlinedCopyHandler, InlineHook, Backtrace, artQuickCodeReplacementTrampolineWriters, artQuickCodePrologueWriters, artQuickCodeHookRedirectSize, ArtQuickCodeInterceptor, ArtMethodMangler, DalvikMethodMangler, JdwpSession, threadStateTransitionRecompilers, StdString, StdVector, HandleVector, BHS_OFFSET_LINK, BHS_OFFSET_NUM_REFS, BHS_SIZE, kNumReferencesVariableSized, BaseHandleScope, VSHS_OFFSET_SELF, VSHS_OFFSET_CURRENT_SCOPE, VSHS_SIZE, VariableSizedHandleScope, FixedSizeHandleScope, objectVisitorPredicateFactories;
   var init_android = __esm({
     "node_modules/frida-java-bridge/lib/android.js"() {
       init_node_globals();
@@ -6475,6 +6555,7 @@ std_string_get_data (StdString * str)
       artController = null;
       inlineHooks = [];
       patchedClasses = /* @__PURE__ */ new Map();
+      linearAllocClones = /* @__PURE__ */ new Map();
       artQuickInterceptors = [];
       thunkPage = null;
       thunkOffset = 0;
@@ -13104,7 +13185,14 @@ std_string_c_str (StdString * self)
 	fieldReturnType: ${this.fieldReturnType},
 	value: ${this.value},
 }`;
-            return multilineString.split("\n").map((l) => l.length > 200 ? l.slice(0, l.indexOf(" ") + 1) + "...," : l).join("\n");
+            return multilineString.split("\n").map((l) => {
+              if (l.length <= 200) {
+                return l;
+              }
+              const spaceIndex = l.indexOf(" ");
+              const cut = spaceIndex === -1 ? 200 : spaceIndex + 1;
+              return l.slice(0, cut) + "...,";
+            }).join("\n");
           }
         }
       });
@@ -13551,6 +13639,22 @@ std_string_c_str (StdString * self)
               }
               return apk;
             };
+            const pollForApplication = () => {
+              runtime2.vm.perform(() => {
+                const app2 = ActivityThread.currentApplication();
+                if (initialized) {
+                  return;
+                }
+                if (app2 === null) {
+                  setTimeout(pollForApplication, 50);
+                  return;
+                }
+                initialized = true;
+                initFactoryFromApplication(factory, app2);
+                runtime2._performPendingVmOps();
+              });
+            };
+            setTimeout(pollForApplication, 50);
           });
         }
         _performPendingVmOps() {
@@ -13611,6 +13715,10 @@ std_string_c_str (StdString * self)
         deoptimizeMethod(method) {
           const { vm: vm3 } = this;
           return deoptimizeMethod(vm3, vm3.getEnv(), method);
+        }
+        isMethodDeoptimized(method) {
+          const { vm: vm3 } = this;
+          return isMethodDeoptimized(vm3, vm3.getEnv(), method);
         }
         _checkAvailable() {
           if (!this.available) {

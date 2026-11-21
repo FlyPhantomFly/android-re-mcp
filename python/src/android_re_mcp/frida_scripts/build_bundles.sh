@@ -15,7 +15,12 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-COMPILE="${FRIDA_COMPILE:-$(command -v frida-compile || echo /home/dragon/.local/bin/frida-compile)}"
+COMPILE="${FRIDA_COMPILE:-$(command -v frida-compile || true)}"
+if [ -z "$COMPILE" ]; then
+    echo "error: frida-compile not found on PATH. Install it with: npm install -g frida-compile" \
+        "or set FRIDA_COMPILE=/path/to/frida-compile" >&2
+    exit 1
+fi
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

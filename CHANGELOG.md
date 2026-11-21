@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs (this batch)
 - README: tool counts (87), "APK/zip surgery & checks (8)", "Native ELF patching (2)", DEX surgery grows to (9), new first-session prompts, dexfile-cli 0.1.6 pin.
+- `frida_scripts/build_bundles.sh` no longer falls back to a hardcoded personal path when `frida-compile` is absent — it exits with an install hint instead (only script with a non-portable default in the shipped wheel; every other path literal is a device convention or a multi-path search with honest degradation).
 ## [1.6.0] - 2026-11-17
 
 ### Changed (Python)
