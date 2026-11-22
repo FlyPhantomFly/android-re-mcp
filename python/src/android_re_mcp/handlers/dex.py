@@ -140,6 +140,14 @@ class DexHandler:
         """[TOOL] Convert between dex versions (vdex/cdex → 037 by default, flat dex → 035)."""
         in_path = args.get("in_path") or args.get("dex_path") or ""
         version = args.get("target_version")
+        if version == "cdex001" and not args.get("allow_unloadable"):
+            return {"status": "error", "tool": "dex_convert",
+                    "error": "cdex write requires allow_unloadable=true — the output is a "
+                             "standalone/analysis artifact, not PathClassLoader-loadable on-device"}
+        allow_note = None
+        if version == "cdex001" and args.get("allow_unloadable"):
+            allow_note = ("cdex output written by opt-in: standalone/analysis artifact — "
+                          "not PathClassLoader-loadable on-device")
         default_note = None
         if not version:
             version, default_note = self._default_target(in_path)
@@ -149,6 +157,8 @@ class DexHandler:
         result = self._run("dex_convert", cli_args)
         if result.get("status") == "ok":
             notes = []
+            if allow_note:
+                notes.append(allow_note)
             if default_note:
                 notes.append(default_note)
             notes.append("round-trips re-serialize: semantic content survives, layout does not")
@@ -425,6 +435,52 @@ class DexHandler:
             if started and depth <= 0:
                 return out
         return out
+
+    # ── dex_validate ──────────────────────────────────────────────────────
+
+    def dex_validate(self, args: dict) -> dict:
+        """[TOOL] Dex-level diagnostics: linkage + method-body analysis (DexFile ClassPath)."""
+        dex_path = args.get("dex_path") or args.get("apk_path") or ""
+        cli_args = ["validate", dex_path]
+        if args.get("max_issues"):
+            cli_args += ["--max-issues", str(max(1, int(args["max_issues"] or 200)))]
+        result = self._run("dex_validate", cli_args)
+        if result.get("status") == "ok" and isinstance(result.get("result"), dict):
+            out = result["result"]
+            if isinstance(out.get("issues"), list) and out["issues"]:
+                shown, info = cap_items(out["issues"], "raise max_issues for more")
+                out["issues"] = shown
+                if info["truncated"]:
+                    out["truncated"] = True
+                    out["hint"] = info["hint"]
+        return result
+
+    # ── dex_merge ─────────────────────────────────────────────────────────
+
+    def dex_merge(self, args: dict) -> dict:
+        """[TOOL] Merge multiple dex files into one (reverse of dex_split)."""
+        from android_re_mcp import guard
+
+        dex_paths = args.get("dex_paths") or []
+        if not isinstance(dex_paths, list) or len(dex_paths) < 2:
+            return {"status": "error", "tool": "dex_merge",
+                    "error": "dex_paths must be a list of at least two dex file paths"}
+        for path in dex_paths:
+            try:
+                guard.check_path(str(path), "dex_path", "dex_merge")
+            except guard.GuardError as exc:
+                return {"status": "error", "tool": "dex_merge", "error": str(exc)}
+        cli_args = ["merge", *[str(p) for p in dex_paths]]
+        if args.get("output_path"):
+            cli_args += ["--out", args["output_path"]]
+        if args.get("allow_cdex"):
+            cli_args += ["--allow-cdex"]
+            cli_args += ["--api", "28"]  # CDEX001's floor; writeOptions validates the era
+        result = self._run("dex_merge", cli_args)
+        if result.get("status") == "ok" and isinstance(result.get("result"), dict):
+            result["result"]["next_step"] = ("dex_info on the merged file, or dex_split "
+                                             "if it grew past the 64K-reference limit")
+        return result
 
     # ── dex_swap (pure Python — the fast loop's zip step) ─────────────────
 

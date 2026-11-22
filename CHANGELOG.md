@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - androguard 4.x logs through **loguru** — stdlib levels never silence it; the resource tools mute it via `loguru.disable("androguard")` inside their calls.
 - 30 new tests (`tests/test_mt_adopt.py`): hermetic zip/signature/native-map/patcher/build-check coverage + androguard/jadx/dexfile-cli-gated live runs; suite now 223 passed + 1 skipped.
 
+### Added (Python, deferred-dex batch — 3 tools, catalog 87 → 89)
+- The three deferred dexfile-cli items from the integration review, now implemented:
+  - **`dex_validate`** — dex-level diagnostics, the analog of smali_diagnostics, from DexFile's ClassPath/analysis package over a self-contained classpath (framework classes are outside it and honestly not flagged): duplicate classes, super-is-interface, member-reference resolution errors (NO_SUCH_METHOD/FIELD, ILLEGAL_ACCESS, INCOMPATIBLE_CLASS_CHANGE), per-method analysis failures; `max_issues` caps the list with an honest truncation flag. Backed by the new dexfile-cli `validate` subcommand.
+  - **`dex_merge`** — the reverse of `dex_split`: class lists from multiple dexes concatenated into one, class-collision detection across inputs, era-consistent target; `allow_cdex` opts in to standalone cdex output (not PathClassLoader-loadable on-device). Backed by the new dexfile-cli `merge` subcommand.
+  - **cdex write opt-in** — `dex_convert` accepts `target_version=cdex001` only with `allow_unloadable=true`; the schema description and result note carry the loading caveat. The CLI has supported cdex write since v0.1.3.
+- dexfile-cli bumped to **v0.1.8** (sha256 `50bcd376…`): `validate` + `merge` subcommands.
+- 6 new tests (`tests/test_dex_tools.py`): validate-clean, honest missing-file, merge two/duplicate/needs-two, cdex opt-in refusal; suite now 228 passed + 2 skipped.
 ### Docs
 - README: tool counts (87), "APK/zip surgery & checks (8)", "Native ELF patching (2)", DEX surgery grows to (9), new first-session prompts, dexfile-cli 0.1.6 pin.
 - `frida_scripts/build_bundles.sh` no longer falls back to a hardcoded personal path when `frida-compile` is absent — it exits with an install hint instead (only script with a non-portable default in the shipped wheel; every other path literal is a device convention or a multi-path search with honest degradation).

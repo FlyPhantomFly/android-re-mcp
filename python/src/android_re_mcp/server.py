@@ -744,10 +744,17 @@ TOOL_SCHEMAS: list[dict] = [
             "properties": {
                 "in_path": {"type": "string", "description": "Absolute path to dex/container/vdex"},
                 "target_version": {
-                    "type": "string", "enum": ["035", "036", "037", "038", "039", "040", "041"],
+                    "type": "string",
+                    "enum": ["035", "036", "037", "038", "039", "040", "041"],
+                    "description": "cdex001 additionally requires allow_unloadable=true "
+                                   "(standalone/analysis artifact, not on-device loadable)",
                     "default": "035",
                 },
                 "output_path": {"type": "string"},
+                "allow_unloadable": {
+                    "type": "boolean", "default": False,
+                    "description": "Opt-in for cdex001 write output",
+                },
             },
             "required": ["in_path"],
         },
@@ -872,6 +879,53 @@ TOOL_SCHEMAS: list[dict] = [
                 "max_lines": {"type": "integer", "default": 400},
             },
             "required": ["apk_path", "class_name"],
+        },
+    },
+    {
+        "name": "dex_validate",
+        "description": (
+            "Dex-level diagnostics — the analog of smali_diagnostics, from "
+            "DexFile's ClassPath/analysis package over a self-contained "
+            "classpath (framework classes are outside it and are not "
+            "flagged): duplicate classes, super-is-interface, member-"
+            "reference resolution errors (NO_SUCH_METHOD/FIELD, "
+            "ILLEGAL_ACCESS, INCOMPATIBLE_CLASS_CHANGE), per-method "
+            "analysis failures. max_issues caps the issue list with an "
+            "honest truncation flag."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "dex_path": {"type": "string"},
+                "apk_path": {"type": "string"},
+                "max_issues": {"type": "integer", "default": 200},
+            },
+        },
+    },
+    {
+        "name": "dex_merge",
+        "description": (
+            "Merge multiple dex files into one (reverse of dex_split): "
+            "class lists concatenated, class-collision detection across "
+            "inputs, era-consistent target (21+ → DEX035 by default). "
+            "allow_cdex opts in to standalone cdex output (not "
+            "PathClassLoader-loadable on-device). If the merged reference "
+            "count exceeds 64K, use dex_split on the result."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "dex_paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "At least two dex file paths",
+                },
+                "output_path": {"type": "string",
+                                "description": "Default: <first-stem>.merged.dex next to the first input"},
+                "allow_cdex": {"type": "boolean", "default": False,
+                               "description": "Write standalone cdex (analysis artifact)"},
+            },
+            "required": ["dex_paths"],
         },
     },
     # ── APK/zip surgery & checks (MT-MCP adoption) ────────────────────────
@@ -1722,6 +1776,8 @@ def create_server() -> Server:
         "dex_swap": dex.dex_swap,
         "dex_read_class_outline": dex.dex_read_class_outline,
         "dex_read_pseudocode": dex.dex_read_pseudocode,
+        "dex_validate": dex.dex_validate,
+        "dex_merge": dex.dex_merge,
         # MT-MCP adoption: apk/zip surgery, signatures, resources, build checks
         "apk_read_signature": apkops.apk_read_signature,
         "zip_test": apkops.zip_test,

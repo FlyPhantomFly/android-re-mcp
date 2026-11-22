@@ -14,7 +14,7 @@ Companion files: this document extends the current README's [tool tables](../REA
 
 One GitHub-flavoured codebase in `python/src/android_re_mcp/`:
 
-- `server.py` — declares all 87 tool schemas in one `TOOL_SCHEMAS` list, wires them to 13 handler classes in a dispatch table, and serves resources (5 knowledge packs) and prompts (7 guided playbooks). Transports: stdio (default) and SSE (loopback, bearer-token enforced off-loopback).
+- `server.py` — declares all 89 tool schemas in one `TOOL_SCHEMAS` list, wires them to 13 handler classes in a dispatch table, and serves resources (5 knowledge packs) and prompts (7 guided playbooks). Transports: stdio (default) and SSE (loopback, bearer-token enforced off-loopback).
 - `handlers/*.py` — the actual work: `static.py` (apktool/jadx/apkid/apkleaks/androguard), `dynamic.py` (Frida sessions, script library, hluda, memory), `device.py` (adb, logcat, scrcpy, hermes), `network.py` (mitmproxy), `patcher.py` + `signing.py` (smali edit, gadget embed, uber-apk-signer), `native.py` / `flutter.py` (radare2, Il2CppDumper, Blutter), `rasp.py` (vendor fingerprints + bypass scripts), `memory.py` (per-target notes).
 - `guard.py` — validates every call before dispatch: path deny-lists, `ANDROID_RE_MCP_ALLOWED_DIRS`, `ANDROID_RE_MCP_DISABLE_TOOLS`, per-argument regexes.
 - `paths.py` / `config.py` — `~/.local/share/android-re-mcp` for all writes (0700), `~/.config/android-re-mcp/config.toml` for `[signing]` settings, `~/tools` for downloaded binaries.
@@ -352,6 +352,33 @@ as covered by existing tools or plain PC shell. Plan: `mt-mcp-android-re-impleme
 - *Status:* **done** — catalog 74 → 87 tools. `dexfile-cli` bumped to v0.1.6 (outline subcommand;
   parallel-session v0.1.3–v0.1.5 carried real-ART cdex reads, odex handling, LegacyRewriter, and
   the cdex→DEX037 conversion default).
+
+---
+
+## E-PY-19. The deferred dexfile-cli trio — validate, merge, cdex opt-in (2026-11-21)
+
+The three deferred items from the DexFile integration review, implemented after the
+dexfile-cli gained the subcommands:
+
+- **`dex_validate`** — dex-level diagnostics via DexFile's ClassPath/analysis package over a
+  self-contained classpath (framework classes resolve to null = "outside the classpath" and
+  are honestly not flagged): duplicate classes, super-is-interface, member-reference
+  resolution errors (NO_SUCH_METHOD/FIELD, ILLEGAL_ACCESS, INCOMPATIBLE_CLASS_CHANGE),
+  per-method `AnalyzedMethod.analyze` failures. `max_issues` caps with an honest truncation
+  flag. Backed by dexfile-cli v0.1.8's `validate` subcommand.
+- **`dex_merge`** — reverse of `dex_split`: multiple dexes' class lists concatenated into one
+  dex, class-collision detection across inputs, era-consistent target, `allow_cdex` opt-in for
+  standalone cdex output. Backed by the new `merge` subcommand.
+- **cdex write opt-in** — `dex_convert` accepts `target_version=cdex001` only with
+  `allow_unloadable=true`; the loading caveat (not PathClassLoader-loadable on-device) is
+  carried in the schema description and the result note. The CLI has supported cdex write
+  since v0.1.3.
+- dexfile-cli bumped to **v0.1.8** (pin updated); the parallel-session v0.1.3–v0.1.7 releases
+  (real-ART cdex reads, odex handling, LegacyRewriter, cdex→DEX037 default, outline docs)
+  are part of the lineage.
+- *Tests:* 6 new cases in `tests/test_dex_tools.py` (validate-clean, honest missing-file,
+  merge two/duplicate/needs-two, cdex opt-in refusal); suite 228 passed + 2 skipped.
+- *Status:* **done** — catalog 87 → 89 tools.
 
 ---
 

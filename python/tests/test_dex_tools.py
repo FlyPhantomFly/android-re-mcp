@@ -308,3 +308,72 @@ def test_roundtrip_swap_into_apk(tmp_path, real_tools):
     with zipfile.ZipFile(tmp_path / "app-signed.apk") as z:
         assert z.read("classes.dex") == (tmp_path / "loader-patched.dex").read_bytes()
         assert z.read("AndroidManifest.xml") == b"<manifest/>"
+
+
+# ── dex_validate / dex_merge / cdex opt-in (E-PY-19) ──────────────────────
+
+@ROUNDTRIP
+def test_dex_validate_clean_dex(tmp_path, real_tools):
+    h = DexHandler()
+    smali = tmp_path / "Loader.smali"
+    smali.write_text(
+        ".class public Lcom/poc/Loader;\n.super Ljava/lang/Object;\n\n"
+        ".method public static getMessage()Ljava/lang/String;\n    .locals 1\n\n"
+        '    const-string v0, "hi"\n\n    return-object v0\n.end method\n')
+    h.dex_assemble({"path": str(smali), "output_path": str(tmp_path / "l.dex")})
+    out = h.dex_validate({"dex_path": str(tmp_path / "l.dex")})["result"]
+    assert out["ok"] is True and out["classes_checked"] == 1
+    assert out["methods_analyzed"] == 1
+    assert out["issues"] == []
+    assert "framework classes are outside it" in out["note"]
+
+
+@ROUNDTRIP
+def test_dex_validate_missing_class_is_honest(tmp_path, real_tools):
+    h = DexHandler()
+    result = h.dex_validate({"dex_path": str(tmp_path / "nope.dex")})
+    assert result["status"] == "error"
+
+
+@ROUNDTRIP
+def test_dex_merge_two_classes(tmp_path, real_tools):
+    h = DexHandler()
+    for name in ("Loader", "Second"):
+        smali = tmp_path / f"{name}.smali"
+        smali.write_text(
+            f".class public Lcom/poc/{name};\n.super Ljava/lang/Object;\n")
+        h.dex_assemble({"path": str(smali), "output_path": str(tmp_path / f"{name.lower()}.dex")})
+    merged = h.dex_merge({
+        "dex_paths": [str(tmp_path / "loader.dex"), str(tmp_path / "second.dex")],
+        "output_path": str(tmp_path / "merged.dex")})["result"]
+    assert merged["classes"] == 2
+    info = h.dex_info({"dex_path": str(tmp_path / "merged.dex")})["result"]
+    assert info["counts"]["classes"] == 2
+    assert "dex_split" in merged["next_step"]
+
+
+@ROUNDTRIP
+def test_dex_merge_duplicate_class_is_honest(tmp_path, real_tools):
+    h = DexHandler()
+    smali = tmp_path / "Loader.smali"
+    smali.write_text(
+        ".class public Lcom/poc/Loader;\n.super Ljava/lang/Object;\n\n"
+        ".method public static getMessage()Ljava/lang/String;\n    .locals 1\n\n"
+        '    const-string v0, "hi"\n\n    return-object v0\n.end method\n')
+    h.dex_assemble({"path": str(smali), "output_path": str(tmp_path / "loader.dex")})
+    result = h.dex_merge({
+        "dex_paths": [str(tmp_path / "loader.dex"), str(tmp_path / "loader.dex")],
+        "output_path": str(tmp_path / "merged.dex")})
+    assert result["status"] == "error"
+    assert "duplicate class" in result["error"]
+
+
+def test_dex_merge_needs_two_paths():
+    result = DexHandler().dex_merge({"dex_paths": ["one.dex"]})
+    assert result["status"] == "error" and "at least two" in result["error"]
+
+
+def test_cdex_write_requires_opt_in():
+    h = DexHandler()
+    result = h.dex_convert({"in_path": "/x/a.dex", "target_version": "cdex001"})
+    assert result["status"] == "error" and "allow_unloadable=true" in result["error"]

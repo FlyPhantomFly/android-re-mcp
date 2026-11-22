@@ -19,7 +19,7 @@ It's one package: PyPI: `android-re-mcp`
 
 ### What it does exactly
 
-`pip install "android-re-mcp[all]"` gives you an MCP server, started as `android-re-mcp`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **87 tools over one Android target at a time**:
+`pip install "android-re-mcp[all]"` gives you an MCP server, started as `android-re-mcp`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **89 tools over one Android target at a time**:
 
 - **Static work on the APK file itself** — apktool and jadx decompilation, ripgrep searches across the decompiled folder, androguard manifest parsing and bytecode cross-references, apkid packer/obfuscator identification, apkleaks secret scanning, quark-engine behaviour rules (`quark_scan`), and an orchestrator (`apk_analyze_full`) that runs all of those in one call and scores the protection tier.
 - **Dynamic work on a running app** — spawn or attach a process with Frida, inject JavaScript, stream script output back, hook SSL pinning, dump and search process memory, trace storage, crypto and network calls from a built-in script collection you can extend with your own scripts.
@@ -51,7 +51,7 @@ It needs Python 3.11 or newer. The base install is just the MCP server. The extr
 
 If Frida is already pinned in your environment, install without extras and the server will not touch it.
 
-`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0, Il2CppDumper 6.7.46 and dexfile-cli 0.1.7 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
+`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0, Il2CppDumper 6.7.46 and dexfile-cli 0.1.8 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
 
 ### Connect it
 
@@ -222,19 +222,21 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `native_crypto_constants` | AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64 alphabets, Blowfish P-array — file offset + VA | nothing |
 | `syscall_lookup` | arm64/x86_64 syscall number ↔ name, bundled from kernel headers | nothing |
 
-**DEX surgery (9)** — added in the DexFile integration review ([dexfile-cli 0.1.7](https://github.com/FlyPhantomFly/dexfile-cli))
+**DEX surgery (11)** — added in the DexFile integration review ([dexfile-cli 0.1.8](https://github.com/FlyPhantomFly/dexfile-cli))
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
 | `dex_info` | version, target API, class/method/string counts, class list; magic-scans flat dex, 041 containers, wrapped cdex/dex (vdex parts incl. modern-era vdex, packer blobs, dey odex wrappers) | dexfile-cli.jar, java 17+ |
 | `dex_extract` | pull every `classes*.dex` out of an APK (041 containers split per part) | dexfile-cli.jar |
-| `dex_convert` | read any version → write the target (vdex/cdex → 037 by default — dex037 was introduced in API 24 and covers the cdex era; flat dex → 035 for jadx; 035 → 041 container); odex instructions written verbatim with an `odex_instructions` count | dexfile-cli.jar |
+| `dex_convert` | read any version → write the target (vdex/cdex → 037 by default — dex037 was introduced in API 24 and covers the cdex era; flat dex → 035 for jadx; 035 → 041 container); odex instructions written verbatim with an `odex_instructions` count; cdex001 write requires `allow_unloadable=true` (standalone/analysis artifact) | dexfile-cli.jar |
 | `dex_patch` | surgical dex-model edits: `replace-const-string`, `rename`, `retarget-invoke`, `flip-flags`, `replace-method-body` (smali text); `.bak` on first in-place modify; per-op matched counts | dexfile-cli.jar |
 | `dex_assemble` | one smali class → dex (`SmaliIO`; the text must carry `.locals` and `.end method`) | dexfile-cli.jar |
 | `dex_split` | shard a class list across dex files under the 64K-reference limit (`DexIO.balanceAll`) | dexfile-cli.jar |
 | `dex_swap` | swap a patched dex back into an APK copy, other entries byte-identical (pure Python, no jar) | nothing |
 | `dex_read_class_outline` | per-class dex outline without decompiling: super, interfaces, access flags, fields (name/type/flags), methods (name/descriptor/flags/registers) | dexfile-cli.jar |
 | `dex_read_pseudocode` | targeted Java pseudocode for one class via jadx `--single-class` (fast incremental cache); line paging, `method` gives a brace-matched slice | jadx |
+| `dex_validate` | dex-level diagnostics — the analog of smali_diagnostics, from DexFile's ClassPath/analysis package: duplicate classes, super-is-interface, member-reference resolution errors, per-method analysis failures | dexfile-cli.jar |
+| `dex_merge` | merge multiple dex files into one (reverse of `dex_split`): class-collision detection, era-consistent target, `allow_cdex` opt-in for standalone cdex output | dexfile-cli.jar |
 
 **APK/zip surgery & checks (8)** — the MT-MCP adoption batch
 
