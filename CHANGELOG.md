@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.8.0] - 2026-11-21
 
 ### Changed (Python)
 - `dexfile-cli` pin bumped v0.1.6 → v0.1.9 (sha256 `02de8abb…`): v0.1.7 was a docs release (advertised the `outline` subcommand); v0.1.8 added `validate` + `merge`; v0.1.9 fixes two real bugs found while verifying them — `merge --allow-cdex` ignored the flag and wrote DEX039 instead of CDEX001, and `validate` flagged inherited references whose hierarchy left the dex (78 false `unresolved_method` errors on a real 1,354-class app). v0.1.9 also makes truncation accounting exact (`issues_total`), counts non-determinable references as `references_unknown`, and turns 64K write failures into actionable usage errors naming the section. Verified live: spacepeng.apk validates clean (12,076 methods, 129 unknown refs), an 18,068-class dex validates clean in ~5s, and cdex merge reads back as CDEX001.
@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 - README: tool counts (89), DEX surgery grows to (11), dexfile-cli 0.1.9 pin; `dex_validate`/`dex_merge` rows carry the `references_unknown`, truncation and 64K caveats.
+- PyPI package README refreshed (it predated the DEX tools): 89-tool overview, DEX surgery/`dex_validate`/`dex_merge`, dexfile-cli in the `--setup` list, and the new fast-loop prompts.
 
 ## [1.7.0] - 2026-11-20
 

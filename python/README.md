@@ -1,6 +1,6 @@
 # android-re-mcp (Python)
 The live-device half of [android-re-mcp](https://github.com/FlyPhantomFly/android-re-mcp). It is an MCP server that lets an AI assistant drive adb, Frida, mitmproxy, apktool and jadx against a test phone: decompile an app, hook it, read its traffic, patch it, sign it and install it again.
-The npm predecessor (`android-re-mcp`) is being retired — its static Android tools move into this package and its iOS tools are dropped (1.4.0). This package is the sole survivor.
+The npm predecessor (`android-re-mcp`) is retired — its static Android tools moved into this package and its iOS tools were dropped (1.4.0). This package is the sole survivor.
 
 ## Install
 ```bash
@@ -8,7 +8,7 @@ pip install "android-re-mcp[all]"
 android-re-mcp --setup
 ```
 It needs Python 3.11 or newer. The base install is just the MCP server. The `[all]` extra adds Frida, androguard, apkid, apkleaks, mitmproxy and quark-engine, and you can pick parts instead: `frida`, `static`, `network`, `analysis`. If Frida is already pinned in your environment, install without extras and the server will not touch it.
-`--setup` downloads pinned, checksum-verified copies of apktool, jadx, uber-apk-signer and Il2CppDumper into `~/tools`. adb comes from your package manager (`sudo apt install adb`).
+`--setup` downloads pinned, checksum-verified copies of apktool, jadx, uber-apk-signer, Il2CppDumper and dexfile-cli 0.1.9 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too.
 
 ## Connect it
 Claude Code:
@@ -33,20 +33,29 @@ Ask in plain language and the assistant picks the tools. Some prompts and what t
 - "Which protection does com.example.app use, and how do I get past it?" (`rasp_identify`, `rasp_bypass`)
 - "Start mitmproxy, open the app on the phone, then show me the requests it made." (`mitm_start`, `mitm_read_flows`)
 - "Patch the license check in the smali, rebuild, sign and install it." (`smali_patch`, `apk_rebuild_sign`, `adb_install`)
+- "Swap one string in classes.dex without rebuilding the APK, then validate the patched dex." (`dex_extract`, `dex_patch`, `dex_validate`, `dex_swap`, `apk_sign`, `adb_install`)
+- "These split dex files need to ship as one — merge them and check the result." (`dex_merge`, `dex_info`)
 - "Dump the app's memory and look for the session key." (`frida_memdump`, `frida_find_bytes`)
 
 The server also carries short playbooks as MCP prompts, and it keeps per-app notes (`memory_read`, `memory_write`) so a later session can pick up where the last one stopped.
 
 ## What is in it
-| Group | Tools | Needs |
+The server exposes **89 tools**. The full table with every name is in the
+[repository README](https://github.com/FlyPhantomFly/android-re-mcp/blob/master/README.md#the-tool-set).
+The main groups:
+
+| Group | Highlights | Needs |
 | --- | --- | --- |
-| Static | `apk_decompile`, `apk_identify`, `apk_scan_secrets`, `manifest_parse`, `search_strings`, `find_urls`, `find_crypto_usage` | apktool, jadx, ripgrep, apkid |
-| Frida | `frida_spawn`, `frida_attach`, `frida_inject`, `frida_memdump`, `objection_run` | Frida, a rooted phone or a gadget |
-| Device | `adb_devices`, `adb_shell`, `adb_install`, `adb_pull`, `adb_push`, `adb_logcat_*`, `scrcpy_*` | adb, scrcpy |
-| Network | `mitm_start`, `mitm_stop`, `mitm_read_flows`, `mitm_export_har`, `ssl_kill_switch` | mitmproxy |
-| Patching | `smali_patch`, `inject_gadget`, `apk_sign`, `apk_rebuild_sign` | apktool, uber-apk-signer, Java |
-| Native and cross-platform | `native_strings`, `native_exports`, `native_disasm`, `il2cpp_dump`, `blutter_extract`, `hermes_decode` | radare2, Il2CppDumper, Blutter |
-| Protections | `rasp_identify`, `rasp_bypass` | none |
+| Static analysis | `apk_decompile`, `apk_analyze_full`, `manifest_parse`, `search_strings`, `quark_scan` | apktool, jadx, ripgrep, androguard, apkid, apkleaks, quark-engine |
+| Bytecode deep-dive | `analyze_code`, `dex_read_pseudocode`, `dex_read_class_outline` | androguard, jadx, dexfile-cli |
+| Frida | `frida_spawn`, `frida_attach`, `frida_inject`, `frida_run_script`, `frida_memdump`, `objection_run` | Frida, a rooted phone or a gadget |
+| Device | `adb_devices`, `adb_shell`, `adb_install`, `adb_pull`, `adb_push`, `adb_logcat_*`, `scrcpy_*`, `hermes_decode` | adb, scrcpy |
+| Network | `mitm_start`, `mitm_read_flows`, `mitm_export_har`, `ssl_kill_switch` | mitmproxy |
+| Patching and signing | `smali_patch`, `inject_gadget`, `apk_sign`, `apk_rebuild_sign` | apktool, uber-apk-signer, Java |
+| DEX surgery | `dex_info`, `dex_convert`, `dex_patch`, `dex_assemble`, `dex_split`, `dex_merge`, `dex_validate`, `dex_swap` | dexfile-cli |
+| APK/zip surgery | `apk_read_signature`, `zip_test`, `zip_extract`, `zip_update`, `resource_table_list`, `resource_read`, `apk_build_check` | apksigner, openssl, aapt2 |
+| Native and cross-platform | `native_strings`, `native_exports`, `native_disasm`, `so_xrefs`, `native_patch_string`, `il2cpp_dump`, `blutter_extract` | radare2, capstone, Il2CppDumper, Blutter |
+| Protections and workflow | `rasp_identify`, `rasp_bypass`, `memory_read`, `memory_write`, `check_tools` | none |
 
 The Frida script library behind `frida_list_scripts` is empty until you add scripts of your own to `~/.local/share/android-re-mcp/frida_scripts`. The bypass scripts in `rasp_bypass` are built in.
 
