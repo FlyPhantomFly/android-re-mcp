@@ -8,7 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed (Python)
-- `dexfile-cli` pin bumped v0.1.6 → v0.1.7 (sha256 `30625bf2…`): a docs release — v0.1.6 shipped the `outline` subcommand without advertising it (missing from the usage text and the README table); both now list it, verified live against a real M3-era framework class. The MCP surface is unchanged: `dex_read_class_outline` and `dex_read_pseudocode` (added with v0.1.6's tool batch) are untouched.
+- `dexfile-cli` pin bumped v0.1.6 → v0.1.9 (sha256 `02de8abb…`): v0.1.7 was a docs release (advertised the `outline` subcommand); v0.1.8 added `validate` + `merge`; v0.1.9 fixes two real bugs found while verifying them — `merge --allow-cdex` ignored the flag and wrote DEX039 instead of CDEX001, and `validate` flagged inherited references whose hierarchy left the dex (78 false `unresolved_method` errors on a real 1,354-class app). v0.1.9 also makes truncation accounting exact (`issues_total`), counts non-determinable references as `references_unknown`, and turns 64K write failures into actionable usage errors naming the section. Verified live: spacepeng.apk validates clean (12,076 methods, 129 unknown refs), an 18,068-class dex validates clean in ~5s, and cdex merge reads back as CDEX001.
+
+### Added (Python, deferred-dex batch — validate + merge + cdex opt-in, catalog 87 → 89)
+- The three deferred dexfile-cli items from the integration review, now implemented:
+  - **`dex_validate`** — dex-level diagnostics, the analog of smali_diagnostics, from DexFile's ClassPath/analysis package over a self-contained classpath (framework classes are outside it and honestly not flagged): duplicate classes, super-is-interface, member-reference resolution errors (NO_SUCH_METHOD/FIELD, ILLEGAL_ACCESS, INCOMPATIBLE_CLASS_CHANGE), per-method analysis failures; `max_issues` caps the list with an honest truncation flag. Backed by the new dexfile-cli `validate` subcommand.
+  - **`dex_merge`** — the reverse of `dex_split`: class lists from multiple dexes concatenated into one, class-collision detection across inputs, era-consistent target; `allow_cdex` opts in to standalone cdex output (not PathClassLoader-loadable on-device). Backed by the new dexfile-cli `merge` subcommand.
+  - **cdex write opt-in** — `dex_convert` accepts `target_version=cdex001` only with `allow_unloadable=true`; the schema description and result note carry the loading caveat. The CLI has supported cdex write since v0.1.3.
+- dexfile-cli bumped to **v0.1.9** (sha256 `02de8abb…`): `validate` + `merge` subcommands, with the exact-classpath and cdex-target fixes.
+- 11 new tests (`tests/test_dex_tools.py`): validate-clean, inherited-ref unknown, super-is-interface + truncation, honest missing-file, merge two/duplicate/needs-two, cdex merge, cdex opt-in refusal/success, schema truthfulness; suite now 233 passed + 2 skipped.
+
+### Docs
+- README: tool counts (89), DEX surgery grows to (11), dexfile-cli 0.1.9 pin; `dex_validate`/`dex_merge` rows carry the `references_unknown`, truncation and 64K caveats.
 
 ## [1.7.0] - 2026-11-20
 
@@ -26,13 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - androguard 4.x logs through **loguru** — stdlib levels never silence it; the resource tools mute it via `loguru.disable("androguard")` inside their calls.
 - 30 new tests (`tests/test_mt_adopt.py`): hermetic zip/signature/native-map/patcher/build-check coverage + androguard/jadx/dexfile-cli-gated live runs; suite now 223 passed + 1 skipped.
 
-### Added (Python, deferred-dex batch — 3 tools, catalog 87 → 89)
-- The three deferred dexfile-cli items from the integration review, now implemented:
-  - **`dex_validate`** — dex-level diagnostics, the analog of smali_diagnostics, from DexFile's ClassPath/analysis package over a self-contained classpath (framework classes are outside it and honestly not flagged): duplicate classes, super-is-interface, member-reference resolution errors (NO_SUCH_METHOD/FIELD, ILLEGAL_ACCESS, INCOMPATIBLE_CLASS_CHANGE), per-method analysis failures; `max_issues` caps the list with an honest truncation flag. Backed by the new dexfile-cli `validate` subcommand.
-  - **`dex_merge`** — the reverse of `dex_split`: class lists from multiple dexes concatenated into one, class-collision detection across inputs, era-consistent target; `allow_cdex` opts in to standalone cdex output (not PathClassLoader-loadable on-device). Backed by the new dexfile-cli `merge` subcommand.
-  - **cdex write opt-in** — `dex_convert` accepts `target_version=cdex001` only with `allow_unloadable=true`; the schema description and result note carry the loading caveat. The CLI has supported cdex write since v0.1.3.
-- dexfile-cli bumped to **v0.1.8** (sha256 `50bcd376…`): `validate` + `merge` subcommands.
-- 6 new tests (`tests/test_dex_tools.py`): validate-clean, honest missing-file, merge two/duplicate/needs-two, cdex opt-in refusal; suite now 228 passed + 2 skipped.
 ### Docs
 - README: tool counts (87), "APK/zip surgery & checks (8)", "Native ELF patching (2)", DEX surgery grows to (9), new first-session prompts, dexfile-cli 0.1.6 pin.
 - `frida_scripts/build_bundles.sh` no longer falls back to a hardcoded personal path when `frida-compile` is absent — it exits with an install hint instead (only script with a non-portable default in the shipped wheel; every other path literal is a device convention or a multi-path search with honest degradation).

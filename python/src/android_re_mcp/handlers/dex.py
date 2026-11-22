@@ -440,7 +440,7 @@ class DexHandler:
 
     def dex_validate(self, args: dict) -> dict:
         """[TOOL] Dex-level diagnostics: linkage + method-body analysis (DexFile ClassPath)."""
-        dex_path = args.get("dex_path") or args.get("apk_path") or ""
+        dex_path = args.get("dex_path") or ""
         cli_args = ["validate", dex_path]
         if args.get("max_issues"):
             cli_args += ["--max-issues", str(max(1, int(args["max_issues"] or 200)))]
@@ -453,6 +453,8 @@ class DexHandler:
                 if info["truncated"]:
                     out["truncated"] = True
                     out["hint"] = info["hint"]
+                elif out.get("truncated"):
+                    out["hint"] = "issue list capped by max_issues; raise max_issues for more"
         return result
 
     # ── dex_merge ─────────────────────────────────────────────────────────
@@ -475,11 +477,11 @@ class DexHandler:
             cli_args += ["--out", args["output_path"]]
         if args.get("allow_cdex"):
             cli_args += ["--allow-cdex"]
-            cli_args += ["--api", "28"]  # CDEX001's floor; writeOptions validates the era
         result = self._run("dex_merge", cli_args)
         if result.get("status") == "ok" and isinstance(result.get("result"), dict):
-            result["result"]["next_step"] = ("dex_info on the merged file, or dex_split "
-                                             "if it grew past the 64K-reference limit")
+            result["result"]["next_step"] = ("dex_info on the merged file; if a section "
+                                             "hits the 64K limit, split the inputs first "
+                                             "and merge each shard")
         return result
 
     # ── dex_swap (pure Python — the fast loop's zip step) ─────────────────

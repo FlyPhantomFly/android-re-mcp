@@ -736,8 +736,9 @@ TOOL_SCHEMAS: list[dict] = [
             "another (e.g. 035 → 041 container). Odex instructions are "
             "written verbatim where the runtime accepts them; results report "
             "an odex_instructions count. Round-trips re-serialize: semantic "
-            "content survives, layout does not. cdex write is deliberately "
-            "not exposed (not PathClassLoader-loadable)."
+            "content survives, layout does not. cdex write is exposed only "
+            "with allow_unloadable=true (a standalone/analysis artifact, not "
+            "PathClassLoader-loadable on-device)."
         ),
         "inputSchema": {
             "type": "object",
@@ -745,7 +746,7 @@ TOOL_SCHEMAS: list[dict] = [
                 "in_path": {"type": "string", "description": "Absolute path to dex/container/vdex"},
                 "target_version": {
                     "type": "string",
-                    "enum": ["035", "036", "037", "038", "039", "040", "041"],
+                    "enum": ["035", "036", "037", "038", "039", "040", "041", "cdex001"],
                     "description": "cdex001 additionally requires allow_unloadable=true "
                                    "(standalone/analysis artifact, not on-device loadable)",
                     "default": "035",
@@ -886,31 +887,33 @@ TOOL_SCHEMAS: list[dict] = [
         "description": (
             "Dex-level diagnostics — the analog of smali_diagnostics, from "
             "DexFile's ClassPath/analysis package over a self-contained "
-            "classpath (framework classes are outside it and are not "
-            "flagged): duplicate classes, super-is-interface, member-"
-            "reference resolution errors (NO_SUCH_METHOD/FIELD, "
-            "ILLEGAL_ACCESS, INCOMPATIBLE_CLASS_CHANGE), per-method "
-            "analysis failures. max_issues caps the issue list with an "
-            "honest truncation flag."
+            "classpath. Framework classes are outside it: references whose "
+            "hierarchy leaves the dex are counted as references_unknown and "
+            "never flagged. Finds duplicate classes, super-is-interface, "
+            "member-reference resolution errors (NO_SUCH_METHOD/FIELD, "
+            "ILLEGAL_ACCESS, INCOMPATIBLE_CLASS_CHANGE) and per-method "
+            "analysis failures. max_issues caps the shown list; issues_total "
+            "and truncated keep the count honest."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "dex_path": {"type": "string"},
-                "apk_path": {"type": "string"},
                 "max_issues": {"type": "integer", "default": 200},
             },
+            "required": ["dex_path"],
         },
     },
     {
         "name": "dex_merge",
         "description": (
-            "Merge multiple dex files into one (reverse of dex_split): "
-            "class lists concatenated, class-collision detection across "
-            "inputs, era-consistent target (21+ → DEX035 by default). "
+            "Merge multiple dex files into one output dex (reverse of "
+            "dex_split): class lists concatenated, class-collision detection "
+            "across inputs, era-consistent target (21+ → DEX035 by default). "
             "allow_cdex opts in to standalone cdex output (not "
-            "PathClassLoader-loadable on-device). If the merged reference "
-            "count exceeds 64K, use dex_split on the result."
+            "PathClassLoader-loadable on-device). If a section exceeds the "
+            "64K limit the merge fails naming it — split the inputs first and "
+            "merge each shard."
         ),
         "inputSchema": {
             "type": "object",

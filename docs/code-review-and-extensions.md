@@ -361,23 +361,38 @@ The three deferred items from the DexFile integration review, implemented after 
 dexfile-cli gained the subcommands:
 
 - **`dex_validate`** — dex-level diagnostics via DexFile's ClassPath/analysis package over a
-  self-contained classpath (framework classes resolve to null = "outside the classpath" and
-  are honestly not flagged): duplicate classes, super-is-interface, member-reference
+  self-contained classpath: duplicate classes, super-is-interface, member-reference
   resolution errors (NO_SUCH_METHOD/FIELD, ILLEGAL_ACCESS, INCOMPATIBLE_CLASS_CHANGE),
-  per-method `AnalyzedMethod.analyze` failures. `max_issues` caps with an honest truncation
-  flag. Backed by dexfile-cli v0.1.8's `validate` subcommand.
+  per-method `AnalyzedMethod.analyze` failures. `max_issues` caps the shown list; the result
+  carries `issues_total`, `issues_shown` and `truncated`. Backed by dexfile-cli v0.1.9's
+  `validate` subcommand.
 - **`dex_merge`** — reverse of `dex_split`: multiple dexes' class lists concatenated into one
-  dex, class-collision detection across inputs, era-consistent target, `allow_cdex` opt-in for
-  standalone cdex output. Backed by the new `merge` subcommand.
+  dex, class-collision detection across inputs, era-consistent target, `allow_cdex` opt-in
+  for standalone cdex output. A 64K section overflow fails naming the section and suggests
+  sharding the inputs. Backed by the `merge` subcommand.
 - **cdex write opt-in** — `dex_convert` accepts `target_version=cdex001` only with
   `allow_unloadable=true`; the loading caveat (not PathClassLoader-loadable on-device) is
-  carried in the schema description and the result note. The CLI has supported cdex write
-  since v0.1.3.
-- dexfile-cli bumped to **v0.1.8** (pin updated); the parallel-session v0.1.3–v0.1.7 releases
+  carried in the schema enum/description and the result note. The CLI has supported cdex
+  write since v0.1.3.
+- **Verification found two real bugs in the first cut (v0.1.8), fixed in v0.1.9:**
+  - `merge --allow-cdex` accepted the flag but ignored it, writing the API-derived DEX039
+    instead of CDEX001. The flag now selects CDEX001 and validates `--api` 28..35.
+  - `validate` ignored `ClassPath.Result.exact()`: an inherited reference resolved through a
+    framework superclass (e.g. `Inherit->toString`, whose `Object` super is outside the
+    classpath) came back `exact=false` + `NO_SUCH_METHOD` and was reported as broken — 78
+    false `unresolved_method` errors on the real 1,354-class spacepeng.apk. Inexact results
+    are now counted as `references_unknown` and never flagged.
+  - Truncation accounting is exact (`issues_total`, `truncated` only when findings were
+    omitted); a 41-container input is refused with the `extract`/`convert` hint.
+- dexfile-cli bumped to **v0.1.9** (pin updated); the parallel-session v0.1.3–v0.1.7 releases
   (real-ART cdex reads, odex handling, LegacyRewriter, cdex→DEX037 default, outline docs)
   are part of the lineage.
-- *Tests:* 6 new cases in `tests/test_dex_tools.py` (validate-clean, honest missing-file,
-  merge two/duplicate/needs-two, cdex opt-in refusal); suite 228 passed + 2 skipped.
+- *Tests:* 11 new cases in `tests/test_dex_tools.py` (validate-clean, inherited-ref unknown,
+  super-is-interface + truncation, honest missing-file, merge two/duplicate/needs-two, cdex
+  merge, cdex opt-in refusal/success, schema truthfulness); suite 233 passed + 2 skipped.
+  Live verification: spacepeng.apk (12,076 methods) and an 18,068-class dex validate clean
+  (129 and 16 unknown refs respectively); merge of 71k classes fails with the type-section
+  limit named; merge `--allow-cdex` reads back as CDEX001.
 - *Status:* **done** — catalog 87 → 89 tools.
 
 ---

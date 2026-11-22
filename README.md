@@ -9,7 +9,7 @@ android-re-mcp is an MCP server for Android reverse engineering.
 
 You point it at a real device and a target app, then just ask: *what is this app, what's protecting it, and how do I get past that?* 
 
-The assistant picks from 87 tools: decompile, hook, trace traffic, dump memory, patch smali or dex, read the resource table, patch native code, sign and reinstall, and walks you through the answer.
+The assistant picks from 89 tools: decompile, hook, trace traffic, dump memory, patch smali or dex, read the resource table, patch native code, sign and reinstall, and walks you through the answer.
 
 It's one package: PyPI: `android-re-mcp`
 
@@ -51,7 +51,7 @@ It needs Python 3.11 or newer. The base install is just the MCP server. The extr
 
 If Frida is already pinned in your environment, install without extras and the server will not touch it.
 
-`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0, Il2CppDumper 6.7.46 and dexfile-cli 0.1.8 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
+`--setup` downloads pinned, checksum-verified copies of apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0, Il2CppDumper 6.7.46 and dexfile-cli 0.1.9 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too. Run `android-re-mcp --setup` again any time to fill in whatever is missing.
 
 ### Connect it
 
@@ -222,7 +222,7 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `native_crypto_constants` | AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64 alphabets, Blowfish P-array — file offset + VA | nothing |
 | `syscall_lookup` | arm64/x86_64 syscall number ↔ name, bundled from kernel headers | nothing |
 
-**DEX surgery (11)** — added in the DexFile integration review ([dexfile-cli 0.1.8](https://github.com/FlyPhantomFly/dexfile-cli))
+**DEX surgery (11)** — added in the DexFile integration review ([dexfile-cli 0.1.9](https://github.com/FlyPhantomFly/dexfile-cli))
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
@@ -235,8 +235,8 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `dex_swap` | swap a patched dex back into an APK copy, other entries byte-identical (pure Python, no jar) | nothing |
 | `dex_read_class_outline` | per-class dex outline without decompiling: super, interfaces, access flags, fields (name/type/flags), methods (name/descriptor/flags/registers) | dexfile-cli.jar |
 | `dex_read_pseudocode` | targeted Java pseudocode for one class via jadx `--single-class` (fast incremental cache); line paging, `method` gives a brace-matched slice | jadx |
-| `dex_validate` | dex-level diagnostics — the analog of smali_diagnostics, from DexFile's ClassPath/analysis package: duplicate classes, super-is-interface, member-reference resolution errors, per-method analysis failures | dexfile-cli.jar |
-| `dex_merge` | merge multiple dex files into one (reverse of `dex_split`): class-collision detection, era-consistent target, `allow_cdex` opt-in for standalone cdex output | dexfile-cli.jar |
+| `dex_validate` | dex-level diagnostics — the analog of smali_diagnostics, from DexFile's ClassPath/analysis package: duplicate classes, super-is-interface, member-reference resolution errors, per-method analysis failures; references whose hierarchy leaves the dex are counted `references_unknown`, never flagged; `issues_total`/`truncated` keep caps honest | dexfile-cli.jar |
+| `dex_merge` | merge multiple dex files into one (reverse of `dex_split`): class-collision detection, era-consistent target, `allow_cdex` opt-in for standalone cdex output; 64K failures name the section and suggest sharding the inputs | dexfile-cli.jar |
 
 **APK/zip surgery & checks (8)** — the MT-MCP adoption batch
 

@@ -325,7 +325,7 @@ def test_dex_validate_clean_dex(tmp_path, real_tools):
     assert out["ok"] is True and out["classes_checked"] == 1
     assert out["methods_analyzed"] == 1
     assert out["issues"] == []
-    assert "framework classes are outside it" in out["note"]
+    assert "framework classes" in out["note"] and "unknown" in out["note"]
 
 
 @ROUNDTRIP
@@ -349,7 +349,7 @@ def test_dex_merge_two_classes(tmp_path, real_tools):
     assert merged["classes"] == 2
     info = h.dex_info({"dex_path": str(tmp_path / "merged.dex")})["result"]
     assert info["counts"]["classes"] == 2
-    assert "dex_split" in merged["next_step"]
+    assert "split the inputs first" in merged["next_step"]
 
 
 @ROUNDTRIP
@@ -377,3 +377,88 @@ def test_cdex_write_requires_opt_in():
     h = DexHandler()
     result = h.dex_convert({"in_path": "/x/a.dex", "target_version": "cdex001"})
     assert result["status"] == "error" and "allow_unloadable=true" in result["error"]
+
+
+def test_cdex_and_validate_schemas_are_truthful():
+    from android_re_mcp.server import TOOL_SCHEMAS
+
+    by_name = {schema["name"]: schema for schema in TOOL_SCHEMAS}
+    convert = by_name["dex_convert"]["inputSchema"]["properties"]
+    assert "cdex001" in convert["target_version"]["enum"]
+    validate = by_name["dex_validate"]["inputSchema"]["properties"]
+    assert "dex_path" in validate and "apk_path" not in validate
+
+
+@ROUNDTRIP
+def test_dex_validate_unknown_hierarchy_is_not_flagged(tmp_path, real_tools):
+    """A ref resolved through a framework super is inexact, not broken."""
+    h = DexHandler()
+    smali = tmp_path / "Inherit.smali"
+    smali.write_text(
+        ".class public Lcom/poc/Inherit;\n.super Ljava/lang/Object;\n\n"
+        ".method public call()Ljava/lang/String;\n    .locals 1\n\n"
+        "    invoke-virtual {p0}, Lcom/poc/Inherit;->toString()Ljava/lang/String;\n\n"
+        "    move-result-object v0\n\n    return-object v0\n.end method\n")
+    h.dex_assemble({"path": str(smali), "output_path": str(tmp_path / "i.dex")})
+    out = h.dex_validate({"dex_path": str(tmp_path / "i.dex")})["result"]
+    assert out["ok"] is True
+    assert out["issues"] == []
+    assert out["references_unknown"] >= 1
+
+
+@ROUNDTRIP
+def test_dex_validate_flags_super_interface_and_truncates(tmp_path, real_tools):
+    h = DexHandler()
+    smali_a = tmp_path / "A.smali"
+    smali_a.write_text(
+        ".class public interface abstract Lcom/poc/A;\n.super Ljava/lang/Object;\n")
+    h.dex_assemble({"path": str(smali_a), "output_path": str(tmp_path / "a.dex")})
+    paths = [str(tmp_path / "a.dex")]
+    for name in ("B", "C"):
+        smali = tmp_path / f"{name}.smali"
+        smali.write_text(f".class public Lcom/poc/{name};\n.super Lcom/poc/A;\n")
+        h.dex_assemble({"path": str(smali), "output_path": str(tmp_path / f"{name.lower()}.dex")})
+        paths.append(str(tmp_path / f"{name.lower()}.dex"))
+    h.dex_merge({"dex_paths": paths, "output_path": str(tmp_path / "all.dex")})
+    out = h.dex_validate({"dex_path": str(tmp_path / "all.dex"), "max_issues": 1})["result"]
+    assert out["ok"] is False
+    assert out["issues_total"] == 2
+    assert out["issues_shown"] == 1 and out["truncated"] is True
+    assert out["issues"][0]["kind"] == "super_is_interface"
+    assert "raise max_issues" in out["hint"]
+
+
+@ROUNDTRIP
+def test_dex_merge_allow_cdex_writes_cdex(tmp_path, real_tools):
+    h = DexHandler()
+    paths = []
+    for name in ("One", "Two"):
+        smali = tmp_path / f"{name}.smali"
+        smali.write_text(f".class public Lcom/poc/{name};\n.super Ljava/lang/Object;\n")
+        out_path = tmp_path / f"{name.lower()}.dex"
+        h.dex_assemble({"path": str(smali), "output_path": str(out_path)})
+        paths.append(str(out_path))
+    merged = h.dex_merge({"dex_paths": paths,
+                          "output_path": str(tmp_path / "merged.cdex"),
+                          "allow_cdex": True})["result"]
+    assert merged["target_version"] == "CDEX001"
+    assert merged["cdex_written"] is True
+    info = h.dex_info({"dex_path": str(tmp_path / "merged.cdex")})["result"]
+    assert info["version"] == "CDEX001" and info["compact"] is True
+
+
+@ROUNDTRIP
+def test_cdex_write_opt_in_succeeds_with_note(tmp_path, real_tools):
+    h = DexHandler()
+    smali = tmp_path / "Loader.smali"
+    smali.write_text(
+        ".class public Lcom/poc/Loader;\n.super Ljava/lang/Object;\n\n"
+        ".method public static getMessage()Ljava/lang/String;\n    .locals 1\n\n"
+        '    const-string v0, "hi"\n\n    return-object v0\n.end method\n')
+    h.dex_assemble({"path": str(smali), "output_path": str(tmp_path / "l.dex")})
+    out = h.dex_convert({"in_path": str(tmp_path / "l.dex"),
+                         "target_version": "cdex001", "allow_unloadable": True,
+                         "output_path": str(tmp_path / "l.cdex")})
+    assert out["status"] == "ok"
+    assert out["result"]["converted"][0]["to"] == "CDEX001"
+    assert "not PathClassLoader-loadable" in out["note"]
