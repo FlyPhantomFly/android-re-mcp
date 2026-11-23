@@ -44,9 +44,8 @@ reports/
 audit-Nov.18.log
 npm-debug.log*
 
-# Skill evaluation workspaces (local only)
-skills/android-re-mcp-audit-workspace/
-skills/android-re-mcp-release-check-workspace/
+# Local skills and evaluation workspaces (install from the workspace; not versioned)
+skills/
 
 # Claude memory (local only)
 .claude/
