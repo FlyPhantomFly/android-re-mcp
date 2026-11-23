@@ -39,12 +39,14 @@ Thumbs.db
 *.swo
 
 # Logs
+reports/
 *.log
 audit-Nov.18.log
 npm-debug.log*
 
-# Skill evaluation workspace (local only)
+# Skill evaluation workspaces (local only)
 skills/android-re-mcp-audit-workspace/
+skills/android-re-mcp-release-check-workspace/
 
 # Claude memory (local only)
 .claude/

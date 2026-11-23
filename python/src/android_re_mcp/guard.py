@@ -29,6 +29,7 @@ OUTPUT_SUFFIXES = {
     "dex_convert": {"output_path": {".dex", ".cdex", ".vdex", ".container", ".jar"}},
     "dex_patch": {"output_path": {".dex", ".cdex", ".vdex", ".container", ".jar"}},
     "dex_assemble": {"output_path": {".dex", ".jar"}},
+    "dex_merge": {"output_path": {".dex", ".cdex", ".vdex", ".container", ".jar"}},
     "dex_swap": {"output_apk": {".apk"}},
 }
 

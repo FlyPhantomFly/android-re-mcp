@@ -196,8 +196,13 @@ class DexHandler:
             return {"status": "error", "tool": "dex_patch", "error": error}
 
         out_path = args.get("output_path")
-        # smali_patch discipline: back up the input before an in-place modify
+        # Check the jar/java before any side effect: a missing-tool call must
+        # not leave a .bak next to the input.
         if out_path is None:
+            required = self._require("dex_patch")
+            if isinstance(required, dict):
+                return required
+            # smali_patch discipline: back up the input before an in-place modify
             bak = Path(dex_path + ".bak")
             if not bak.exists() and Path(dex_path).is_file():
                 shutil.copy2(dex_path, bak)

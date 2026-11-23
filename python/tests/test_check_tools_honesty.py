@@ -168,3 +168,43 @@ def test_apk_identify_missing_cli_stays_missing_tool(tmp_path, monkeypatch):
     out = static_mod.StaticHandler().apk_identify({"apk_path": str(tmp_path)})
     assert out["status"] == "missing_tool"
     assert out["tool"] == "apkid"
+
+
+def test_dexfile_cli_used_by_covers_every_jar_tool():
+    """Every handler that needs the jar must appear in check_tools used_by."""
+    from android_re_mcp.handlers.dex import DexHandler
+
+    expected = {
+        "dex_info", "dex_extract", "dex_convert", "dex_patch", "dex_assemble",
+        "dex_split", "dex_read_class_outline", "dex_validate", "dex_merge",
+    }
+    assert set(ct._DEXFILE_CLI_TOOLS) == expected
+    handler = DexHandler()
+    for name in expected:
+        assert callable(getattr(handler, name)), name
+    # dex_swap is pure Python; dex_read_pseudocode uses jadx.
+    assert "dex_swap" not in ct._DEXFILE_CLI_TOOLS
+    assert "dex_read_pseudocode" not in ct._DEXFILE_CLI_TOOLS
+
+
+def test_java_jar_hint_is_per_tool(tmp_path, monkeypatch):
+    monkeypatch.setattr(ct.shutil, "which", lambda name: "/usr/bin/java")
+    status = ct._check_java_jar(
+        "dexfile-cli",
+        str(tmp_path / "missing.jar"),
+        used_by=ct._DEXFILE_CLI_TOOLS,
+        hint="install dexfile-cli via --setup",
+        java_hint="install JDK 17+",
+    )
+    assert status.available is False
+    assert "install dexfile-cli" in status.install_hint
+    assert set(status.used_by) == set(ct._DEXFILE_CLI_TOOLS)
+
+
+def test_java_jar_java_hint_is_per_tool(monkeypatch):
+    monkeypatch.setattr(ct.shutil, "which", lambda name: None)
+    status = ct._check_java_jar(
+        "dexfile-cli", "/x/dexfile-cli.jar", java_hint="install JDK 17+"
+    )
+    assert status.available is False
+    assert "JDK 17+" in status.install_hint

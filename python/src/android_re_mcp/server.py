@@ -747,9 +747,9 @@ TOOL_SCHEMAS: list[dict] = [
                 "target_version": {
                     "type": "string",
                     "enum": ["035", "036", "037", "038", "039", "040", "041", "cdex001"],
-                    "description": "cdex001 additionally requires allow_unloadable=true "
-                                   "(standalone/analysis artifact, not on-device loadable)",
-                    "default": "035",
+                    "description": "Omit for the smart default (vdex/cdex → 037, flat dex → 035). "
+                                   "cdex001 additionally requires allow_unloadable=true "
+                                   "(standalone/analysis artifact, not on-device loadable).",
                 },
                 "output_path": {"type": "string"},
                 "allow_unloadable": {

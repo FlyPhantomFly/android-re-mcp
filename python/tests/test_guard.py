@@ -49,6 +49,12 @@ def test_output_suffixes():
     guard.validate("mitm_export_har", {"output_path": "/tmp/x/out.har"})
     refused("mitm_export_har", {"output_path": "/tmp/x/authorized_keys"})
     refused("scrcpy_screenshot", {"output_path": "/tmp/x/shot.sh"})
+    guard.validate("dex_merge", {"dex_paths": ["/tmp/x/a.dex", "/tmp/x/b.dex"],
+                                 "output_path": "/tmp/x/out.dex"})
+    guard.validate("dex_merge", {"dex_paths": ["/tmp/x/a.dex", "/tmp/x/b.dex"],
+                                 "output_path": "/tmp/x/out.cdex"})
+    refused("dex_merge", {"dex_paths": ["/tmp/x/a.dex", "/tmp/x/b.dex"],
+                          "output_path": "/tmp/x/out.txt"})
 
 
 def test_package_and_serial_and_port():

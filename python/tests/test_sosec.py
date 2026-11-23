@@ -112,7 +112,14 @@ def _elf64_phdr(entries: list[tuple[int, int, bytes]], machine: int = 183) -> by
 
 # ── so_xrefs ──────────────────────────────────────────────────────────────
 
-capstone = pytest.importorskip("capstone")
+try:
+    import capstone  # noqa: F401
+except ImportError:  # pragma: no cover - exercised only without the extra
+    capstone = None
+
+requires_capstone = pytest.mark.skipif(
+    capstone is None, reason="capstone not installed"
+)
 
 
 def _xrefs(blob: bytes, address: str) -> dict:
@@ -123,6 +130,7 @@ def _xrefs(blob: bytes, address: str) -> dict:
     return SoSecHandler().so_xrefs({"so_path": path, "address": address})
 
 
+@requires_capstone
 def test_so_xrefs_finds_branch_and_adrp_add():
     blob = _elf64([(".text", NOP + _bl(0x1004, 0x1040) + _adrp(0x1008, 0x2000) + _add_imm(0, 0, 0x10), 0x1000, 0x6)])
     out = _xrefs(blob, "0x1040")["output"]
@@ -136,6 +144,7 @@ def test_so_xrefs_finds_branch_and_adrp_add():
     assert out2["refs"][0]["insn"].startswith("add ")
 
 
+@requires_capstone
 def test_so_xrefs_empty_target_reports_zero_honestly():
     blob = _elf64([(".text", NOP * 2, 0x1000, 0x6)])
     out = _xrefs(blob, "0xdeadbeef")["output"]
@@ -146,6 +155,7 @@ def test_so_xrefs_empty_target_reports_zero_honestly():
 
 # ── rop_gadgets ───────────────────────────────────────────────────────────
 
+@requires_capstone
 def test_rop_gadgets_finds_runs_and_breaks_at_branches():
     code = (
         MOVR[1] + RET                    # 0x1000: gadget "mov x0, x1; ret"
@@ -164,6 +174,7 @@ def test_rop_gadgets_finds_runs_and_breaks_at_branches():
     assert out["arch"] == "arm64"
 
 
+@requires_capstone
 def test_rop_gadgets_filter_narrows():
     code = MOVR[1] + RET + MOVR[3] + RET
     import tempfile
@@ -175,6 +186,7 @@ def test_rop_gadgets_filter_narrows():
     assert out["gadgets"][0]["gadget"] == "mov x0, x1; ret"
 
 
+@requires_capstone
 def test_rop_gadgets_cap_keeps_total_and_hints(monkeypatch):
     code = b"".join(MOVR[1] + RET for _ in range(5))
     import tempfile
@@ -332,5 +344,17 @@ def test_unsupported_machine_degrades(tmp_path):
         fh.write(bytes(blob))
         path = fh.name
     result = SoSecHandler().so_xrefs({"so_path": path, "address": "0x1000"})
+    assert result["status"] == "error"
+    assert "not supported" in result["error"]
+
+
+def test_unsupported_machine_degrades_even_without_capstone(tmp_path, monkeypatch):
+    """Machine support is decided before the optional capstone import."""
+    monkeypatch.setitem(sys.modules, "capstone", None)
+    blob = bytearray(_elf64([(".text", NOP * 2, 0x1000, 0x6)]))
+    struct.pack_into("<H", blob, 0x12, 8)  # e_machine = MIPS
+    so = tmp_path / "mips.so"
+    so.write_bytes(bytes(blob))
+    result = SoSecHandler().so_xrefs({"so_path": str(so), "address": "0x1000"})
     assert result["status"] == "error"
     assert "not supported" in result["error"]

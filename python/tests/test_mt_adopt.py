@@ -18,6 +18,23 @@ from android_re_mcp.handlers import apkops as apkops_mod
 from android_re_mcp.handlers.apkops import ApkOpsHandler
 from android_re_mcp.handlers.dex import DexHandler
 
+try:
+    import keystone  # noqa: F401
+except ImportError:  # pragma: no cover - exercised only without the extra
+    keystone = None
+
+try:
+    import androguard  # noqa: F401
+except ImportError:  # pragma: no cover - exercised only without the extra
+    androguard = None
+
+requires_keystone = pytest.mark.skipif(
+    keystone is None, reason="keystone-engine not installed"
+)
+requires_androguard = pytest.mark.skipif(
+    androguard is None, reason="androguard not installed"
+)
+
 FIXTURE_APK = str(Path(__file__).parent / "fixtures" / "notesdemo.apk")
 
 JAR_OK = (apkops_mod.tools_dir() / "dexfile-cli.jar").is_file()
@@ -274,9 +291,7 @@ def test_native_patch_string_expected_missing_aborts(tmp_path):
     assert so.read_bytes() == before
 
 
-keystone = pytest.importorskip("keystone", reason="keystone-engine not installed")
-
-
+@requires_keystone
 def test_native_patch_instructions_arm64(tmp_path):
     code = b"\x00\x00\x80\xd2" * 2  # movz x0, #0 twice (4 bytes each)
     so = _phdr_so(tmp_path, code)
@@ -293,6 +308,7 @@ def test_native_patch_instructions_arm64(tmp_path):
     assert report["bytes_written"] == 4 and report["assembled_bytes"] == 4
 
 
+@requires_keystone
 def test_native_patch_instructions_expected_mismatch(tmp_path):
     code = b"\xd2\x80\x00\x00" * 2
     so = _phdr_so(tmp_path, code)
@@ -306,6 +322,7 @@ def test_native_patch_instructions_expected_mismatch(tmp_path):
     assert so.read_bytes() == before
 
 
+@requires_keystone
 def test_native_patch_instructions_too_long_rejected(tmp_path):
     code = b"\x1f\x20\x03\xd5"  # one 4-byte NOP
     so = _phdr_so(tmp_path, code)
@@ -338,14 +355,12 @@ def test_build_check_flags_bak_and_missing_manifest(tmp_path):
 
 # ── resource tools (androguard-gated) ─────────────────────────────────────
 
-pytest.importorskip("androguard", reason="androguard not installed")
-
-
 REAL_APK = "/home/dragon/Documents/appcloner_368_reffree_NOFCALL_signed.apk"
 REAL = pytest.mark.skipif(not Path(REAL_APK).is_file(), reason="real APK not present")
 
 
 @REAL
+@requires_androguard
 def test_resource_table_list_on_real_apk():
     out = ApkOpsHandler().resource_table_list({"apk_path": REAL_APK,
                                                "type_name": "string", "limit": 5})["output"]
@@ -357,6 +372,7 @@ def test_resource_table_list_on_real_apk():
 
 
 @REAL
+@requires_androguard
 def test_resource_read_resolves_app_name():
     out = ApkOpsHandler().resource_read({"apk_path": REAL_APK,
                                          "ids": ["string/app_name"]})["output"]
@@ -365,6 +381,7 @@ def test_resource_read_resolves_app_name():
     assert any(v["value"] == "App Cloner" for v in r["variants"])
 
 
+@requires_androguard
 def test_resource_read_missing_resource_is_honest(tmp_path):
     # notesdemo's arsc parses with zero packages → honest not-found
     out = ApkOpsHandler().resource_read({"apk_path": FIXTURE_APK,
@@ -373,6 +390,7 @@ def test_resource_read_missing_resource_is_honest(tmp_path):
 
 
 @REAL
+@requires_androguard
 def test_resource_xref_finds_hex_uses(tmp_path):
     # synthetic decompile tree referencing app_name's id
     smali_dir = tmp_path / "dec"

@@ -54,6 +54,11 @@ def fake_tools(tmp_path, monkeypatch):
 def fake_run(monkeypatch):
     """Fake the CLI runner: success with a canned result, recording argv + ops content."""
     calls = {}
+    # The patch/convert handlers now check the jar before side effects; a
+    # faked _run alone would still hit the isolated HOME's empty tools dir.
+    monkeypatch.setattr(
+        DexHandler, "_require", staticmethod(lambda tool: ("/fake/dexfile-cli.jar", "/fake/java"))
+    )
 
     def fake(tool, cli_args):
         calls["tool"] = tool
@@ -185,6 +190,18 @@ def test_patch_output_path_skips_bak(fake_run, tmp_path):
     assert result["status"] == "ok"
     assert not Path(str(dex) + ".bak").exists()
     assert "next_step" in result["result"]
+
+
+def test_patch_missing_jar_does_not_write_bak(fake_tools, tmp_path):
+    """A missing-tool call must not leave a .bak next to the input."""
+    dex = tmp_path / "app.dex"
+    dex.write_bytes(b"dex\n035\x00fake")
+    result = DexHandler().dex_patch({
+        "dex_path": str(dex),
+        "ops": [{"op": "rename", "target": "class", "class": "a", "new_name": "b"}],
+    })
+    assert result["status"] == "missing_tool"
+    assert not Path(str(dex) + ".bak").exists()
 
 
 # ── caps logic (hermetic, faked CLI) ──────────────────────────────────────
@@ -385,6 +402,10 @@ def test_cdex_and_validate_schemas_are_truthful():
     by_name = {schema["name"]: schema for schema in TOOL_SCHEMAS}
     convert = by_name["dex_convert"]["inputSchema"]["properties"]
     assert "cdex001" in convert["target_version"]["enum"]
+    # The handler chooses 037/035 from the input magic when the argument is
+    # absent; a schema default of 035 would bypass that smart default.
+    assert "default" not in convert["target_version"]
+    assert "Omit for the smart default" in convert["target_version"]["description"]
     validate = by_name["dex_validate"]["inputSchema"]["properties"]
     assert "dex_path" in validate and "apk_path" not in validate
 

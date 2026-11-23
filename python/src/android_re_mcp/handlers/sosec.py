@@ -145,7 +145,17 @@ def _load_so(args: dict, tool: str, abi_default: str = "arm64-v8a") -> tuple[str
 
 
 def _capstone_for(machine: int):
-    """``(Cs instance, label)`` for an e_machine, or ``(None, reason)``."""
+    """``(Cs instance, label)`` for an e_machine, or ``(None, reason)``.
+
+    The machine check runs before importing capstone so an unsupported
+    architecture is reported as such even when the optional extra is absent.
+    """
+    if machine not in (183, 40, 62, 3):
+        return None, (
+            f"machine {_MACHINE_NAMES.get(machine, machine)} is not supported "
+            "(supported: AArch64, ARM, x86, x86_64)"
+        )
+
     import capstone as cs
 
     if machine == 183:
@@ -154,9 +164,7 @@ def _capstone_for(machine: int):
         return cs.Cs(cs.CS_ARCH_ARM, cs.CS_MODE_ARM | cs.CS_MODE_LITTLE_ENDIAN), "arm"
     if machine == 62:
         return cs.Cs(cs.CS_ARCH_X86, cs.CS_MODE_64), "x86_64"
-    if machine == 3:
-        return cs.Cs(cs.CS_ARCH_X86, cs.CS_MODE_32), "x86"
-    return None, f"machine {_MACHINE_NAMES.get(machine, machine)} is not supported (supported: AArch64, ARM, x86, x86_64)"
+    return cs.Cs(cs.CS_ARCH_X86, cs.CS_MODE_32), "x86"
 
 
 def _elf_machine(data: bytes) -> int | None:

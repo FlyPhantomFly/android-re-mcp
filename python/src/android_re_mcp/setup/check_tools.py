@@ -46,6 +46,21 @@ class ToolStatus:
         }
 
 
+# Every MCP tool whose handler needs dexfile-cli.jar. dex_swap is pure Python
+# and dex_read_pseudocode uses jadx, so neither belongs here.
+_DEXFILE_CLI_TOOLS = [
+    "dex_info",
+    "dex_extract",
+    "dex_convert",
+    "dex_patch",
+    "dex_assemble",
+    "dex_split",
+    "dex_read_class_outline",
+    "dex_validate",
+    "dex_merge",
+]
+
+
 # ---------------------------------------------------------------------------
 # Individual checkers
 # ---------------------------------------------------------------------------
@@ -145,15 +160,26 @@ def _check_medusa(used_by: Optional[list[str]] = None) -> ToolStatus:
     )
 
 
-def _check_java_jar(display_name: str, jar_path_str: str, used_by: Optional[list[str]] = None) -> ToolStatus:
-    """Check a Java JAR is present and java is available."""
+def _check_java_jar(
+    display_name: str,
+    jar_path_str: str,
+    used_by: Optional[list[str]] = None,
+    hint: str = "",
+    java_hint: str = "",
+) -> ToolStatus:
+    """Check a Java JAR is present and java is available.
+
+    ``hint`` and ``java_hint`` let each jar describe its own download and Java
+    requirement; the uber-apk-signer defaults are not correct for every jar
+    (dexfile-cli needs Java 17+, not 11+).
+    """
     used_by = used_by or []
     java_path = shutil.which("java")
     if java_path is None:
         return ToolStatus(
             name=display_name, kind="java_jar", available=False, used_by=used_by,
             error="java not found on PATH — required to run the jar",
-            install_hint="Install JDK 11+ and ensure java is on PATH",
+            install_hint=java_hint or "Install JDK 11+ and ensure java is on PATH",
         )
     jar_path = Path(jar_path_str)
     if jar_path.exists():
@@ -161,7 +187,7 @@ def _check_java_jar(display_name: str, jar_path_str: str, used_by: Optional[list
     return ToolStatus(
         name=display_name, kind="java_jar", available=False, used_by=used_by,
         error=f"JAR not found at '{jar_path_str}'",
-        install_hint=(
+        install_hint=hint or (
             "Download from https://github.com/patrickfav/uber-apk-signer/releases "
             "and update [signing].jar_path in config.toml  OR  run setup.sh"
         ),
@@ -295,9 +321,17 @@ def check_all_tools() -> dict:
 
         # ── Signing & JAR tools ────────────────────────────────────────────
         _check_java_jar("uber-apk-signer", jar_path, used_by=["apk_sign", "apk_rebuild_sign", "inject_gadget"]),
-        _check_java_jar("dexfile-cli", str(tools_dir / "dexfile-cli.jar"),
-                        used_by=["dex_info", "dex_extract", "dex_convert", "dex_patch",
-                                 "dex_assemble", "dex_split"]),        _check_file(
+        _check_java_jar(
+            "dexfile-cli",
+            str(tools_dir / "dexfile-cli.jar"),
+            used_by=_DEXFILE_CLI_TOOLS,
+            hint=(
+                "Run android-re-mcp --setup, or install_tool dexfile-cli "
+                "(https://github.com/FlyPhantomFly/dexfile-cli/releases); Java 17+ required"
+            ),
+            java_hint="Install JDK 17+ (dexfile-cli requires Java 17+) and ensure java is on PATH",
+        ),
+        _check_file(
             "smali.jar", [str(tools_dir / "smali.jar")],
             hint="apktool bundles smali; standalone jars are on Maven Central (com.android.tools.smali)",
             used_by=[],
