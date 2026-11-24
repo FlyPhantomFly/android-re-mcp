@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed (Python)
+- `dexfile-cli` pin bumped v0.1.9 → v0.2.0 (sha256 `c0d580c5…`): the jar now **vendors upstream DexFile/Smali `main` @ `b3fd141`** (unreleased — Maven Central and tags stop at v1.7.0): the `InstructionN0ci` reader/writer for the 20bc/40sc verification-error instruction formats, the `SmaliIO.print*` smali printer and the collections/analysis additions. The jar's `assemble` accepts `throw-verification-error` smali now, `--api` reaches the write side of every command, and `replace-method-body` wraps bare body fragments for the new Smali grammar. Verified against all three dex corpora (vlad_dex anchors 15/15, boot vdex odex 154,424, Sooner M3/M5 conversions exact) plus validate/merge. AndroidMisc and the ANTLR runtime are new explicit Maven pins in the vendored build.
+
+# Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
