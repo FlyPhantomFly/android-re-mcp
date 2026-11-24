@@ -3,14 +3,8 @@
 ## [Unreleased]
 
 ### Changed (Python)
-- `dexfile-cli` pin bumped v0.1.9 → v0.2.0 (sha256 `c0d580c5…`): the jar now **vendors upstream DexFile/Smali `main` @ `b3fd141`** (unreleased — Maven Central and tags stop at v1.7.0): the `InstructionN0ci` reader/writer for the 20bc/40sc verification-error instruction formats, the `SmaliIO.print*` smali printer and the collections/analysis additions. The jar's `assemble` accepts `throw-verification-error` smali now, `--api` reaches the write side of every command, and `replace-method-body` wraps bare body fragments for the new Smali grammar. Verified against all three dex corpora (vlad_dex anchors 15/15, boot vdex odex 154,424, Sooner M3/M5 conversions exact) plus validate/merge. AndroidMisc and the ANTLR runtime are new explicit Maven pins in the vendored build.
-
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+- `dexfile-cli` pin bumped v0.2.0 → v0.2.1 (sha256 `ebc5e7df…`): upstream tagged **v1.7.1** at exactly the commit the jar had vendored, so the vendor directory is retired and the build pins `DexFile`/`Smali` v1.7.1 from Maven Central (AndroidMisc + ANTLR resolve transitively). Content-identical to v0.2.0's vendored jars (all 331 + 143 classes match). Also fixes a repo defect found by a fresh-clone build test: the `.gitignore` `gradle/` rule shadowed the wrapper negation — `gradle-wrapper.jar`/`.properties` were never tracked and **every fresh clone was unbuildable**; a fresh clone + fresh GRADLE_USER_HOME now builds byte-identically.
+- `dexfile-cli` pin bumped v0.1.9 → v0.2.0 (sha256 `c0d580c5…`): the jar now **vendors upstream DexFile/Smali `main` @ `b3fd141`** (unreleased at the time — Maven Central and tags stopped at v1.7.0; upstream tagged v1.7.1 the next day, see the v0.2.1 entry): the `InstructionN0ci` reader/writer for the 20bc/40sc verification-error instruction formats, the `SmaliIO.print*` smali printer and the collections/analysis additions. The jar's `assemble` accepts `throw-verification-error` smali now, `--api` reaches the write side of every command, and `replace-method-body` wraps bare body fragments for the new Smali grammar. Verified against all three dex corpora (vlad_dex anchors 15/15, boot vdex odex 154,424, Sooner M3/M5 conversions exact) plus validate/merge. AndroidMisc and the ANTLR runtime are new explicit Maven pins in the vendored build.
 
 ## [1.8.0] - 2026-11-21
 
