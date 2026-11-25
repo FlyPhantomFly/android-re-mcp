@@ -47,10 +47,11 @@ and skipped counts for each. The no-jar run is the important one: every
 `ROUNDTRIP` test should appear as skipped, never as passed. The with-jar run
 should show zero skips for those tests.
 
-The full suite in this checkout currently reports **275 passed + 2 skipped**
-with the jar and the project extras installed. The two skips are the existing
-environment-condition skips (`apkid`/`quark` availability), not `ROUNDTRIP`
-tests. Treat any quoted number as environment-specific and re-run it.
+Read the suite count from `pytest --collect-only` and the `-rs` summary rather
+than trusting a hardcoded number. On the 2026-11-24 review host with the jar
+and project extras, the suite collected 331 tests: 327 passed and 4 skipped
+(quark-engine absent). Those skips are optional-tool skips, not `ROUNDTRIP`
+tests; any quoted number is environment-specific.
 
 ### 3. Pair each gated test
 

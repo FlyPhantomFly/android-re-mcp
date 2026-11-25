@@ -88,7 +88,7 @@ was verified as follows:
 | Regression tests for the fixes | Was false; now addressed by `test_dex_passthrough.py` |
 | “Locks it end to end” | Overstated; the jar test covered convert/info only |
 | Live proof in the repo | Was false; artifacts now captured under `reports/artifacts/` |
-| 239 passed + 2 skipped at `a1b48d6` | Reproduced; the current tree is 275 passed + 2 skipped after the new checks |
+| 239 passed + 2 skipped at `a1b48d6` | Reproduced at the time; re-run at the current revision, because the suite grows |
 
 The report was largely accurate. The skill's value is naming the exact parts
 that were overstated and showing which gaps have since been closed.
