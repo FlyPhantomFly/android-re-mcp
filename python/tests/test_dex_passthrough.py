@@ -129,3 +129,17 @@ def test_every_dex_tool_is_classified():
         "unclassified": sorted(dex_tools - classified),
         "stale": sorted(classified - dex_tools),
     }
+
+
+def test_dex_convert_undocumented_dex_path_alias_is_gone(fake_run):
+    """`dex_path` was never in dex_convert's schema; the handler must not read it.
+
+    Callers that sent only `dex_path` used to be silently accepted via a
+    legacy fallback from the first integration cut. Now the positional input
+    is empty and the CLI refuses it honestly.
+    """
+    _call("dex_convert", {"dex_path": "/x/a.dex"})
+    argv = fake_run["cli_args"]
+    assert "/x/a.dex" not in argv, argv
+    assert argv[1] == "", argv
+    assert fake_run["tool"] == "dex_convert"

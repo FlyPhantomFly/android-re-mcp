@@ -140,7 +140,7 @@ class DexHandler:
 
     def dex_convert(self, args: dict) -> dict:
         """[TOOL] Convert between dex versions (vdex/cdex → 037 by default, flat dex → 035)."""
-        in_path = args.get("in_path") or args.get("dex_path") or ""
+        in_path = args.get("in_path") or ""
         version = args.get("target_version")
         if version == "cdex001" and not args.get("allow_unloadable"):
             return {"status": "error", "tool": "dex_convert",
