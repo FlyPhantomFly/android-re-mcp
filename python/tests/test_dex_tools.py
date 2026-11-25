@@ -7,7 +7,6 @@ honesty, .bak discipline, the caps logic, and the pure-Python dex_swap —
 runs with fakes only.
 """
 
-import json
 import os
 import zipfile
 from pathlib import Path
@@ -48,29 +47,6 @@ def fake_tools(tmp_path, monkeypatch):
     """Point tools_dir at an empty dir → every tool reports missing_tool."""
     monkeypatch.setattr(dex_mod, "tools_dir", lambda: tmp_path / "empty-tools")
     return tmp_path
-
-
-@pytest.fixture
-def fake_run(monkeypatch):
-    """Fake the CLI runner: success with a canned result, recording argv + ops content."""
-    calls = {}
-    # The patch/convert handlers now check the jar before side effects; a
-    # faked _run alone would still hit the isolated HOME's empty tools dir.
-    monkeypatch.setattr(
-        DexHandler, "_require", staticmethod(lambda tool: ("/fake/dexfile-cli.jar", "/fake/java"))
-    )
-
-    def fake(tool, cli_args):
-        calls["tool"] = tool
-        calls["cli_args"] = cli_args
-        calls["ops_json"] = None
-        if "--ops" in cli_args:
-            ops_file = cli_args[cli_args.index("--ops") + 1]
-            calls["ops_json"] = json.loads(Path(ops_file).read_text())
-        return {"status": "ok", "tool": tool, "result": {"out": "fake"}}
-
-    monkeypatch.setattr(DexHandler, "_run", staticmethod(fake))
-    return calls
 
 
 # ── missing_tool honesty (all seven) ──────────────────────────────────────
@@ -534,12 +510,16 @@ def test_roundtrip_era_pinned_write_api_override(real_tools, tmp_path):
                          "output_path": str(tmp_path / "a36_era.dex")})
     assert era["status"] == "ok", era
 
-    # allow_ambiguous proceeds past the guard and keeps the warning
-    allowed = h.dex_convert({"in_path": str(tmp_path / "verr40.dex"),
-                             "target_version": "036",
-                             "output_path": str(tmp_path / "c36.dex"),
-                             "allow_ambiguous": True})
-    assert allowed["status"] == "error"  # 40sc still can't decode outside its era
+    # 40sc cannot decode outside its 14–15 era; allow_ambiguous must not turn
+    # an undecodable read into a false success. The flag itself is exercised
+    # on the 20bc fixture below.
+    undecodable = h.dex_convert({"in_path": str(tmp_path / "verr40.dex"),
+                                 "target_version": "036",
+                                 "output_path": str(tmp_path / "c36.dex"),
+                                 "allow_ambiguous": True})
+    assert undecodable["status"] == "error"
+    assert undecodable.get("kind") != "ambiguous_odex"
+    assert "era-specific instructions" in undecodable["error"]
 
     # the 20bc fixture: default era misdecodes; allow_ambiguous proceeds + warning
     smali20 = tmp_path / "VerErr.smali"

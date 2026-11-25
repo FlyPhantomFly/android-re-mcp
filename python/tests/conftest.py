@@ -1,4 +1,9 @@
+import json
+from pathlib import Path
+
 import pytest
+
+from android_re_mcp.handlers.dex import DexHandler
 
 
 @pytest.fixture(autouse=True)
@@ -13,3 +18,30 @@ def isolated_env(tmp_path, monkeypatch):
                 "ANDROID_RE_MCP_TOKEN"):
         monkeypatch.delenv(var, raising=False)
     return home
+
+
+@pytest.fixture
+def fake_run(monkeypatch):
+    """Fake the CLI runner: success with a canned result, recording argv + ops content.
+
+    Shared by ``test_dex_tools.py`` and ``test_dex_passthrough.py`` so the
+    argv contract can be tested without dexfile-cli.jar or Java.
+    """
+    calls = {}
+    # The patch/convert handlers check the jar before side effects; a faked
+    # _run alone would still hit the isolated HOME's empty tools dir.
+    monkeypatch.setattr(
+        DexHandler, "_require", staticmethod(lambda tool: ("/fake/dexfile-cli.jar", "/fake/java"))
+    )
+
+    def fake(tool, cli_args):
+        calls["tool"] = tool
+        calls["cli_args"] = cli_args
+        calls["ops_json"] = None
+        if "--ops" in cli_args:
+            ops_file = cli_args[cli_args.index("--ops") + 1]
+            calls["ops_json"] = json.loads(Path(ops_file).read_text())
+        return {"status": "ok", "tool": tool, "result": {"out": "fake"}}
+
+    monkeypatch.setattr(DexHandler, "_run", staticmethod(fake))
+    return calls
