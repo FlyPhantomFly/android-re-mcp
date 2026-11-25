@@ -1,7 +1,7 @@
 """Jar-free checks for the committed schema-structure validator.
 
 The validator lives at ``scripts/check_schema_structure.py`` (tracked, so CI
-can run it without the local ``skills/`` workspace). These tests exercise both
+can run it without loading a skill). These tests exercise both
 the real catalog and small synthetic catalogs, so a regression in the checker
 itself is visible even when today's schemas happen to be clean.
 """

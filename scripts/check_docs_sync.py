@@ -16,7 +16,7 @@ Review items (exit 0 unless --strict-review):
   * a schema description names a --flag the handler never builds
 
 Run from the repository root:
-    python skills/android-re-mcp-docs-sync/scripts/check_docs_sync.py --repo .
+    python scripts/check_docs_sync.py --repo .
 """
 
 from __future__ import annotations
