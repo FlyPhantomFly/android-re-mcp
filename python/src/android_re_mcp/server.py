@@ -460,10 +460,12 @@ TOOL_SCHEMAS: list[dict] = [
                 "max_range_mb": {
                     "type": "integer",
                     "default": 32,
+                    "minimum": 1,
+                    "maximum": 1024,
                     "description": "rw- ranges larger than this many MB are skipped — "
                                    "reading a multi-GB GPU/ashmem mapping into the target "
                                    "triggers the low-memory killer and drops the session "
-                                   "(default 32)",
+                                   "(default 32; clamped to 1–1024, non-integer → 32)",
                 },
             },
         },

@@ -220,6 +220,12 @@ def test_memdump_caps_range_size_and_reports_skips(handler, monkeypatch):
     assert custom["status"] == "ok"
     assert custom["output"]["max_range_mb"] == 8
 
+    # schema bounds match the handler: 1..1024, non-integer falls back to 32
+    for value, expected in ((0, 1), (-5, 1), (10**9, 1024), ("abc", 32)):
+        clamped = handler.frida_memdump({"max_range_mb": value})
+        assert clamped["status"] == "ok"
+        assert clamped["output"]["max_range_mb"] == expected, value
+
 
 def test_memdump_requires_session():
     h = dynamic_mod.DynamicHandler()

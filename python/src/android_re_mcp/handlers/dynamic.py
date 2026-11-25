@@ -39,6 +39,7 @@ _TIMEOUT = 120
 from android_re_mcp.paths import data_dir, tools_dir
 
 _TOOLS_DIR = tools_dir()
+_MAX_RANGE_MB = 1024
 
 
 def _check_tool(name: str) -> bool:
@@ -647,7 +648,7 @@ class DynamicHandler:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            max_range_mb = max(1, int(args.get("max_range_mb", 32)))
+            max_range_mb = min(max(1, int(args.get("max_range_mb", 32))), _MAX_RANGE_MB)
         except (TypeError, ValueError):
             max_range_mb = 32
         max_range_bytes = max_range_mb * 1024 * 1024

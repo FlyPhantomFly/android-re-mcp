@@ -167,7 +167,7 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `frida_memdump` | dump every rw- memory region of the target to disk files; `max_range_mb` (default 32) skips ranges larger than the cap to keep the session alive | active session |
+| `frida_memdump` | dump every rw- memory region of the target to disk files; `max_range_mb` (default 32, clamped to 1–1024) skips ranges larger than the cap to keep the session alive | active session |
 | `frida_find_bytes` | search process memory for a UTF-8 string or hex pattern, with addresses | active session |
 
 **Device control (12)**
