@@ -57,8 +57,9 @@ description mentions `--setup` (an install command, filtered), and
 
 ## Changelog comparison
 
-The script uses `git describe --tags --abbrev=0` and parses
-`TOOL_SCHEMAS` at that tag. A property added after the tag must appear in the
+The script uses `git describe --tags --abbrev=0 --match 'v[0-9]*'
+--first-parent` and parses `TOOL_SCHEMAS` at that release tag. Local
+non-release tags such as `review-baseline` are ignored. A property added after the tag must appear in the
 `## [Unreleased]` block. If there is no tag or no Unreleased section, it
 reports that instead of guessing. A shallow clone with no tags cannot run this
 comparison; fetch tags (`git fetch --tags --unshallow`) before relying on it.

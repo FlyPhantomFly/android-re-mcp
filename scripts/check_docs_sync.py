@@ -151,7 +151,10 @@ def changelog_block(changelog: Path) -> str | None:
 def added_properties(repo: Path, current: list[dict], load_schemas_source) -> tuple[dict[str, list[str]], str | None]:
     try:
         tag = subprocess.run(
-            ["git", "-C", str(repo), "describe", "--tags", "--abbrev=0"],
+            [
+                "git", "-C", str(repo), "describe", "--tags", "--abbrev=0",
+                "--match", "v[0-9]*", "--first-parent",
+            ],
             check=True,
             capture_output=True,
             text=True,
