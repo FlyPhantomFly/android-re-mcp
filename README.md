@@ -119,10 +119,10 @@ Heavy list outputs are token-conserved: a search, a strings dump, logcat and Fri
 | `apk_identify` | apkid: packers, obfuscators, compilers, anti-tamper | apkid |
 | `apk_scan_secrets` | apkleaks: hardcoded keys and credentials, report saved as JSON | apkleaks |
 | `apk_analyze_full` | runs apkid + apkleaks + manifest + quark in one call, adds framework guess and protection tier | apkid, apkleaks, androguard, (quark-engine) |
-| `apk_diff` | two builds side by side: identity/SDK levels, security flags, permission and exported-component deltas, native-library sha256 changes, optional secret deltas, archive inventory | androguard (manifest section); everything else stdlib |
-| `android_api_extractor` | Retrofit HTTP annotations, const-string URLs (deduped, host-grouped) and detected OkHttp3 client fields from smali, as a list or a ready-to-import Postman v2.1 collection | apktool (when given `apk_path`; `smali_dir` skips it) |
+| `apk_diff` | two builds side by side: identity/SDK levels, security flags, permission and exported-component deltas, native-library sha256 changes, optional `skip_secrets` secret deltas, archive inventory | androguard (manifest section); everything else stdlib |
+| `android_api_extractor` | Retrofit HTTP annotations, const-string URLs (deduped, host-grouped) and detected OkHttp3 client fields from smali, as a list or a ready-to-import Postman v2.1 collection selected by `output_format` | apktool (when given `apk_path`; `smali_dir` skips it) |
 | `android_google_services` | Google/Firebase config: bundled `google-services.json`, ten known keys from `res/values/strings.xml` (`smali_dir`), or a Google-pattern scan of `resources.arsc` | stdlib (`smali_dir` for the strings.xml path) |
-| `quark_scan` | quark-engine behaviour rules: scored matches like "send SMS" or "load dex from external source"; `keywords` filters, the rule set comes from `freshquark` or `rules_dir` | quark-engine |
+| `quark_scan` | quark-engine behaviour rules: scored matches like "send SMS" or "load dex from external source"; `keywords` filters, `min_score`/`max_results` bound the report, the rule set comes from `freshquark` or `rules_dir` | quark-engine |
 | `manifest_parse` | androguard: package, versions, SDK levels, exported components, permissions, debuggable/allowBackup flags; `categorize_permissions` adds a dangerous/normal split with per-permission reasons and a risk summary | androguard |
 | `search_strings` | ripgrep with JSON output over any folder (a decompile, a dump, a HAR); capped per call with the honest total kept | ripgrep |
 
@@ -130,17 +130,17 @@ Heavy list outputs are token-conserved: a search, a strings dump, logcat and Fri
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `analyze_code` | cross-reference callers/callees for classes and methods | androguard |
+| `analyze_code` | cross-reference callers/callees for `class_filter`/`method_filter`, with `max_results` | androguard |
 | `find_crypto_usage` | list every javax.crypto / java.security call site and which API it uses | androguard |
-| `find_urls` | all URLs and hostnames from bytecode constants and assets, sorted into api/auth endpoints | androguard |
+| `find_urls` | all URLs and hostnames from bytecode constants and assets (`include_assets`), sorted into api/auth endpoints | androguard |
 
 **Frida sessions (7)**
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `frida_spawn` | spawn an app with Frida and optionally inject a script | frida, rooted device or gadget |
-| `frida_attach` | attach to an already-running process | same |
-| `frida_inject` | inject another script into the live session | active session |
+| `frida_spawn` | spawn an app (`package`) with Frida and optionally inject a `script`; `config` is posted after load | frida, rooted device or gadget |
+| `frida_attach` | attach to an already-running process by `package`; optional `script` and `config` | same |
+| `frida_inject` | inject another `script` into the live session; optional `config` is posted after load | active session |
 | `frida_read_output` | drain what the hooking session printed (capped per call; the rest stays buffered) | active session |
 | `frida_detach` | detach cleanly | active session |
 | `frida_status` | frida version, devices, server responsiveness, current session state — the "am I attached?" no-op read | frida |
@@ -151,8 +151,8 @@ Heavy list outputs are token-conserved: a search, a strings dump, logcat and Fri
 | Tool | What it does | Needs |
 | --- | --- | --- |
 | `frida_list_scripts` | list available hook scripts by category (ssl_pinning, root_detection, crypto, memory, hooks, storage, network), including your own | nothing |
-| `frida_get_script` | read the JS source of a named script (8 ship with the package; yours override) | nothing |
-| `frida_run_script` | spawn + inject a named built-in script in one call, with config sent as `{'type':'config', …}` after load | frida |
+| `frida_get_script` | read the JS source of a named script (`name`; 8 ship with the package; yours override) | nothing |
+| `frida_run_script` | spawn + inject a named built-in `script_name` for `package`, with `config` sent as `{'type':'config', …}` after load | frida |
 
 The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` compiled in — frida 17 removed the `Java` global from script runtimes, so raw sources would die with `ReferenceError` on every modern client (`memory_scan` is pure-native and ships as-is). Rebuild them with `python/src/android_re_mcp/frida_scripts/build_bundles.sh` after editing the raw sources in that folder's `src/`. For a stealth frida-server (renamed binary on a non-default port), set `ANDROID_RE_MCP_FRIDA_ENDPOINT` (below).
 
@@ -160,46 +160,46 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `frida_server_push` | push a frida-server (or the hluda/StrongR fork) matching your frida-tools version to the device | adb, frida-tools, binary in `~/tools` |
-| `frida_spawn_hluda` | spawn through the renamed hluda server so Frida port/name scans come up empty; `config` is posted to the script as a config message after load | hluda server running on the device |
+| `frida_server_push` | push a frida-server (or the `hluda`/StrongR fork) for `abi` matching your frida-tools version to the device | adb, frida-tools, binary in `~/tools` |
+| `frida_spawn_hluda` | spawn `package` through the renamed hluda server so Frida port/name scans come up empty; `config` is posted to the script as a config message after load | hluda server running on the device |
 
 **Process memory (2)**
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `frida_memdump` | dump every rw- memory region of the target to disk files; `max_range_mb` (default 32, clamped to 1–1024) skips ranges larger than the cap to keep the session alive | active session |
-| `frida_find_bytes` | search process memory for a UTF-8 string or hex pattern, with addresses | active session |
+| `frida_memdump` | dump every rw- memory region of `package` to disk files; `max_range_mb` (default 32, clamped to 1–1024) skips ranges larger than the cap to keep the session alive | active session |
+| `frida_find_bytes` | search process memory for `search_string` or `search_hex`, with addresses; `max_results` caps matches | active session |
 
 **Device control (12)**
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
 | `adb_devices` | list devices with serial and state | adb |
-| `adb_shell` | run a shell command on the device (split on the host, safely) | adb |
-| `adb_install` | install an APK (`install -r -t`) | adb |
-| `adb_pull` / `adb_push` | copy files between host and device | adb |
-| `adb_logcat_start` / `adb_logcat_read` / `adb_logcat_stop` | stream and buffer up to 50k log lines in the background; reads are capped per call (`ANDROID_RE_MCP_MAX_OUTPUT_LINES`) | adb |
-| `adb_ui_dump` | the current UI as structured elements (class, text, resource-id, bounds, clickable) | adb |
+| `adb_shell` | run a shell command on the device (split on the host, safely); optional `serial` selects the device | adb |
+| `adb_install` | install an APK (`install -r -t`) on `serial` | adb |
+| `adb_pull` / `adb_push` | copy files between host and device; optional `serial` selects the device | adb |
+| `adb_logcat_start` / `adb_logcat_read` / `adb_logcat_stop` | stream and buffer up to 50k log lines in the background; `serial` selects the device, `filter` is the logcat tag filter, reads are capped per call (`ANDROID_RE_MCP_MAX_OUTPUT_LINES`) | adb |
+| `adb_ui_dump` | the current UI as structured elements (class, text, resource-id, bounds, clickable) from `serial` | adb |
 | `hermes_decode` | extract and decode the React Native Hermes bundle to readable JS | hermes-dec or hbctool |
-| `scrcpy_start` | mirror the device screen, optionally recording to MP4 | scrcpy |
-| `scrcpy_screenshot` | capture a PNG of the current screen | adb only |
+| `scrcpy_start` | mirror the device screen (`serial`, `bitrate`, `max_fps`, `no_display`), optionally recording to `record_file` | scrcpy |
+| `scrcpy_screenshot` | capture a PNG of the current screen from `serial` | adb only |
 
 **Network (5)**
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `mitm_start` | start mitmdump bound to 127.0.0.1, write a `.mitm` capture | mitmproxy |
+| `mitm_start` | start mitmdump bound to 127.0.0.1 on `port`, write a `.mitm` capture | mitmproxy |
 | `mitm_stop` | stop it, report the capture path | — |
-| `mitm_read_flows` | parse the capture into JSON: method, URL, bodies, status | mitmproxy |
+| `mitm_read_flows` | parse the capture into JSON: method, URL, bodies, status; `max_flows`, `filter_url` and `filter_method` narrow it | mitmproxy |
 | `mitm_export_har` | export the capture as HAR for DevTools/Burp | mitmproxy |
-| `ssl_kill_switch` | inject the ssl-kill-switch2 script (OkHttp, TrustKit, native SSL) into a running app | frida |
+| `ssl_kill_switch` | inject the ssl-kill-switch2 script (OkHttp, TrustKit, native SSL) into a running `package` | frida |
 
 **Patching and signing (4)**
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `smali_patch` | replace text or regex in one smali class, optionally scoped to one method; keeps a `.bak` | a decompiled folder |
-| `inject_gadget` | full 6-step Frida-gadget embed: decompile, copy .so, write config, patch loadLibrary, rebuild, sign | apktool, java, gadget .so in `~/tools/gadgets` |
+| `smali_patch` | replace `search` text or regex in one `class_name` (`method_name` is optional, `use_regex` opt-in); keeps a `.bak` | a decompiled folder |
+| `inject_gadget` | full 6-step Frida-gadget embed for `abi`: decompile, copy .so, write `gadget_config`, patch loadLibrary, rebuild, sign | apktool, java, gadget .so in `~/tools/gadgets` |
 | `apk_sign` | sign with uber-apk-signer (debug keystore or your `[signing]` config) | java, signer jar |
 | `apk_rebuild_sign` | apktool build + sign in one step | apktool, java, signer jar |
 
@@ -207,20 +207,20 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `native_strings` | strings from a `.so` or all libs in an APK, filtered to interesting ones | strings (or pure-Python fallback) |
-| `native_exports` | exported symbols per library | readelf/nm (or built-in ELF parser) |
-| `native_disasm` | radare2 disassembly of a function (asm, graph or pseudocode) | radare2 |
-| `il2cpp_dump` | Unity: dump.cs + script.json from libil2cpp.so + global-metadata.dat | Il2CppDumper |
+| `native_strings` | strings from a `.so` or all libs in an APK selected by `abi`, filtered by `min_len` to `interesting_only` entries | strings (or pure-Python fallback) |
+| `native_exports` | exported symbols per library from the `abi` selected | readelf/nm (or built-in ELF parser) |
+| `native_disasm` | radare2 disassembly of `target` (asm, `mode` graph/pseudocode), bounded by `n_instructions` | radare2 |
+| `il2cpp_dump` | Unity: dump.cs + script.json from libil2cpp.so and global-metadata.dat for `abi` | Il2CppDumper |
 
 **Native ELF security & code search (5)** — added in the capstone integration review
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `elf_checksec` | checksec for an ELF: PIE, NX, RELRO, canary, fortify, RUNPATH | nothing (pure Python) |
-| `so_xrefs` | scan-based xrefs to an address in a .so: branches, adrp+add pairs, movz/movk immediates (literal pools/GOT not followed) | capstone |
-| `rop_gadgets` | ROP gadget search ending in ret/bx/jmp-reg; `depth` bounds runs, `filter` narrows (the cap hint names it) | capstone |
-| `native_crypto_constants` | AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64 alphabets, Blowfish P-array — file offset + VA | nothing |
-| `syscall_lookup` | arm64/x86_64 syscall number ↔ name, bundled from kernel headers | nothing |
+| `elf_checksec` | checksec for an ELF: PIE, NX, RELRO, canary, fortify, RUNPATH; `abi` selects the APK entry when needed | nothing (pure Python) |
+| `so_xrefs` | scan-based xrefs to an address in a .so: branches, adrp+add pairs, movz/movk immediates (literal pools/GOT not followed); `abi` selects the APK entry | capstone |
+| `rop_gadgets` | ROP gadget search ending in ret/bx/jmp-reg; `depth` bounds runs, `filter` narrows (the cap hint names it), `abi` selects the APK entry | capstone |
+| `native_crypto_constants` | AES s-box, SHA-256/512 IVs, MD5 T-table, CRC-32, TEA delta, Base64 alphabets, Blowfish P-array — file offset + VA; `abi` selects the APK entry | nothing |
+| `syscall_lookup` | arm64/x86_64 syscall number ↔ name selected by `arch`, bundled from kernel headers | nothing |
 
 **DEX surgery (11)** — added in the DexFile integration review ([dexfile-cli 0.2.2](https://github.com/FlyPhantomFly/dexfile-cli))
 
@@ -233,8 +233,8 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | `dex_assemble` | one smali class → dex (`SmaliIO`; the text must carry `.locals` and `.end method`); optional `api`/`era` for era-pinned instructions. | dexfile-cli.jar |
 | `dex_split` | shard a class list across dex files under the 64K-reference limit (`DexIO.balanceAll`); optional `era`/`allow_ambiguous`. | dexfile-cli.jar |
 | `dex_swap` | swap a patched dex back into an APK copy, other entries byte-identical (pure Python, no jar) | nothing |
-| `dex_read_class_outline` | per-class dex outline without decompiling: super, interfaces, access flags, fields (name/type/flags), methods (name/descriptor/flags/registers) | dexfile-cli.jar |
-| `dex_read_pseudocode` | targeted Java pseudocode for one class via jadx `--single-class` (fast incremental cache); line paging, `method` gives a brace-matched slice | jadx |
+| `dex_read_class_outline` | per-class dex outline (`class_name`) without decompiling: super, interfaces, access flags, fields (name/type/flags), methods (name/descriptor/flags/registers) | dexfile-cli.jar |
+| `dex_read_pseudocode` | targeted Java pseudocode for `class_name` via jadx `--single-class` (fast incremental cache); line paging, `method` gives a brace-matched slice | jadx |
 | `dex_validate` | dex-level diagnostics — the analog of smali_diagnostics, from DexFile's ClassPath/analysis package: duplicate classes, super-is-interface, member-reference resolution errors, per-method analysis failures; references whose hierarchy leaves the dex are counted `references_unknown`, never flagged; `issues_total`/`truncated` keep caps honest; optional `era` pins the read ladder. | dexfile-cli.jar |
 | `dex_merge` | merge multiple dex files into one (reverse of `dex_split`): class-collision detection, era-consistent target, `allow_cdex` opt-in for standalone cdex output; 64K failures name the section and suggest sharding the inputs; optional `era`/`allow_ambiguous`. | dexfile-cli.jar |
 
@@ -244,35 +244,35 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | --- | --- | --- |
 | `apk_read_signature` | signing metadata: scheme matrix (v1–v4, sourceStamp via apksigner), signer digests, cert subject/issuer/serial/validity/keys via openssl on the META-INF certs; unsigned → ok/verifies:false | apksigner (optional), openssl (optional) |
 | `zip_test` | full integrity audit: CRC every entry, duplicate names, method histogram, encrypted entries, bad entries, trailing bytes, STORE-only dex smell | nothing |
-| `zip_extract` | named entries → files: explicit entry→dest, zip-slip refused, byte-faithful, per-entry results | nothing |
+| `zip_extract` | named entries → files: explicit entry→dest, zip-slip refused, byte-faithful, per-entry results; `overwrite` controls existing files | nothing |
 | `zip_update` | generalized APK-entry surgery: `add`/`replace`/`patch` (expected_hex guard)/`rename`/`delete`; untouched entries byte-identical; `expected_sha256` concurrency guard; `.bak` first | nothing |
 | `apk_build_check` | pre-build linting before `apk_rebuild_sign`: manifest, aapt2 resource-compile check, dex sanity (dexfile-cli), duplicate/pending-edit detection (`.bak` scan); blockers carry codes + fix hints | nothing (aapt2/dexfile-cli when present) |
-| `resource_table_list` | structured resources.arsc view via `aapt2 dump resources`: packages, types, entries (id + name) | aapt2 (build-tools) |
-| `resource_read` | resolve concrete variants: ids (`0x7f13010b`) or type/name refs (`string/app_name`) → per-config values, `@ref` chains followed | nothing |
-| `resource_xref` | find where a resource id is used: hex grep across an apktool decompile (smali + res xml) | androguard (name-form ids), an apktool decompile |
+| `resource_table_list` | structured resources.arsc view via `aapt2 dump resources`: `package` and `type_name` filter the types/entries (id + name) | aapt2 (build-tools) |
+| `resource_read` | resolve concrete variants: ids (`0x7f13010b`) or type/name refs (`string/app_name`) → per-config values, `@ref` chains followed to `resolve_depth` | nothing |
+| `resource_xref` | find where `resource_id` is used: hex grep across an apktool decompile (smali + res xml) | androguard (name-form ids), an apktool decompile |
 
 **Native ELF patching (3)** — the MT-MCP adoption batch
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `native_map_address` | virtual address ↔ file offset via PT_LOAD segments (both directions), with the covering segment's type/flags and exec status; `abi` selects the `lib/<abi>/` entry when apk_path is given | nothing |
-| `native_patch_string` | patch a UTF-8 string inside a .so in place: zero-padded to the original length, `expected_text` guarded, `.bak` first; `abi` selects the `lib/<abi>/` entry when apk_path is given | nothing |
-| `native_patch_instructions` | keystone-assembled replacement instructions at a virtual address: `expected_hex` guarded, arch-correct NOP padding, `.bak` first; `abi` selects the `lib/<abi>/` entry when apk_path is given | keystone-engine (`[native]` extra) |
+| `native_map_address` | virtual address ↔ file offset via PT_LOAD segments (both directions), with the covering segment's type/flags and exec status; `abi` selects the APK entry and `address_kind` picks va/file_offset | nothing |
+| `native_patch_string` | patch a UTF-8 string inside a .so in place: zero-padded to the original length, `expected_text` guarded, `.bak` first; `abi` selects the APK entry and `padding_mode` controls padding | nothing |
+| `native_patch_instructions` | keystone-assembled replacement instructions at a virtual address: `expected_hex` guarded, arch-correct NOP padding, `.bak` first; `abi` selects the APK entry and `padding_mode` controls padding | keystone-engine (`[native]` extra) |
 
 **Flutter / Dart (3)**
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `flutter_version` | engine commit hash + SDK/Dart version fingerprints from libflutter.so | nothing |
-| `dart_snapshot_info` | AOT/JIT snapshot kind; warns when the ELF header was wiped (zShield) | nothing |
-| `blutter_extract` | Blutter run on libapp.so: class/method symbols, asm, pseudo-code for IDA/Ghidra | blutter clone |
+| `flutter_version` | engine commit hash + SDK/Dart version fingerprints from libflutter.so for `abi` | nothing |
+| `dart_snapshot_info` | AOT/JIT snapshot kind for `abi`; warns when the ELF header was wiped (zShield) | nothing |
+| `blutter_extract` | Blutter run on libapp.so for `dart_version`/`abi`: class/method symbols, asm, pseudo-code for IDA/Ghidra | blutter clone |
 
 **RASP assessment (2)**
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
 | `rasp_identify` | vendor fingerprinting (Guardsquare, Arxan, Promon, Zimperium, custom) from APK entry names and apkid, plus a full native-library inventory: per-ABI ELF listing, known packer/RASP/framework/SDK/runtime identification, stripped/packed section-table signals | optional apkid |
-| `rasp_bypass` | returns a ready Frida script for vendor + protection (root, SSL, Frida detection, integrity, emulator) | nothing |
+| `rasp_bypass` | returns a ready Frida script for vendor/protection selected by `rasp_type` (root, SSL, Frida detection, integrity, emulator) | nothing |
 
 **Per-target notes (2)**
 
@@ -285,7 +285,7 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | Tool | What it does | Needs |
 | --- | --- | --- |
 | `check_tools` | full inventory of your toolchain with versions, paths, install hints and the MCP tools that use each entry (`used_by`); pip CLIs are probed as executables, and the `medusa` entry refuses the SSH-cracker namesake | nothing |
-| `install_tool` | install a missing tool from a pinned SHA-256-checked download, pip or npm; `medusa`/`fridump` deliberately have no auto-recipe (name-collision / unused) | off unless `ANDROID_RE_MCP_ALLOW_INSTALL=1` |
+| `install_tool` | install a missing `tool_name` from a pinned SHA-256-checked download, pip or npm; `medusa`/`fridump` deliberately have no auto-recipe (name-collision / unused) | off unless `ANDROID_RE_MCP_ALLOW_INSTALL=1` |
 
 ### Knowledge packs and prompts
 

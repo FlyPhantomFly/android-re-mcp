@@ -39,6 +39,7 @@ jobs:
         run: |
           python scripts/check_schema_structure.py --repo . --strict-drift
           python scripts/check_docs_sync.py --repo .
+          python scripts/check_docs_sync.py --repo . --all-properties --ratchet scripts/docs_sync_ratchet.json
 
       - name: Test
         run: pytest python/tests -q

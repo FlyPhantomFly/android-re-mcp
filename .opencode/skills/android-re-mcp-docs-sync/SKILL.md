@@ -19,6 +19,7 @@ cd "$repo"
 python scripts/check_docs_sync.py --repo .
 python scripts/check_docs_sync.py --repo . --strict-review
 python scripts/check_docs_sync.py --repo . --all-properties
+python scripts/check_docs_sync.py --repo . --all-properties --ratchet scripts/docs_sync_ratchet.json
 ```
 
 The checker is tracked at `scripts/check_docs_sync.py` so CI can run it; there
@@ -27,10 +28,12 @@ is no separate copy in this skill directory.
 - Default: checks arguments added since the last git tag, plus the
   `api`/`era`/`allow_ambiguous`/`scan`/`allow_cdex`/`allow_unloadable`
   controls. This is the release-window audit and stays actionable.
-- `--all-properties`: checks every schema property. Legacy README rows are
-  summaries, so this mode is strict — missing mentions are failures and it
-  will exit 1 until the legacy rows are completed. Use it for a deliberate
-  docs cleanup, not as a merge gate.
+- `--all-properties`: checks every schema property. The README is now
+  argument-complete (0 failures at this revision).
+- `--ratchet FILE`: combines with `--all-properties`; failures listed in the
+  tracked JSON allowlist are reported as `ratchet-allowed`, while any new
+  failure fails. The allowlist is empty, so this is the merge gate for new
+  arguments.
 - `--strict-review`: exit 1 for review items too. Hard failures already exit 1.
 
 ## What the script checks
@@ -47,13 +50,13 @@ is no separate copy in this skill directory.
 The script cannot tell whether the code or the docs are wrong. For each
 finding, open the file and state both.
 
-## Current status (2026-11-24)
+## Current status (2026-11-25)
 
-The default check is clean after the five dex rows and the `apk_build_check`
-row were repunctuated. `--all-properties` still reports legacy summary rows;
-those are documentation debt, not code defects. Known non-issues: `dex_info`'s
-description mentions `--setup` (an install command, filtered), and
-`dex_read_pseudocode` mentions jadx's `--single-class` (not a handler flag).
+The default and `--all-properties` checks are both clean after the README rows
+were argument-completed; the ratchet allowlist is empty. Known non-issues:
+`dex_info`'s description mentions `--setup` (an install command, filtered),
+and `dex_read_pseudocode` mentions jadx's `--single-class` (not a handler
+flag).
 
 ## Changelog comparison
 

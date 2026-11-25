@@ -64,6 +64,19 @@ EXEMPT = {
     "keystore_path",
     "rules_dir",
     "gadget_path",
+    # content/positional values covered by handler or round-trip tests
+    "old_path",
+    "new_path",
+    "pattern",
+    "script",
+    "search",
+    "search_string",
+    "search_hex",
+    "target",
+    "replacement_text",
+    "replacement_assembly",
+    "gadget_config",
+    "content",
 }
 
 FLAG_RE = re.compile(r"--[a-zA-Z0-9][a-zA-Z0-9-]*")
@@ -138,6 +151,37 @@ def readme_rows(readme: Path) -> tuple[dict[str, tuple[int, str, list[str]]], li
     return rows, malformed
 
 
+def joined_optional_is_defect(row_text: str) -> bool:
+    """True when "optional" is glued to a preceding clause.
+
+    The matched character before the whitespace is part of the text; include
+    it before checking the final word, so "is optional" is accepted while
+    "counts optional" is not.
+    """
+    match = JOINED_OPTIONAL_RE.search(row_text)
+    if not match:
+        return False
+    before = (row_text[:match.start()] + row_text[match.start()]).rstrip()
+    last_word = re.search(r"([a-z]+)$", before)
+    return not (last_word and last_word.group(1) in {"is", "are", "be", "remains"})
+
+
+def failure_key(item: dict) -> str:
+    """Stable key for a strict-mode failure, used by the ratchet."""
+    tool = item.get("tool")
+    message = str(item.get("message", ""))
+    prop = re.search(r"`([^`]+)`", message)
+    if tool and prop:
+        return f"{tool}:{prop.group(1)}"
+    if tool:
+        return f"{tool}:{message}"
+    return f"README:{item.get('line', '?')}:{message}"
+
+
+def ratchet_unexpected(failures: list[dict], allowed: set[str]) -> list[dict]:
+    return [item for item in failures if failure_key(item) not in allowed]
+
+
 def changelog_block(changelog: Path) -> str | None:
     text = changelog.read_text(encoding="utf-8")
     match = re.search(
@@ -188,6 +232,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="exit 1 for review items too")
     parser.add_argument("--all-properties", action="store_true",
                         help="check every schema property, not just the release window")
+    parser.add_argument("--ratchet", metavar="FILE",
+                        help="JSON allowlist for strict-mode failures; new keys fail")
     args = parser.parse_args(argv)
     repo = find_repo(Path(args.repo))
     load_schemas, load_schemas_source, handler_flags = _schema_helpers(repo)
@@ -224,20 +270,14 @@ def main(argv: list[str] | None = None) -> int:
                         "message": f"README row does not mention `{prop}`",
                     }
                 )
-        match = JOINED_OPTIONAL_RE.search(row_text)
-        if match:
-            # "is optional", "are optional" are legitimate; a clause-bearing
-            # word or a closing paren before it is the defect we want.
-            before = row_text[:match.start()].rstrip()
-            last_word = re.search(r"([a-z]+)$", before)
-            if not (last_word and last_word.group(1) in {"is", "are", "be", "remains"}):
-                reviews.append(
-                    {
-                        "tool": name,
-                        "line": lineno,
-                        "message": "'optional' is not separated from the preceding clause",
-                    }
-                )
+        if joined_optional_is_defect(row_text):
+            reviews.append(
+                {
+                    "tool": name,
+                    "line": lineno,
+                    "message": "'optional' is not separated from the preceding clause",
+                }
+            )
         if "verbatim" in row_text.lower() and not (
             "ambiguous" in row_text.lower() or "era" in row_text.lower()
         ):
@@ -275,10 +315,23 @@ def main(argv: list[str] | None = None) -> int:
                             }
                         )
 
+    ratchet_allowed = 0
+    if args.ratchet:
+        try:
+            data = json.loads(Path(args.ratchet).read_text(encoding="utf-8"))
+            allowed = set(data.get("allowed", []))
+        except (OSError, ValueError, TypeError) as exc:
+            failures.append({"message": f"cannot read ratchet {args.ratchet}: {exc}"})
+            allowed = set()
+        before = len(failures)
+        failures = ratchet_unexpected(failures, allowed)
+        ratchet_allowed = before - len(failures)
+
     report = {
         "schemas": len(schemas),
         "failures": failures,
         "reviews": reviews,
+        "ratchet_allowed": ratchet_allowed,
         "schema_additions_since": tag_or_error if isinstance(tag_or_error, str) else None,
     }
     if args.json:
@@ -286,7 +339,8 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(
             f"schemas: {len(schemas)}  failures: {len(failures)}  "
-            f"review: {len(reviews)}  compared-to: {tag_or_error}"
+            f"review: {len(reviews)}  ratchet-allowed: {ratchet_allowed}  "
+            f"compared-to: {tag_or_error}"
         )
         for item in failures:
             where = item.get("tool") or f"README:{item.get('line', '?')}"

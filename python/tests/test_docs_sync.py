@@ -71,6 +71,21 @@ def test_added_properties_uses_the_release_tag_not_a_local_tag(tmp_path):
     assert added == {"demo": ["newarg"]}, added
 
 
+def test_joined_optional_review_accepts_is_optional():
+    checker = _checker()
+    assert not checker.joined_optional_is_defect("`method_name` is optional, `use_regex` opt-in")
+    assert not checker.joined_optional_is_defect("the path is optional")
+    assert checker.joined_optional_is_defect("counts optional entries")
+    assert checker.joined_optional_is_defect("`method_name` optional")
+
+
+def test_ratchet_rejects_new_failures_and_allows_listed_ones():
+    checker = _checker()
+    failures = [{"tool": "demo", "message": "README row does not mention `newarg`"}]
+    assert checker.ratchet_unexpected(failures, set()) == failures
+    assert checker.ratchet_unexpected(failures, {"demo:newarg"}) == []
+
+
 def test_no_release_tag_is_reported_cleanly(tmp_path):
     checker = _checker()
     repo = tmp_path / "repo"
