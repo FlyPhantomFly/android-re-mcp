@@ -181,10 +181,13 @@ def main() -> int:
     server_path = repo / "python" / "src" / "android_re_mcp" / "server.py"
     install_path = repo / "python" / "src" / "android_re_mcp" / "setup" / "install_tool.py"
 
+    changelog_text = read(changelog)
     py_version_match = re.search(r'^version\s*=\s*"([^"]+)"', read(pyproject), re.MULTILINE)
-    ch_version_match = re.search(r"^## \[([^\]]+)\]", read(changelog), re.MULTILINE)
+    ch_version_match = re.search(r"^## \[([^\]]+)\]", changelog_text, re.MULTILINE)
     py_version = py_version_match.group(1) if py_version_match else None
     ch_version = ch_version_match.group(1) if ch_version_match else None
+    released_match = re.search(r"^## \[(\d+\.\d+\.\d+)\]", changelog_text, re.MULTILINE)
+    released_version = released_match.group(1) if released_match else None
 
     readme_text = read(readme)
     readme_tool_counts = [int(n) for n in re.findall(r"\b(\d+)\s+tools\b", readme_text)]
@@ -213,7 +216,18 @@ def main() -> int:
     def issue(check: str, severity: str, detail: str) -> None:
         issues.append({"check": check, "severity": severity, "detail": detail})
 
-    if py_version != ch_version:
+    if ch_version == "Unreleased":
+        # Pre-release trees legitimately have an Unreleased block above the
+        # last released version; the version bump happens at release time.
+        if py_version != released_version:
+            issue("version-mismatch", "high",
+                  f"pyproject version={py_version!r} but last released CHANGELOG entry={released_version!r}")
+        else:
+            review.append({
+                "check": "unreleased-pending",
+                "detail": f"Unreleased changes on top of {released_version}; set the release version before tagging",
+            })
+    elif py_version != ch_version:
         issue("version-mismatch", "high",
               f"pyproject version={py_version!r} but top CHANGELOG entry={ch_version!r}")
 
