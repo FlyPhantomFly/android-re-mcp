@@ -74,7 +74,7 @@ def test_zip_and_rules_dir_host_paths_are_guarded(tmp_path, monkeypatch):
                            "rules_dir": str(tmp_path / "rules")})
 
 
-def test_zip_update_nested_from_file_is_guarded(isolated_env, tmp_path):
+def test_zip_update_nested_from_file_is_guarded(isolated_env, tmp_path, monkeypatch):
     """zip_update's ops[].from_file is a host read and must use check_path."""
     (isolated_env / ".ssh").mkdir()
     secret = isolated_env / ".ssh" / "id_ed25519"
@@ -93,6 +93,28 @@ def test_zip_update_nested_from_file_is_guarded(isolated_env, tmp_path):
             "zip_path": str(tmp_path / "a.zip"),
             "ops": [{"op": "add", "entry_path": "x", "from_file": 7}],
         })
+
+    work = tmp_path / "work"
+    work.mkdir()
+    outside = tmp_path / "outside.bin"
+    outside.write_text("outside")
+    monkeypatch.setenv("ANDROID_RE_MCP_ALLOWED_DIRS", str(work))
+    with pytest.raises(guard.GuardError):
+        guard.validate("zip_update", {
+            "zip_path": str(work / "a.zip"),
+            "ops": [{"op": "add", "entry_path": "x", "from_file": str(outside)}],
+        })
+    link = work / "link.bin"
+    link.symlink_to(outside)
+    with pytest.raises(guard.GuardError):
+        guard.validate("zip_update", {
+            "zip_path": str(work / "a.zip"),
+            "ops": [{"op": "add", "entry_path": "x", "from_file": str(link)}],
+        })
+    guard.validate("zip_update", {
+        "zip_path": str(work / "a.zip"),
+        "ops": [{"op": "add", "entry_path": "x", "from_file": str(work / "ok.bin")}],
+    })
 
 
 def test_output_suffixes():
