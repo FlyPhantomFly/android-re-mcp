@@ -222,6 +222,8 @@ class DexHandler:
             with os.fdopen(fd, "w") as fh:
                 json.dump(ops, fh)
             cli_args = ["patch", dex_path, "--ops", str(ops_file)]
+            if args.get("api"):
+                cli_args += ["--api", str(args["api"])]
             if args.get("era"):
                 cli_args += ["--era", str(args["era"])]
             if args.get("allow_ambiguous"):
@@ -282,6 +284,10 @@ class DexHandler:
             data_dir() / "dex" / f"assemble-{int(time.time())}.dex")
 
         cli_args = ["assemble"]
+        if args.get("api"):
+            cli_args += ["--api", str(args["api"])]
+        if args.get("era"):
+            cli_args += ["--era", str(args["era"])]
         if smali_path:
             cli_args.append(smali_path)
         else:
@@ -464,6 +470,8 @@ class DexHandler:
         """[TOOL] Dex-level diagnostics: linkage + method-body analysis (DexFile ClassPath)."""
         dex_path = args.get("dex_path") or ""
         cli_args = ["validate", dex_path]
+        if args.get("era"):
+            cli_args += ["--era", str(args["era"])]
         if args.get("max_issues"):
             cli_args += ["--max-issues", str(max(1, int(args["max_issues"] or 200)))]
         result = self._run("dex_validate", cli_args)
@@ -497,6 +505,10 @@ class DexHandler:
         cli_args = ["merge", *[str(p) for p in dex_paths]]
         if args.get("output_path"):
             cli_args += ["--out", args["output_path"]]
+        if args.get("era"):
+            cli_args += ["--era", str(args["era"])]
+        if args.get("allow_ambiguous"):
+            cli_args += ["--allow-ambiguous-odex"]
         if args.get("allow_cdex"):
             cli_args += ["--allow-cdex"]
         result = self._run("dex_merge", cli_args)
