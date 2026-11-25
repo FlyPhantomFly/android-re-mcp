@@ -33,7 +33,6 @@ def _walk(node: object, tool: str, trail: tuple[str, ...], depth: int):
         for name, spec in props.items():
             here = (*trail, name)
             top_level = depth == 0
-            known_top = name in guard.PATH_KEYS or name in guard.PATH_LIST_KEYS
             if not top_level and _is_pathish(name, spec) and (tool, name) not in NON_HOST_NESTED:
                 yield tool, name, here
             yield from _walk(spec, tool, here, depth + 1)
