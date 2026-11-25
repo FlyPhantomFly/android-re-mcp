@@ -86,3 +86,36 @@ class H:
     assert report["drift"] == [
         {"tool": "demo", "schema_not_read": [], "read_not_in_schema": ["extra"]}
     ]
+
+
+def test_checker_resolves_keys_read_through_helpers(tmp_path):
+    """so_xrefs-style drift must vanish when the handler passes args to a helper."""
+    schemas = """
+TOOL_SCHEMAS = [
+    {"name": "demo", "inputSchema": {"type": "object", "properties": {
+        "path": {"type": "string"}, "abi": {"type": "string"}}}},
+]
+"""
+    handler = """
+def _load(args, tool):
+    so = args.get("path", "")
+    abi = args.get("abi", "arm64-v8a")
+    return so, abi
+
+class H:
+    def demo(self, args):
+        return _load(args, "demo")
+"""
+    root = _synthetic_checkout(tmp_path, schemas, handler)
+    report = _checker().audit(root)
+    assert report["drift"] == [], report["drift"]
+
+
+def test_real_catalog_has_no_handler_schema_drift():
+    """After the abi/config/max_range_mb/in_path fixes, drift must stay empty.
+
+    A new schema/handler mismatch (either direction) fails here, so the
+    review-only drift channel cannot quietly accumulate real findings.
+    """
+    report = _checker().audit(REPO_ROOT)
+    assert report["drift"] == [], report["drift"]

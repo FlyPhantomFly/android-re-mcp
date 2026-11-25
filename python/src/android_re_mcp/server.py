@@ -658,6 +658,8 @@ TOOL_SCHEMAS: list[dict] = [
             "type": "object",
             "properties": {
                 "so_path": {"type": "string"}, "apk_path": {"type": "string"},
+                "abi": {"type": "string", "default": "arm64-v8a",
+                        "description": "With apk_path, load from lib/<abi>/ (default arm64-v8a)"},
                 "address": {"type": "string", "description": "Hex like 0x12340 or decimal"},
                 "address_kind": {"type": "string", "enum": ["va", "file_offset"], "default": "va"},
             },
@@ -677,6 +679,8 @@ TOOL_SCHEMAS: list[dict] = [
             "type": "object",
             "properties": {
                 "so_path": {"type": "string"}, "apk_path": {"type": "string"},
+                "abi": {"type": "string", "default": "arm64-v8a",
+                        "description": "With apk_path, load from lib/<abi>/ (default arm64-v8a)"},
                 "expected_text": {"type": "string", "description": "The exact current string"},
                 "replacement_text": {"type": "string", "description": "≤ the expected length; zero-padded"},
                 "padding_mode": {"type": "string", "enum": ["zero"], "default": "zero"},
@@ -698,6 +702,8 @@ TOOL_SCHEMAS: list[dict] = [
             "type": "object",
             "properties": {
                 "so_path": {"type": "string"}, "apk_path": {"type": "string"},
+                "abi": {"type": "string", "default": "arm64-v8a",
+                        "description": "With apk_path, load from lib/<abi>/ (default arm64-v8a)"},
                 "address": {"type": "string", "description": "Virtual address (hex)"},
                 "expected_hex": {"type": "string", "description": "The current bytes at that address"},
                 "replacement_assembly": {"type": "string", "description": "Assembly for the arch, e.g. 'mov x0, #1'"},

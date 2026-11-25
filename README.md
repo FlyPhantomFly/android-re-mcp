@@ -255,9 +255,9 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `native_map_address` | virtual address ↔ file offset via PT_LOAD segments (both directions), with the covering segment's type/flags and exec status | nothing |
-| `native_patch_string` | patch a UTF-8 string inside a .so in place: zero-padded to the original length, `expected_text` guarded, `.bak` first | nothing |
-| `native_patch_instructions` | keystone-assembled replacement instructions at a virtual address: `expected_hex` guarded, arch-correct NOP padding, `.bak` first | keystone-engine (`[native]` extra) |
+| `native_map_address` | virtual address ↔ file offset via PT_LOAD segments (both directions), with the covering segment's type/flags and exec status; `abi` selects the `lib/<abi>/` entry when apk_path is given | nothing |
+| `native_patch_string` | patch a UTF-8 string inside a .so in place: zero-padded to the original length, `expected_text` guarded, `.bak` first; `abi` selects the `lib/<abi>/` entry when apk_path is given | nothing |
+| `native_patch_instructions` | keystone-assembled replacement instructions at a virtual address: `expected_hex` guarded, arch-correct NOP padding, `.bak` first; `abi` selects the `lib/<abi>/` entry when apk_path is given | keystone-engine (`[native]` extra) |
 
 **Flutter / Dart (3)**
 

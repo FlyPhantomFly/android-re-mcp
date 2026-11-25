@@ -19,10 +19,11 @@ Drift (review; exit 1 only with ``--strict-drift``):
   * a schema property the same-named handler never reads
   * a handler ``args.get(...)``/``args[...]`` key absent from the schema
 
-The drift report is intentionally review-only: a few handlers resolve keys
-through shared helpers, and ``dex_convert`` keeps a ``dex_path`` compatibility
-fallback that its schema does not advertise. Treat those as documented
-findings, not as a reason to weaken the structural check.
+Keys read through a shared helper are attributed to the caller: a function
+whose first (or ``self``-then-first) parameter is ``args`` and that is called
+with the caller's ``args`` (``_load_so(args, tool)`` in handlers/sosec.py)
+counts as reading the helper's keys. The remaining drift report is therefore
+real: an advertised-but-ignored property, or an undocumented handler key.
 
 Usage:
     python scripts/check_schema_structure.py --repo .
@@ -97,35 +98,108 @@ def load_schemas(server: Path) -> list[dict[str, Any]]:
     return load_schemas_source(server.read_text(encoding="utf-8"))
 
 
-def handler_keys(handlers_dir: Path) -> dict[str, set[str]]:
-    """Map a handler method name to the literal ``args`` keys it reads."""
-    out: dict[str, set[str]] = {}
+def _handler_functions(handlers_dir: Path) -> list[ast.FunctionDef]:
+    functions: list[ast.FunctionDef] = []
     for path in sorted(handlers_dir.glob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        for cls in (n for n in tree.body if isinstance(n, ast.ClassDef)):
-            for fn in (n for n in cls.body if isinstance(n, ast.FunctionDef)):
-                keys = out.setdefault(fn.name, set())
-                for node in ast.walk(fn):
-                    if (
-                        isinstance(node, ast.Call)
-                        and isinstance(node.func, ast.Attribute)
-                        and node.func.attr == "get"
-                        and isinstance(node.func.value, ast.Name)
-                        and node.func.value.id == "args"
-                        and node.args
-                        and isinstance(node.args[0], ast.Constant)
-                        and isinstance(node.args[0].value, str)
-                    ):
-                        keys.add(node.args[0].value)
-                    elif (
-                        isinstance(node, ast.Subscript)
-                        and isinstance(node.value, ast.Name)
-                        and node.value.id == "args"
-                        and isinstance(node.slice, ast.Constant)
-                        and isinstance(node.slice.value, str)
-                    ):
-                        keys.add(node.slice.value)
-    return out
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                functions.append(node)
+    return functions
+
+
+def _direct_args_keys(fn: ast.FunctionDef) -> set[str]:
+    """Literal ``args`` keys this function reads itself."""
+    keys: set[str] = set()
+    for node in ast.walk(fn):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "get"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "args"
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and isinstance(node.args[0].value, str)
+        ):
+            keys.add(node.args[0].value)
+        elif (
+            isinstance(node, ast.Subscript)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "args"
+            and isinstance(node.slice, ast.Constant)
+            and isinstance(node.slice.value, str)
+        ):
+            keys.add(node.slice.value)
+    return keys
+
+
+def _takes_args_param(fn: ast.FunctionDef) -> bool:
+    """True when the function's first (or self, then first) parameter is ``args``."""
+    names = [param.arg for param in fn.args.args]
+    return "args" in names[:2]
+
+
+def _helper_call_targets(fn: ast.FunctionDef, helpers: set[str]) -> set[str]:
+    """Names of args-consuming helpers this function calls with its ``args``."""
+    targets: set[str] = set()
+    for node in ast.walk(fn):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Name):
+            name = func.id
+        elif isinstance(func, ast.Attribute):
+            name = func.attr
+        else:
+            continue
+        if name not in helpers:
+            continue
+        passes_args = (
+            node.args
+            and isinstance(node.args[0], ast.Name)
+            and node.args[0].id == "args"
+        ) or any(
+            keyword.arg == "args"
+            and isinstance(keyword.value, ast.Name)
+            and keyword.value.id == "args"
+            for keyword in node.keywords
+        )
+        if passes_args:
+            targets.add(name)
+    return targets
+
+
+def handler_keys(handlers_dir: Path) -> dict[str, set[str]]:
+    """Map a handler method name to the literal ``args`` keys it reads.
+
+    Keys read through a shared helper count as read: when a function whose
+    first (or ``self``-then-first) parameter is ``args`` is called with the
+    caller's ``args`` (``_load_so(args, tool)``), the helper's keys are
+    unioned into the caller's. This is iterated to a fixed point so chains
+    of helpers resolve too. Name collisions across classes merge, which is
+    the same approximation the previous version used.
+    """
+    functions = _handler_functions(handlers_dir)
+    keys: dict[str, set[str]] = {}
+    helpers = {fn.name for fn in functions if _takes_args_param(fn)}
+    calls: dict[str, set[str]] = {}
+    for fn in functions:
+        keys.setdefault(fn.name, set()).update(_direct_args_keys(fn))
+        calls.setdefault(fn.name, set()).update(_helper_call_targets(fn, helpers))
+
+    for _ in range(10):  # fixed point; handler graphs are tiny
+        changed = False
+        for name, targets in calls.items():
+            gained: set[str] = set()
+            for target in targets:
+                gained |= keys.get(target, set())
+            if not gained <= keys[name]:
+                keys[name] |= gained
+                changed = True
+        if not changed:
+            break
+    return keys
 
 
 def handler_flag_literals(handlers_dir: Path) -> dict[str, set[str]]:
