@@ -8,7 +8,7 @@ pip install "android-re-mcp[all]"
 android-re-mcp --setup
 ```
 It needs Python 3.11 or newer. The base install is just the MCP server. The `[all]` extra adds Frida, androguard, apkid, apkleaks, mitmproxy and quark-engine, and you can pick parts instead: `frida`, `static`, `network`, `analysis`. If Frida is already pinned in your environment, install without extras and the server will not touch it.
-`--setup` downloads pinned, checksum-verified copies of apktool, jadx, uber-apk-signer, Il2CppDumper and dexfile-cli 0.1.9 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too.
+`--setup` downloads pinned, checksum-verified copies of apktool, jadx, uber-apk-signer, Il2CppDumper and dexfile-cli 0.2.2 into `~/tools`. adb comes from your package manager (`sudo apt install adb`); scrcpy and radare2 too.
 
 ## Connect it
 Claude Code:
