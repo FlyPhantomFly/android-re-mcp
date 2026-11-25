@@ -26,19 +26,21 @@ from mcp.client.stdio import stdio_client
 
 
 async def _run(params: StdioServerParameters, want_tools: bool, calls: list[tuple[str, dict]]) -> dict:
-    async with stdio_client(params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            out: dict = {}
-            if want_tools:
-                res = await session.list_tools()
-                out["tools"] = sorted(t.name for t in res.tools)
-                out["tool_count"] = len(res.tools)
-            for name, args in calls:
-                res = await session.call_tool(name, args)
-                texts = [b.text for b in (res.content or []) if getattr(b, "text", None)]
-                out[name] = {"isError": res.isError, "text": "\n".join(texts)}
-            return out
+    async with (
+        stdio_client(params) as (read, write),
+        ClientSession(read, write) as session,
+    ):
+        await session.initialize()
+        out: dict = {}
+        if want_tools:
+            res = await session.list_tools()
+            out["tools"] = sorted(t.name for t in res.tools)
+            out["tool_count"] = len(res.tools)
+        for name, args in calls:
+            res = await session.call_tool(name, args)
+            texts = [b.text for b in (res.content or []) if getattr(b, "text", None)]
+            out[name] = {"isError": res.isError, "text": "\n".join(texts)}
+        return out
 
 
 def _parse_env(pairs: list[str]) -> dict[str, str]:
