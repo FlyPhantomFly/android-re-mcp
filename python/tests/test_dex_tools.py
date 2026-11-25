@@ -512,14 +512,15 @@ def test_roundtrip_era_pinned_write_api_override(real_tools, tmp_path):
 
     # 40sc cannot decode outside its 14–15 era; allow_ambiguous must not turn
     # an undecodable read into a false success. The flag itself is exercised
-    # on the 20bc fixture below.
+    # on the 20bc fixture below. The assertion binds to the CLI's exit-code
+    # taxonomy (kind), not to message wording.
     undecodable = h.dex_convert({"in_path": str(tmp_path / "verr40.dex"),
                                  "target_version": "036",
                                  "output_path": str(tmp_path / "c36.dex"),
                                  "allow_ambiguous": True})
     assert undecodable["status"] == "error"
+    assert undecodable["kind"] == "invalid_dex"
     assert undecodable.get("kind") != "ambiguous_odex"
-    assert "era-specific instructions" in undecodable["error"]
 
     # the 20bc fixture: default era misdecodes; allow_ambiguous proceeds + warning
     smali20 = tmp_path / "VerErr.smali"
