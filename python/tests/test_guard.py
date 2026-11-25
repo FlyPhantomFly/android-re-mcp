@@ -74,6 +74,27 @@ def test_zip_and_rules_dir_host_paths_are_guarded(tmp_path, monkeypatch):
                            "rules_dir": str(tmp_path / "rules")})
 
 
+def test_zip_update_nested_from_file_is_guarded(isolated_env, tmp_path):
+    """zip_update's ops[].from_file is a host read and must use check_path."""
+    (isolated_env / ".ssh").mkdir()
+    secret = isolated_env / ".ssh" / "id_ed25519"
+    secret.write_text("PRIVATE")
+    with pytest.raises(guard.GuardError):
+        guard.validate("zip_update", {
+            "zip_path": str(tmp_path / "a.zip"),
+            "ops": [{"op": "add", "entry_path": "x", "from_file": str(secret)}],
+        })
+    guard.validate("zip_update", {
+        "zip_path": str(tmp_path / "a.zip"),
+        "ops": [{"op": "add", "entry_path": "x", "from_file": str(tmp_path / "ok.bin")}],
+    })
+    with pytest.raises(guard.GuardError):
+        guard.validate("zip_update", {
+            "zip_path": str(tmp_path / "a.zip"),
+            "ops": [{"op": "add", "entry_path": "x", "from_file": 7}],
+        })
+
+
 def test_output_suffixes():
     guard.validate("mitm_export_har", {"output_path": "/tmp/x/out.har"})
     refused("mitm_export_har", {"output_path": "/tmp/x/authorized_keys"})

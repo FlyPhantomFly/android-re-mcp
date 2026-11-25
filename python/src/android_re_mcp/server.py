@@ -1033,7 +1033,18 @@ TOOL_SCHEMAS: list[dict] = [
             "type": "object",
             "properties": {
                 "zip_path": {"type": "string"}, "apk_path": {"type": "string"},
-                "ops": {"type": "array", "items": {"type": "object"}},
+                "ops": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "from_file": {
+                                "type": "string",
+                                "description": "Absolute host path for add/replace; guard-checked",
+                            },
+                        },
+                    },
+                },
                 "output_apk": {"type": "string", "description": "Default: in-place (.bak first)"},
                 "expected_sha256": {"type": "string",
                                     "description": "Aborts unless the input still hashes to this"},

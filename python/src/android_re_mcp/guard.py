@@ -23,6 +23,8 @@ PATH_KEYS = {
 # dex_paths). The handler also checks per element; this is the server-side
 # pre-dispatch enforcement.
 PATH_LIST_KEYS = {"dex_paths"}
+# Paths nested inside an array of operation objects (zip_update ops[].from_file).
+NESTED_PATH_KEYS = {"zip_update": {"ops": ("from_file",)}}
 # Where each of those is written rather than read.
 WRITE_KEYS = {"cache_dir", "local", "output_apk", "output_dir", "output_path", "record_file"}
 # Output files must keep one of these suffixes (tool -> key -> suffixes).
@@ -82,7 +84,10 @@ def check_path(value: Any, key: str, tool: str) -> None:
         raise GuardError(f"'{key}' contains a NUL byte")
     if value.startswith("-"):
         raise GuardError(f"'{key}' must not start with '-'")
-    resolved = Path(value).expanduser().resolve()
+    try:
+        resolved = Path(value).expanduser().resolve()
+    except (OSError, RuntimeError) as exc:
+        raise GuardError(f"'{key}' cannot be resolved: {exc}") from exc
     home = Path.home().resolve()
     for rel in _SENSITIVE_HOME:
         if _inside(resolved, home / rel):
@@ -117,6 +122,16 @@ def validate(tool: str, args: Any) -> dict:
             raise GuardError(f"'{key}' must be an array of paths")
         for element in value:
             check_path(element, key, tool)
+    for key, subkeys in NESTED_PATH_KEYS.get(tool, {}).items():
+        value = args.get(key)
+        if not isinstance(value, list):
+            continue
+        for index, operation in enumerate(value):
+            if not isinstance(operation, dict):
+                continue
+            for subkey in subkeys:
+                if subkey in operation:
+                    check_path(operation[subkey], f"{key}[{index}].{subkey}", tool)
     _match(args, "serial", _SERIAL, "a device serial")
     _match(args, "package", _PACKAGE, "an Android package name")
     if tool == "native_disasm":
