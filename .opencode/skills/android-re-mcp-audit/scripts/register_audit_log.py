@@ -28,7 +28,7 @@ def check_ignore(repo: Path, name: str) -> str:
     try:
         proc = subprocess.run(
             ["git", "check-ignore", "-v", name],
-            cwd=repo, capture_output=True, text=True, timeout=30,
+            check=False, cwd=repo, capture_output=True, text=True, timeout=30,
         )
         return (proc.stdout or proc.stderr or "").strip()
     except (OSError, subprocess.TimeoutExpired) as exc:

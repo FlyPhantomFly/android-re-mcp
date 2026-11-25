@@ -45,11 +45,7 @@ def module_level_importorskip(tree: ast.Module) -> list[dict]:
     hits: list[dict] = []
     for node in tree.body:
         value = None
-        if isinstance(node, ast.Assign):
-            value = node.value
-        elif isinstance(node, ast.AnnAssign):
-            value = node.value
-        elif isinstance(node, ast.Expr):
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.Expr)):
             value = node.value
         if value is None:
             continue

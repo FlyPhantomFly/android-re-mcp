@@ -64,7 +64,7 @@ def main() -> int:
     try:
         check = subprocess.run(
             ["git", "-C", str(repo), "check-ignore", "-v", "reports/SUMMARY-example.md"],
-            capture_output=True, text=True, timeout=30,
+            check=False, capture_output=True, text=True, timeout=30,
         )
         ignored = (check.stdout or check.stderr or "").strip()
     except (OSError, subprocess.TimeoutExpired) as exc:

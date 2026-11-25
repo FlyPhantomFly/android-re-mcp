@@ -67,7 +67,7 @@ def run_group(repo: Path, name: str, targets: list[str], timeout: int) -> dict:
     started = time.time()
     try:
         proc = subprocess.run(
-            cmd, cwd=python_dir, env=env, capture_output=True, text=True, timeout=timeout
+            cmd, check=False, cwd=python_dir, env=env, capture_output=True, text=True, timeout=timeout
         )
         output = (proc.stdout or "") + (("\n" + proc.stderr) if proc.stderr else "")
         returncode = proc.returncode

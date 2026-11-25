@@ -37,7 +37,7 @@ def run(
 ) -> dict:
     try:
         proc = subprocess.run(
-            cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout, env=env
+            cmd, check=False, cwd=cwd, capture_output=True, text=True, timeout=timeout, env=env
         )
         return {
             "command": cmd,

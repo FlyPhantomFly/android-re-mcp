@@ -64,9 +64,12 @@ def assignment_value(tree: ast.AST, name: str) -> ast.AST | None:
             for target in node.targets:
                 if isinstance(target, ast.Name) and target.id == name:
                     return node.value
-        elif isinstance(node, ast.AnnAssign):
-            if isinstance(node.target, ast.Name) and node.target.id == name:
-                return node.value
+        elif (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == name
+        ):
+            return node.value
     return None
 
 
@@ -110,7 +113,7 @@ def collect_tests(repo: Path) -> dict:
     try:
         proc = subprocess.run(
             [sys.executable, "-m", "pytest", "--collect-only", "-q"],
-            cwd=python_dir, env=env, capture_output=True, text=True, timeout=180,
+            check=False, cwd=python_dir, env=env, capture_output=True, text=True, timeout=180,
         )
         output = (proc.stdout or "") + (proc.stderr or "")
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -178,8 +181,8 @@ def main() -> int:
     server_path = repo / "python" / "src" / "android_re_mcp" / "server.py"
     install_path = repo / "python" / "src" / "android_re_mcp" / "setup" / "install_tool.py"
 
-    py_version_match = re.search(r'^version\s*=\s*"([^"]+)"', read(pyproject), re.M)
-    ch_version_match = re.search(r"^## \[([^\]]+)\]", read(changelog), re.M)
+    py_version_match = re.search(r'^version\s*=\s*"([^"]+)"', read(pyproject), re.MULTILINE)
+    ch_version_match = re.search(r"^## \[([^\]]+)\]", read(changelog), re.MULTILINE)
     py_version = py_version_match.group(1) if py_version_match else None
     ch_version = ch_version_match.group(1) if ch_version_match else None
 

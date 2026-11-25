@@ -30,7 +30,7 @@ def git(repo: Path, *args: str, timeout: float = 30) -> str:
     try:
         proc = subprocess.run(
             ["git", "-C", str(repo), *args],
-            capture_output=True, text=True, timeout=timeout,
+            check=False, capture_output=True, text=True, timeout=timeout,
         )
         return (proc.stdout or proc.stderr or "").strip()
     except (OSError, subprocess.TimeoutExpired) as exc:
