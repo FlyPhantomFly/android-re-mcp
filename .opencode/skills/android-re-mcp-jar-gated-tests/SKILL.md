@@ -49,7 +49,7 @@ should show zero skips for those tests.
 
 Read the suite count from `pytest --collect-only` and the `-rs` summary rather
 than trusting a hardcoded number. On the 2026-11-24 review host with the jar
-and project extras, the suite collected 331 tests: 327 passed and 4 skipped
+and project extras, the suite collected 338 tests: 334 passed and 4 skipped
 (quark-engine absent). Those skips are optional-tool skips, not `ROUNDTRIP`
 tests; any quoted number is environment-specific.
 
