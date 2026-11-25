@@ -228,7 +228,7 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | --- | --- | --- |
 | `dex_info` | version, target API, class/method/string counts, class list; magic-scans flat dex, 041 containers, wrapped cdex/dex (vdex parts incl. modern-era vdex, packer blobs, dey odex wrappers) | dexfile-cli.jar, java 17+ |
 | `dex_extract` | pull every `classes*.dex` out of an APK (041 containers split per part) | dexfile-cli.jar |
-| `dex_convert` | read any version → write the target (vdex/cdex → 037 by default — dex037 was introduced in API 24 and covers the cdex era; flat dex → 035 for jadx; 035 → 041 container); odex instructions written verbatim with an `odex_instructions` count; cdex001 write requires `allow_unloadable=true` (standalone/analysis artifact) | dexfile-cli.jar |
+| `dex_convert` | read any version → write the target (vdex/cdex → 037 by default — dex037 was introduced in API 24 and covers the cdex era; flat dex → 035 for jadx; 035 → 041 container); odex instructions written verbatim **except era-ambiguous ones** (refused with kind `ambiguous_odex` when the write api/era differs from the read; optional `api` pins the interpretation on read and write); cdex001 write requires `allow_unloadable=true` (standalone/analysis artifact) | dexfile-cli.jar |
 | `dex_patch` | surgical dex-model edits: `replace-const-string`, `rename`, `retarget-invoke`, `flip-flags`, `replace-method-body` (smali text); `.bak` on first in-place modify; per-op matched counts | dexfile-cli.jar |
 | `dex_assemble` | one smali class → dex (`SmaliIO`; the text must carry `.locals` and `.end method`) | dexfile-cli.jar |
 | `dex_split` | shard a class list across dex files under the 64K-reference limit (`DexIO.balanceAll`) | dexfile-cli.jar |
