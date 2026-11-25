@@ -44,8 +44,9 @@ reports/
 audit-Nov.18.log
 npm-debug.log*
 
-# Local skills and evaluation workspaces (install from the workspace; not versioned)
-skills/
+# Local evaluation workspaces (generated; skills themselves are versioned under
+# .opencode/skills/)
+*-workspace/
 
 # Claude memory (local only)
 .claude/

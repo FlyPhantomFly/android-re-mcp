@@ -1,0 +1,35 @@
+{
+  "skill_name": "android-re-mcp-code-review",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Review the current android-re-mcp diff before I push. Write a dated review summary under reports/ with findings, evidence, and test counts. Don't change code yet.",
+      "expected_output": "A reports/SUMMARY-YYYY-MM-DD.md with the run date in the filename and title, scoped findings at file:line, test evidence, a verdict, limitations, and confirmation that reports/ is ignored.",
+      "files": [],
+      "assertions": [
+        "Creates reports/SUMMARY-YYYY-MM-DD.md with the run date in the filename",
+        "Includes the date in the report title and metadata",
+        "Lists findings with severity, confidence, file:line, evidence, and impact",
+        "Runs targeted and full tests and reports passed/failed/skipped counts",
+        "Gives a verdict using the APPROVE / APPROVE WITH NITS / REQUEST CHANGES / BLOCK rubric",
+        "Ensures reports/ is ignored by git",
+        "Does not modify product code or push"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Review the 1.8.0 deferred-dex changes (dex_validate, dex_merge, cdex opt-in). If you agree with the review findings, make the fixes, add tests, run the full suite, and update the dated report. Stop before pushing.",
+      "expected_output": "A dated report, agreed fixes applied with tests, a green full suite, updated verification, and an explicit push-status line saying nothing was committed or pushed.",
+      "files": [],
+      "assertions": [
+        "Writes reports/SUMMARY-YYYY-MM-DD.md with the run date",
+        "Reviews dex_validate, dex_merge, and cdex opt-in behavior and wiring",
+        "Applies only findings it explicitly agrees with and explains any declined finding",
+        "Adds or updates tests for each behavioral fix",
+        "Runs the full suite and reports the final counts",
+        "Updates the same dated report with Changes made and Verification",
+        "States that nothing was committed or pushed"
+      ]
+    }
+  ]
+}

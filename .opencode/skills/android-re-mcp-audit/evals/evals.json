@@ -1,0 +1,55 @@
+{
+  "skill_name": "android-re-mcp-audit",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Audit android-re-mcp's dexfile-cli integration in this checkout. I need to know whether dexfile-cli actually works here, not just whether test files mention it. Produce a dated audit-<Mon>.<Day>.log at the repository root, add it to .gitignore, and do not modify any product code.",
+      "expected_output": "A dated audit log at the repo root with a dexfile-cli verdict backed by jar/SHA/java evidence, real test counts, check_tools used_by analysis, and a limitations section; .gitignore updated; no product code changed.",
+      "files": [],
+      "assertions": [
+        "Creates an audit log at the repository root named audit-<Mon>.<Day>.log",
+        "Adds the audit log filename to .gitignore",
+        "Records the dexfile-cli jar path and its SHA-256, and whether it matches the SHA pinned in install_tool.py",
+        "Records that java is available (and its version) or explains the missing-java case",
+        "Runs the dex test file and reports passed/failed/skipped counts rather than only claiming tests exist",
+        "States whether the real-jar roundtrip tests ran or were skipped",
+        "Reports the live check_tools dexfile-cli entry and checks its used_by against every jar-dependent DexHandler method, flagging each omission (at 1.8.0: dex_validate, dex_merge, dex_read_class_outline)",
+        "Includes a verdict with confidence and a limitations section",
+        "Leaves product source untouched; git status shows only .gitignore and the audit log"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Do a full independent code audit of android-re-mcp before I trust the latest release. Review the Python server, handlers, guard, setup, and tests; record evidence and any drift between TOOL_SCHEMAS, _dispatch, and check_tools. Write the results to a dated audit log at the repo root and add it to .gitignore. Do not change product code.",
+      "expected_output": "A dated audit log covering server wiring, guard/setup, and tests, with registry drift evidence (schema vs dispatch vs used_by), full-suite counts, categorized failures, findings with severity/confidence, and limitations; .gitignore updated; no product code changed.",
+      "files": [],
+      "assertions": [
+        "Creates an audit log at the repository root named audit-<Mon>.<Day>.log",
+        "Adds the audit log filename to .gitignore",
+        "Reports TOOL_SCHEMAS and _dispatch counts and whether any schema entry lacks a dispatch target or vice versa",
+        "Checks that check_tools used_by entries name real tools and covers jar-dependent dex handlers",
+        "Runs the full pytest suite and reports passed/failed/skipped counts",
+        "Categorizes each failing test as code, environment, or test harness rather than calling every failure a bug",
+        "Includes findings with severity, confidence, file references, and evidence commands",
+        "Includes a limitations section and a conclusion about what was and was not verified",
+        "Leaves product source untouched; git status shows only .gitignore and the audit log"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The 1.8.0 changelog claims three new dex capabilities: dex_validate, dex_merge, and a cdex write opt-in. Audit those claims against the code and tests, check that the dexfile-cli pin matches the jar actually installed, and flag anything the changelog says that the code or tests do not support. Write a dated audit log and do not change product code.",
+      "expected_output": "An audit log that verifies the v0.1.9 pin, checks validate/merge/cdex behavior and guard rails, cross-checks the CHANGELOG bullets, and records what remains unverified; .gitignore updated; no product code changed.",
+      "files": [],
+      "assertions": [
+        "Creates an audit log at the repository root named audit-<Mon>.<Day>.log",
+        "Adds the audit log filename to .gitignore",
+        "Reads the dexfile-cli pin from install_tool.py and verifies the installed jar's SHA-256 against it",
+        "Covers dex_validate behavior, including references_unknown and issues_total truncation",
+        "Covers dex_merge behavior, including class collisions and the allow_cdex opt-in",
+        "Checks that cdex output requires allow_unloadable=true and carries a loading caveat",
+        "Cross-checks the 1.8.0 CHANGELOG bullets against code and tests and records unsupported claims",
+        "Includes a limitations section and leaves product source untouched"
+      ]
+    }
+  ]
+}

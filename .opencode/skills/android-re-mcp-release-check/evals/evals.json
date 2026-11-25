@@ -1,0 +1,33 @@
+{
+  "skill_name": "android-re-mcp-release-check",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Is android-re-mcp 1.8.0 ready to tag? Check that the version, CHANGELOG, README tool counts, and dexfile-cli pin/message agree, and reconcile the claimed test count. Do not change any code.",
+      "expected_output": "A short release-readiness report with a verdict, a checks table, issues with file references, review items for the environment-dependent suite count, and a statement that no code changed.",
+      "files": [],
+      "assertions": [
+        "Produces a verdict of READY, NEEDS ATTENTION, or BLOCKED",
+        "Compares pyproject version with the top CHANGELOG version",
+        "Compares README tool counts with the live TOOL_SCHEMAS count",
+        "Checks the dexfile-cli pin against the installer message and the installed jar SHA-256",
+        "Reconciles the CHANGELOG suite claim with the tests collected in this environment and explains the gap",
+        "Separates hard issues from environment-dependent review items",
+        "Does not modify product code"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "The 1.8.0 changelog says 'suite now 233 passed + 2 skipped', but a plain pytest run here collects far fewer. Figure out why and tell me whether the release metadata is otherwise consistent. Read-only.",
+      "expected_output": "An explanation that missing optional extras and module-level importorskip calls suppress collection, plus a metadata consistency check with evidence and no code changes.",
+      "files": [],
+      "assertions": [
+        "Reports the claimed count and the count collected in this environment",
+        "Identifies module-level importorskip or missing extras as the reason for the gap",
+        "Treats the suite-count difference as a review item rather than a hard release blocker",
+        "Checks version, tool count, and dexfile-cli pin consistency as well",
+        "Does not modify product code"
+      ]
+    }
+  ]
+}
