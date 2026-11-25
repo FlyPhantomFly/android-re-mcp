@@ -110,6 +110,8 @@ class DexHandler:
         """[TOOL] Read-only dex metadata: version, target API, counts."""
         dex_path = args.get("dex_path", "")
         cli_args = ["info", dex_path]
+        if args.get("scan"):
+            cli_args += ["--scan"]
         if args.get("classes"):
             limit = max(1, int(args.get("limit", 200) or 200))
             cli_args += ["--classes", "--limit", str(limit)]
@@ -154,6 +156,10 @@ class DexHandler:
         cli_args = ["convert", in_path, "--to", version]
         if args.get("api"):
             cli_args += ["--api", str(args["api"])]
+        if args.get("era"):
+            cli_args += ["--era", str(args["era"])]
+        if args.get("allow_ambiguous"):
+            cli_args += ["--allow-ambiguous-odex"]
         if args.get("output_path"):
             cli_args += ["--out", args["output_path"]]
         result = self._run("dex_convert", cli_args)
@@ -216,6 +222,10 @@ class DexHandler:
             with os.fdopen(fd, "w") as fh:
                 json.dump(ops, fh)
             cli_args = ["patch", dex_path, "--ops", str(ops_file)]
+            if args.get("era"):
+                cli_args += ["--era", str(args["era"])]
+            if args.get("allow_ambiguous"):
+                cli_args += ["--allow-ambiguous-odex"]
             if out_path:
                 cli_args += ["--out", out_path]
             result = self._run("dex_patch", cli_args)
@@ -296,7 +306,12 @@ class DexHandler:
         """[TOOL] Shard a class list across dex files under the 64K-reference limit."""
         dex_path = args.get("dex_path", "")
         out_dir = args.get("output_dir") or self._default_dir(dex_path, "_split")
-        return self._run("dex_split", ["split", dex_path, "--out", out_dir])
+        cli_args = ["split", dex_path, "--out", out_dir]
+        if args.get("era"):
+            cli_args += ["--era", str(args["era"])]
+        if args.get("allow_ambiguous"):
+            cli_args += ["--allow-ambiguous-odex"]
+        return self._run("dex_split", cli_args)
 
     # ── dex_read_class_outline ────────────────────────────────────────────
 

@@ -527,3 +527,42 @@ def test_roundtrip_era_pinned_write_api_override(real_tools, tmp_path):
     # cannot even decode the instruction, not just refuse the write
     assert "no API interpretation reads it" in refused["error"]
     assert not (tmp_path / "b36.dex").exists()
+
+    # era pinning is the correct recovery: dalvik-era read + write succeeds
+    era = h.dex_convert({"in_path": str(tmp_path / "verr40.dex"),
+                         "target_version": "036", "api": 14, "era": "dalvik",
+                         "output_path": str(tmp_path / "a36_era.dex")})
+    assert era["status"] == "ok", era
+
+    # allow_ambiguous proceeds past the guard and keeps the warning
+    allowed = h.dex_convert({"in_path": str(tmp_path / "verr40.dex"),
+                             "target_version": "036",
+                             "output_path": str(tmp_path / "c36.dex"),
+                             "allow_ambiguous": True})
+    assert allowed["status"] == "error"  # 40sc still can't decode outside its era
+
+    # the 20bc fixture: default era misdecodes; allow_ambiguous proceeds + warning
+    smali20 = tmp_path / "VerErr.smali"
+    smali20.write_text(
+        ".class public Lpoc/VerErr;\n.super Ljava/lang/Object;\n\n"
+        ".method public static boom()V\n    .locals 1\n"
+        "    throw-verification-error no-such-class, Lmissing/Klass;\n"
+        "    return-void\n.end method\n")
+    subprocess.run([dex_mod.shutil.which("java"), "-jar", str(jar),
+                    "assemble", str(smali20), "--api", "5",
+                    "--out", str(tmp_path / "verr20.dex")],
+                   check=True, capture_output=True, text=True, timeout=120)
+    forced = h.dex_convert({"in_path": str(tmp_path / "verr20.dex"),
+                            "target_version": "037",
+                            "output_path": str(tmp_path / "forced37.dex"),
+                            "allow_ambiguous": True})
+    assert forced["status"] == "ok"
+    entry = forced["result"]["converted"][0]
+    assert entry["ambiguous_odex_instructions"] == 1
+    assert "warning" in entry
+
+    # dex_info --scan reports the counts without converting
+    scanned = h.dex_info({"dex_path": str(tmp_path / "verr20.dex"), "scan": True})
+    assert scanned["result"]["ambiguous_odex_instructions"] == 1
+    assert scanned["result"]["ambiguous_bytes"] == ["0xed"]
+    assert scanned["result"]["read_api"] == 28  # the ladder's art-era misdecode
