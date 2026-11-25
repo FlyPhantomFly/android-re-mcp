@@ -161,13 +161,13 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | Tool | What it does | Needs |
 | --- | --- | --- |
 | `frida_server_push` | push a frida-server (or the hluda/StrongR fork) matching your frida-tools version to the device | adb, frida-tools, binary in `~/tools` |
-| `frida_spawn_hluda` | spawn through the renamed hluda server so Frida port/name scans come up empty | hluda server running on the device |
+| `frida_spawn_hluda` | spawn through the renamed hluda server so Frida port/name scans come up empty; `config` is posted to the script as a config message after load | hluda server running on the device |
 
 **Process memory (2)**
 
 | Tool | What it does | Needs |
 | --- | --- | --- |
-| `frida_memdump` | dump every rw- memory region of the target to disk files | active session |
+| `frida_memdump` | dump every rw- memory region of the target to disk files; `max_range_mb` (default 32) skips ranges larger than the cap to keep the session alive | active session |
 | `frida_find_bytes` | search process memory for a UTF-8 string or hex pattern, with addresses | active session |
 
 **Device control (12)**

@@ -228,6 +228,50 @@ def test_memdump_requires_session():
     assert "frida_attach" in result["error"]
 
 
+# ── frida_spawn_hluda: the schema's `config` reaches _load_script ─────────
+
+def test_spawn_hluda_forwards_config(monkeypatch, handler):
+    """`config` is a real schema property: spawn must read and forward it."""
+    loaded: list[dict] = []
+    resumed: list[int] = []
+
+    class _Device:
+        def spawn(self, packages):
+            return 4242
+
+        def attach(self, pid):
+            return object()
+
+        def resume(self, pid):
+            resumed.append(pid)
+
+    class _DeviceManager:
+        def add_remote_device(self, *args, **kwargs):
+            return _Device()
+
+    fake_frida = types.ModuleType("frida")
+    fake_frida.get_device_manager = lambda: _DeviceManager()
+    monkeypatch.setitem(sys.modules, "frida", fake_frida)
+
+    def fake_load_script(self, src, config=None):
+        loaded.append({"src": src, "config": config})
+        return {"script_loaded": True}
+
+    monkeypatch.setattr(dynamic_mod.DynamicHandler, "_load_script", fake_load_script)
+
+    result = handler.frida_spawn_hluda(
+        {"package": "com.example.app", "script": "var a = 1;",
+         "config": {"SEARCH_STRING": "tok"}})
+    assert result["status"] == "ok", result
+    assert result["output"]["hluda_port"] == 27043
+    assert resumed == [4242]
+    assert loaded[0]["config"] == {"SEARCH_STRING": "tok"}
+
+    result = handler.frida_spawn_hluda({"package": "com.example.app", "script": "var a = 1;"})
+    assert result["status"] == "ok", result
+    assert loaded[1]["config"] is None
+
+
 def test_read_output_drains_queue():
     h = dynamic_mod.DynamicHandler()
     h._output_queue = queue.Queue()

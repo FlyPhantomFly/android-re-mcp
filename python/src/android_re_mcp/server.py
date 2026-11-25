@@ -408,6 +408,13 @@ TOOL_SCHEMAS: list[dict] = [
                 "package": {"type": "string"},
                 "script": {"type": "string", "description": "Frida JS script (optional)"},
                 "port": {"type": "integer", "default": 27043, "description": "hluda listen port"},
+                "config": {
+                    "type": "object",
+                    "description": "Posted to the script as a {'type':'config', ...} "
+                                   "message right after load (E-PY-6); shipped scripts "
+                                   "re-scan on receipt, scripts that never recv are "
+                                   "unaffected. Optional.",
+                },
             },
             "required": ["package"],
         },
@@ -450,6 +457,14 @@ TOOL_SCHEMAS: list[dict] = [
             "properties": {
                 "package": {"type": "string", "description": "Package name (used for output folder)"},
                 "output_dir": {"type": "string", "description": "Local path to dump to (optional)"},
+                "max_range_mb": {
+                    "type": "integer",
+                    "default": 32,
+                    "description": "rw- ranges larger than this many MB are skipped — "
+                                   "reading a multi-GB GPU/ashmem mapping into the target "
+                                   "triggers the low-memory killer and drops the session "
+                                   "(default 32)",
+                },
             },
         },
     },
