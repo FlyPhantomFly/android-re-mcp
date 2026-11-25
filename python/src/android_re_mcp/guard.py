@@ -17,8 +17,12 @@ from typing import Any
 PATH_KEYS = {
     "apk_path", "bundle_path", "cache_dir", "capture_path", "dex_path", "from_file", "gadget_path",
     "in_path", "local", "new_path", "old_path", "output_apk", "output_dir", "output_path", "path",
-    "record_file", "smali_dir", "so_path",
+    "record_file", "rules_dir", "smali_dir", "so_path", "zip_path",
 }
+# Array-valued path arguments: every element is a host path (dex_merge's
+# dex_paths). The handler also checks per element; this is the server-side
+# pre-dispatch enforcement.
+PATH_LIST_KEYS = {"dex_paths"}
 # Where each of those is written rather than read.
 WRITE_KEYS = {"cache_dir", "local", "output_apk", "output_dir", "output_path", "record_file"}
 # Output files must keep one of these suffixes (tool -> key -> suffixes).
@@ -107,6 +111,12 @@ def validate(tool: str, args: Any) -> dict:
         raise GuardError("arguments must be an object")
     for key in PATH_KEYS & args.keys():
         check_path(args[key], key, tool)
+    for key in PATH_LIST_KEYS & args.keys():
+        value = args[key]
+        if not isinstance(value, list):
+            raise GuardError(f"'{key}' must be an array of paths")
+        for element in value:
+            check_path(element, key, tool)
     _match(args, "serial", _SERIAL, "a device serial")
     _match(args, "package", _PACKAGE, "an Android package name")
     if tool == "native_disasm":

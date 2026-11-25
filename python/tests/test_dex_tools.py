@@ -366,6 +366,14 @@ def test_dex_merge_needs_two_paths():
     assert result["status"] == "error" and "at least two" in result["error"]
 
 
+def test_dex_merge_guard_rejects_outside_element(monkeypatch):
+    """The handler re-checks every dex_paths element (defense in depth)."""
+    monkeypatch.setenv("ANDROID_RE_MCP_ALLOWED_DIRS", "/allowed")
+    result = DexHandler().dex_merge({"dex_paths": ["/allowed/a.dex", "/outside/b.dex"]})
+    assert result["status"] == "error"
+    assert "ANDROID_RE_MCP_ALLOWED_DIRS" in result["error"]
+
+
 def test_cdex_write_requires_opt_in():
     h = DexHandler()
     result = h.dex_convert({"in_path": "/x/a.dex", "target_version": "cdex001"})

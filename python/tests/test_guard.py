@@ -45,6 +45,35 @@ def test_allowed_dirs(tmp_path, monkeypatch):
     refused("apk_identify", {"apk_path": str(work / ".." / "other.apk")})
 
 
+def test_era_batch_host_paths_are_guarded(tmp_path, monkeypatch):
+    """output_dir/output_path/dex_paths from the era batch refuse outside dirs."""
+    work = tmp_path / "work"
+    work.mkdir()
+    monkeypatch.setenv("ANDROID_RE_MCP_ALLOWED_DIRS", str(work))
+    guard.validate("dex_split", {"dex_path": str(work / "a.dex"),
+                                  "output_dir": str(work / "out")})
+    refused("dex_split", {"dex_path": str(work / "a.dex"),
+                          "output_dir": str(tmp_path / "elsewhere")})
+    guard.validate("dex_merge", {"dex_paths": [str(work / "a.dex"), str(work / "b.dex")],
+                                 "output_path": str(work / "m.dex")})
+    refused("dex_merge", {"dex_paths": [str(work / "a.dex"), str(tmp_path / "outside.dex")],
+                          "output_path": str(work / "m.dex")})
+    refused("dex_merge", {"dex_paths": "not-a-list"})
+
+
+def test_zip_and_rules_dir_host_paths_are_guarded(tmp_path, monkeypatch):
+    """zip_path and rules_dir are host reads; the allowed-dirs rule applies."""
+    work = tmp_path / "work"
+    work.mkdir()
+    monkeypatch.setenv("ANDROID_RE_MCP_ALLOWED_DIRS", str(work))
+    guard.validate("zip_test", {"zip_path": str(work / "a.zip")})
+    refused("zip_test", {"zip_path": str(tmp_path / "outside.zip")})
+    guard.validate("quark_scan", {"apk_path": str(work / "a.apk"),
+                                  "rules_dir": str(work / "rules")})
+    refused("quark_scan", {"apk_path": str(work / "a.apk"),
+                           "rules_dir": str(tmp_path / "rules")})
+
+
 def test_output_suffixes():
     guard.validate("mitm_export_har", {"output_path": "/tmp/x/out.har"})
     refused("mitm_export_har", {"output_path": "/tmp/x/authorized_keys"})
