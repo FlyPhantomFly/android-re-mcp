@@ -12,6 +12,7 @@
 
 ### Added (Developer tooling)
 - `scripts/check_schema_structure.py` + `python/tests/test_schema_structure.py`: structural catalog checks (stray top-level keys, `required` not in `properties`, arrays without `items`, duplicate names) and handler/schema drift, with synthetic checker tests; no jar or MCP SDK needed.
+- `scripts/check_docs_sync.py` (moved out of the local skill so CI can run it): README/CHANGELOG sync. A schema property missing from its tool's README row is now a **failure**, not a review item (mutation-checked by deleting `allow_ambiguous` from the `dex_split` row: the checker exits 1 naming it); the exempt list gained the path arguments it had missed (`zip_path`, `remote`/`local`, `capture_path`, `smali_dir`, `bundle_path`, `keystore_path`, `rules_dir`, `gadget_path`, `remote_path`).
 - `python/tests/test_dex_passthrough.py`: 32 jar-free argv assertions over the seven flag-bearing CLI dex tools, asserting both that a set argument reaches the CLI and that an omitted argument emits no flag, plus coverage and tool-classification guards. `fake_run` moved to `conftest.py` so both dex test modules share it.
 - Repo-local skills under `skills/` (gitignored by convention): `android-re-mcp-catalog-edit`, `android-re-mcp-schema-check`, `android-re-mcp-passthrough-tests`, `android-re-mcp-docs-sync`, `android-re-mcp-claim-verification`, `android-re-mcp-jar-gated-tests`. The docs-sync default is clean after repairing the joined `optional` phrases in six README rows.
 
