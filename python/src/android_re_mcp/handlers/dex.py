@@ -152,6 +152,8 @@ class DexHandler:
         if not version:
             version, default_note = self._default_target(in_path)
         cli_args = ["convert", in_path, "--to", version]
+        if args.get("api"):
+            cli_args += ["--api", str(args["api"])]
         if args.get("output_path"):
             cli_args += ["--out", args["output_path"]]
         result = self._run("dex_convert", cli_args)

@@ -483,3 +483,47 @@ def test_cdex_write_opt_in_succeeds_with_note(tmp_path, real_tools):
     assert out["status"] == "ok"
     assert out["result"]["converted"][0]["to"] == "CDEX001"
     assert "not PathClassLoader-loadable" in out["note"]
+
+
+# ── --api write-side propagation (jar-gated; guards the convert-era fix) ──
+
+VERERR_JUMBO_SMALI = (
+    ".class public Lpoc/VerErrJumbo;\n.super Ljava/lang/Object;\n\n"
+    ".method public static boom14()V\n    .locals 1\n"
+    "    throw-verification-error/jumbo no-such-method, Lmissing/Klass;->gone()V\n"
+    "    return-void\n.end method\n"
+)
+
+
+@ROUNDTRIP
+def test_roundtrip_era_pinned_write_api_override(real_tools, tmp_path):
+    """--api must reach convert's WRITE options: the expanded 40sc form is
+    writable at api 14 and refused at api 19 (expanded is 14-15 only)."""
+    import subprocess
+
+    h = DexHandler()
+    smali = tmp_path / "VerErrJumbo.smali"
+    smali.write_text(VERERR_JUMBO_SMALI)
+
+    # the dex_assemble MCP tool has no --api passthrough; assemble via the jar
+    jar = Path(REAL_TOOLS_DIR) / dex_mod._JAR_NAME
+    subprocess.run([dex_mod.shutil.which("java"), "-jar", str(jar),
+                    "assemble", str(smali), "--api", "14",
+                    "--out", str(tmp_path / "verr40.dex")],
+                   check=True, capture_output=True, text=True, timeout=120)
+
+    ok = h.dex_convert({"in_path": str(tmp_path / "verr40.dex"),
+                        "target_version": "036", "api": 14,
+                        "output_path": str(tmp_path / "a36.dex")})
+    assert ok["status"] == "ok", ok
+    assert ok["result"]["converted"][0]["to"] == "DEX036"
+    assert ok["result"]["converted"][0]["odex_instructions"] == 1
+
+    refused = h.dex_convert({"in_path": str(tmp_path / "verr40.dex"),
+                             "target_version": "036", "api": 19,
+                             "output_path": str(tmp_path / "b36.dex")})
+    assert refused["status"] == "error"
+    # the read ladder pins the rung: expanded is 14-15 only, so api 19
+    # cannot even decode the instruction, not just refuse the write
+    assert "no API interpretation reads it" in refused["error"]
+    assert not (tmp_path / "b36.dex").exists()

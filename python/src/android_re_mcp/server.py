@@ -752,6 +752,9 @@ TOOL_SCHEMAS: list[dict] = [
                                    "(standalone/analysis artifact, not on-device loadable).",
                 },
                 "output_path": {"type": "string"},
+                "api": {"type": "integer",
+                        "description": "Pin the target-API interpretation on read AND write "
+                                       "(e.g. 14 for expanded 40sc-era content)"},
                 "allow_unloadable": {
                     "type": "boolean", "default": False,
                     "description": "Opt-in for cdex001 write output",
