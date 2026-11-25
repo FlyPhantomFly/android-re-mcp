@@ -72,7 +72,7 @@ EXEMPT = {
 # scope for this argv contract (and where their behavior is covered instead).
 OUT_OF_SCOPE = {
     "dex_extract": "positional input plus --out; covered by test_dex_tools.py",
-    "dex_read_class_outline": "outline path; covered by the jar-gated outline tests",
+    "dex_read_class_outline": "argv sibling: test_dex_read_class_outline_builds_outline_argv; jar behavior in the gated test",
     "dex_read_pseudocode": "jadx subprocess, not DexHandler._run argv",
     "dex_swap": "pure-Python zip rewrite, no CLI argv",
 }
@@ -143,3 +143,17 @@ def test_dex_convert_undocumented_dex_path_alias_is_gone(fake_run):
     assert "/x/a.dex" not in argv, argv
     assert argv[1] == "", argv
     assert fake_run["tool"] == "dex_convert"
+
+
+def test_dex_read_class_outline_builds_outline_argv(fake_run):
+    """Jar-free sibling of test_dex_read_class_outline_real: the argv contract.
+
+    The outline handler searches dex_path targets directly and passes
+    class_name as --class; the gated test proves the jar's behavior, this
+    proves the plumbing without the jar.
+    """
+    result = _call("dex_read_class_outline",
+                   {"dex_path": "/x/a.dex", "class_name": "com.example.Foo"})
+    assert result["status"] == "ok", result
+    argv = fake_run["cli_args"]
+    assert _contains(argv, ["outline", "/x/a.dex", "--class", "com.example.Foo"]), argv
