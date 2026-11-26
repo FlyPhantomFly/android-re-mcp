@@ -60,7 +60,13 @@ def load_required(path: str) -> list[str]:
 
 
 def require_run(path: str, needles: list[str]) -> tuple[list[str], list[str]]:
-    """Return (never_ran, ran_but_skipped) for the required node names."""
+    """Return (never_ran, ran_but_skipped) for the required node names.
+
+    Matching is exact, not substring: a needle `module::test` matches a case
+    whose classname's last dotted part is `module` and whose name is `test`
+    or a parametrized `test[...]`. Substring matching would let a renamed
+    required test hide behind another test whose name starts with it.
+    """
     nodes: dict[str, list[ET.Element]] = {}
     root = ET.parse(path).getroot()
     for case in root.iter("testcase"):
@@ -69,7 +75,14 @@ def require_run(path: str, needles: list[str]) -> tuple[list[str], list[str]]:
     missing: list[str] = []
     skipped: list[str] = []
     for needle in needles:
-        matches = [case for node, cases in nodes.items() if needle in node for case in cases]
+        module, _, test = needle.partition("::")
+        matches = [
+            case
+            for node, cases in nodes.items()
+            if node.rsplit("::", 1)[0].rsplit(".", 1)[-1] == module.split(".")[-1]
+            and (node.rsplit("::", 1)[1] == test or node.rsplit("::", 1)[1].startswith(test + "["))
+            for case in cases
+        ]
         if not matches:
             missing.append(needle)
         elif any(case.find("skipped") is not None for case in matches):

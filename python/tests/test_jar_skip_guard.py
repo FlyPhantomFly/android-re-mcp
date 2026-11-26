@@ -167,6 +167,41 @@ def test_require_run_with_the_shipped_list_rejects_an_all_skipped_report(tmp_pat
                          str(xml)]) == 1
 
 
+def test_require_run_matches_exactly_not_by_prefix(tmp_path):
+    """A renamed required test must not hide behind a longer name (R3-5)."""
+    checker = _checker()
+    xml = tmp_path / "junit.xml"
+    _write_junit(xml, [
+        ("tests.test_dex_tools", "test_roundtrip_era_pinned_write_api_override_extended", None),
+    ])
+    required = _required_file(tmp_path, ["test_dex_tools::test_roundtrip_era_pinned_write_api_override"])
+    assert checker.main(["--require-run", str(required), str(xml)]) == 1
+
+
+def test_require_run_accepts_parametrized_names(tmp_path):
+    checker = _checker()
+    xml = tmp_path / "junit.xml"
+    _write_junit(xml, [
+        ("tests.test_dex_tools", "test_roundtrip_swap_into_apk[apk1]", None),
+    ])
+    required = _required_file(tmp_path, ["test_dex_tools::test_roundtrip_swap_into_apk"])
+    assert checker.main(["--require-run", str(required), str(xml)]) == 0
+
+
+def test_require_run_still_matches_the_shipped_list(tmp_path):
+    checker = _checker()
+    xml = tmp_path / "junit.xml"
+    shipped = checker.load_required(str(REPO_ROOT / "scripts" / "jar_gated_required.txt"))
+    cases = []
+    for needle in shipped:
+        module, test = needle.split("::")
+        cases.append((f"tests.{module}", test, None))
+    _write_junit(xml, cases)
+    assert checker.main(["--require-run",
+                         str(REPO_ROOT / "scripts" / "jar_gated_required.txt"),
+                         str(xml)]) == 0
+
+
 def test_main_returns_2_for_an_unreadable_report(tmp_path):
     checker = _checker()
     assert checker.main([str(tmp_path / "missing.xml")]) == 2
