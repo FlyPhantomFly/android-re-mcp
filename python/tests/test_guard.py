@@ -1,5 +1,7 @@
 import pytest
 
+from pathlib import Path
+
 from android_re_mcp import guard
 
 
@@ -27,6 +29,41 @@ def test_path_rejects_protected_locations(isolated_env):
     refused("adb_push", {"local": str(isolated_env / ".ssh" / "id_ed25519"), "remote": "/sdcard/x"})
     refused("adb_pull", {"local": str(isolated_env / ".bashrc"), "remote": "/sdcard/x"})
     refused("adb_push", {"local": "~/.config/gh/hosts.yml", "remote": "/sdcard/x"})
+
+
+def test_write_into_real_etc_is_refused():
+    refused("dex_convert", {"output_path": "/etc/passwd"})
+
+
+def test_etc_base_is_used_resolved(monkeypatch, tmp_path):
+    """The /etc rule compares the resolved value against the (patched) base."""
+    etc = tmp_path / "etc"
+    etc.mkdir()
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "link").symlink_to(etc)
+    monkeypatch.setattr(guard, "_ETC_BASE", etc)
+    # a valid output suffix, so the ONLY possible refusal here is the /etc rule
+    refused("dex_convert", {"output_path": str(work / "link" / "x.dex")})
+    # the /etc rule only constrains writes
+    guard.validate("apk_identify", {"apk_path": str(etc / "app.apk")})
+
+
+def test_the_etc_base_is_the_resolved_constant():
+    # on Linux this is trivially /etc; on macOS resolve() maps it to
+    # /private/etc, which is exactly the case the constant fixes (F8).
+    assert guard._ETC_BASE == Path("/etc").resolve()
+
+
+def test_unresolvable_home_fails_closed(monkeypatch):
+    """Path.home() failing must surface as a GuardError, not a crash (F8)."""
+    import pathlib
+
+    def broken_home():
+        raise RuntimeError("no HOME")
+
+    monkeypatch.setattr(pathlib.Path, "home", classmethod(lambda cls: broken_home()))
+    refused("dex_convert", {"output_path": "/tmp/ok/output.dex"})
 
 
 def test_symlink_into_protected_location_is_refused(isolated_env, tmp_path):

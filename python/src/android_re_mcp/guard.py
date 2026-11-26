@@ -77,6 +77,11 @@ def _inside(path: Path, base: Path) -> bool:
     return path == base or base in path.parents
 
 
+# F8: resolve the base so a symlinked /etc (macOS resolves it to
+# /private/etc) is caught; on Linux this is /etc unchanged.
+_ETC_BASE = Path("/etc").resolve()
+
+
 def check_path(value: Any, key: str, tool: str) -> None:
     if not isinstance(value, str) or not value:
         raise GuardError(f"'{key}' must be a non-empty string")
@@ -88,11 +93,16 @@ def check_path(value: Any, key: str, tool: str) -> None:
         resolved = Path(value).expanduser().resolve()
     except (OSError, RuntimeError) as exc:
         raise GuardError(f"'{key}' cannot be resolved: {exc}") from exc
-    home = Path.home().resolve()
+    try:
+        home = Path.home().resolve()
+    except (OSError, RuntimeError) as exc:
+        # Fail closed: without a resolvable HOME the protected-home list
+        # cannot be checked, so the path argument is refused outright.
+        raise GuardError(f"'{key}' cannot resolve HOME: {exc}") from exc
     for rel in _SENSITIVE_HOME:
         if _inside(resolved, home / rel):
             raise GuardError(f"'{key}' points into a protected location ({rel})")
-    if _inside(resolved, Path("/etc")) and key in WRITE_KEYS:
+    if _inside(resolved, _ETC_BASE) and key in WRITE_KEYS:
         raise GuardError(f"'{key}' may not write into /etc")
     dirs = allowed_dirs()
     if dirs and not any(_inside(resolved, d) for d in dirs):
