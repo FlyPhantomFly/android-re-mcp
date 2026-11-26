@@ -94,5 +94,7 @@ If the user asks you to make the changes:
 - `references/report-template.md` — dated report skeleton.
 - `scripts/review_context.py` — git/diff context collector.
 - `scripts/ensure_reports_ignored.py` — adds `reports/` to `.gitignore` without duplication.
+  **This writes the tracked `.gitignore`**: running it leaves a diff on a versioned file,
+  which is expected — mention it in the report instead of reverting it silently.
 - `android-re-mcp-audit` skill — deep audit, dexfile-cli protocol, registry/test-hygiene checks.
 - `android-re-mcp-release-check` skill — version/pin/count consistency.

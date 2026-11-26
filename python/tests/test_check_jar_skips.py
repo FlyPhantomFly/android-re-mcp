@@ -53,3 +53,14 @@ def test_passing_output_with_the_string_stays_silent(tmp_path):
 
 def test_missing_report_is_an_error(tmp_path):
     assert _checker().main([str(tmp_path / "absent.xml")]) == 2
+
+
+def test_usage_error_exits_2():
+    """C7: a usage error (unknown flag, missing positional) must exit 2, not 0."""
+    import pytest
+
+    checker = _checker()
+    for argv in (["--not-a-flag"], []):
+        with pytest.raises(SystemExit) as excinfo:
+            checker.main(list(argv))
+        assert excinfo.value.code == 2, excinfo.value.code

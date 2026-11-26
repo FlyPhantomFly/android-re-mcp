@@ -161,3 +161,5 @@ Label confidence as **confirmed** (a command proves it), **inferred** (code read
 - `scripts/check_test_hygiene.py` — finds module-level skips that hide unrelated coverage.
 - `scripts/run_audit_tests.py` — targeted and full pytest runs with JSON summaries.
 - `scripts/register_audit_log.py` — adds the log filename to `.gitignore` without duplication.
+  **This writes the tracked `.gitignore`**: the audit's only allowed repo change is that
+  one line — say so in the log, and expect the `.gitignore` diff to be part of the run.
