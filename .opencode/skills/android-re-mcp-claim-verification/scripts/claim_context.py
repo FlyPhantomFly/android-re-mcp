@@ -29,14 +29,14 @@ COUNT_RE = re.compile(r"\b\d+\s+(?:passed|skipped|schemas?|tools?|tests?)\b", re
 TEST_KEYWORD_RE = re.compile(r"era|ambig|passthrough|schema", re.IGNORECASE)
 
 
-def find_repo(start: Path) -> Path:
+def find_repo(start: Path) -> Path | None:
     current = start.resolve()
     for candidate in (current, *current.parents):
         if (candidate / "python" / "pyproject.toml").is_file() and (
             candidate / "python" / "src" / "android_re_mcp"
         ).is_dir():
             return candidate
-    raise SystemExit(f"not an android-re-mcp checkout: {start}")
+    return None
 
 
 def run(cmd: list[str], cwd: Path | None = None, env: dict | None = None,
@@ -165,6 +165,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="also run the full pytest suite and capture the summary")
     args = parser.parse_args(argv)
     repo = find_repo(Path(args.repo))
+    if repo is None:
+        raise SystemExit(f"not an android-re-mcp checkout: {args.repo}")
     if args.claim_file:
         claim = Path(args.claim_file).read_text(encoding="utf-8")
         claim_source = str(Path(args.claim_file).resolve())

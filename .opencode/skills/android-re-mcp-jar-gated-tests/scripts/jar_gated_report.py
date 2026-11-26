@@ -27,14 +27,14 @@ SKIP_RE = re.compile(r"(\d+) passed(?:, (\d+) skipped)?")
 SKIPPED_LINE_RE = re.compile(r"^SKIPPED\s+\[(\d+)\]\s+(.+?):(\d+):\s*(.*)$")
 
 
-def find_repo(start: Path) -> Path:
+def find_repo(start: Path) -> Path | None:
     current = start.resolve()
     for candidate in (current, *current.parents):
         if (candidate / "python" / "pyproject.toml").is_file() and (
             candidate / "python" / "src" / "android_re_mcp"
         ).is_dir():
             return candidate
-    raise SystemExit(f"not an android-re-mcp checkout: {start}")
+    return None
 
 
 def _decorator_name(node: ast.AST) -> str:
@@ -185,6 +185,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     repo = find_repo(Path(args.repo))
+    if repo is None:
+        raise SystemExit(f"not an android-re-mcp checkout: {args.repo}")
     report = inventory(repo)
     report["weak_assertion_candidates"] = weak_assertion_candidates(repo)
     if args.run:
