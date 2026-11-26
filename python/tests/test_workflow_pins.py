@@ -24,12 +24,20 @@ def test_every_action_is_pinned_to_a_full_sha_with_a_comment():
     assert not problems, problems
 
 
-def test_ci_jobs_declare_a_timeout():
-    """F6: a hung step must not eat the default 6-hour job limit."""
-    text = (WORKFLOWS / "ci.yml").read_text()
-    runs_on = len(re.findall(r"^\s*runs-on:", text, re.MULTILINE))
-    timeouts = len(re.findall(r"^\s*timeout-minutes:\s*\d+\s*$", text, re.MULTILINE))
-    assert runs_on >= 1 and timeouts == runs_on, (runs_on, timeouts)
+def test_workflow_jobs_declare_a_timeout():
+    """F6: a hung step must not eat the default 6-hour job limit.
+
+    publish-pypi's publish job is deliberately generous (120): the wait for
+    the pypi environment's required reviewer counts against its limit.
+    """
+    problems = []
+    for path in sorted(WORKFLOWS.glob("*.yml")):
+        text = path.read_text()
+        runs_on = len(re.findall(r"^\s*runs-on:", text, re.MULTILINE))
+        timeouts = len(re.findall(r"^\s*timeout-minutes:\s*\d+\s*$", text, re.MULTILINE))
+        if runs_on < 1 or timeouts != runs_on:
+            problems.append(f"{path.name}: {runs_on} jobs, {timeouts} timeout-minutes")
+    assert not problems, problems
 
 
 def test_jar_download_uses_a_socket_timeout_with_sha_and_cleanup():

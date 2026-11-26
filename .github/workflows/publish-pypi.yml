@@ -19,6 +19,7 @@ jobs:
   build:
     name: Build distributions
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -53,6 +54,9 @@ jobs:
     name: PyPI publish
     needs: build
     runs-on: ubuntu-latest
+    # Generous: the wait for the pypi environment's required reviewer counts
+    # against this limit; approval may take as long as it takes.
+    timeout-minutes: 120
     # Create this environment in GitHub (Settings -> Environments) and add yourself as a
     # required reviewer, so every publish needs a manual approval.
     environment: pypi
