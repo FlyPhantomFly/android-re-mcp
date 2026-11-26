@@ -79,7 +79,17 @@ def _inside(path: Path, base: Path) -> bool:
 
 # F8: resolve the base so a symlinked /etc (macOS resolves it to
 # /private/etc) is caught; on Linux this is /etc unchanged.
-_ETC_BASE = Path("/etc").resolve()
+def _resolve_etc() -> Path:
+    """Resolve the /etc base through the injectable ``_ETC_ROOT``.
+
+    Tests monkeypatch ``_ETC_ROOT`` with a symlinked root so the resolved
+    comparison is exercised on Linux, where /etc itself is not a symlink.
+    """
+    return Path(_ETC_ROOT).resolve()
+
+
+_ETC_ROOT = "/etc"
+_ETC_BASE = _resolve_etc()
 
 
 def check_path(value: Any, key: str, tool: str) -> None:
@@ -102,7 +112,7 @@ def check_path(value: Any, key: str, tool: str) -> None:
     for rel in _SENSITIVE_HOME:
         if _inside(resolved, home / rel):
             raise GuardError(f"'{key}' points into a protected location ({rel})")
-    if _inside(resolved, _ETC_BASE) and key in WRITE_KEYS:
+    if _inside(resolved, _resolve_etc()) and key in WRITE_KEYS:
         raise GuardError(f"'{key}' may not write into /etc")
     dirs = allowed_dirs()
     if dirs and not any(_inside(resolved, d) for d in dirs):

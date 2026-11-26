@@ -42,7 +42,7 @@ def test_etc_base_is_used_resolved(monkeypatch, tmp_path):
     work = tmp_path / "work"
     work.mkdir()
     (work / "link").symlink_to(etc)
-    monkeypatch.setattr(guard, "_ETC_BASE", etc)
+    monkeypatch.setattr(guard, "_ETC_ROOT", str(etc))
     # a valid output suffix, so the ONLY possible refusal here is the /etc rule
     refused("dex_convert", {"output_path": str(work / "link" / "x.dex")})
     # the /etc rule only constrains writes
@@ -53,6 +53,21 @@ def test_the_etc_base_is_the_resolved_constant():
     # on Linux this is trivially /etc; on macOS resolve() maps it to
     # /private/etc, which is exactly the case the constant fixes (F8).
     assert guard._ETC_BASE == Path("/etc").resolve()
+
+
+def test_etc_base_resolution_exercised_through_a_symlink(monkeypatch, tmp_path):
+    """M15 (base left unresolved) now fails on Linux: the test injects an
+    unresolved symlink root via _ETC_ROOT, so only _resolve_etc's own
+    resolution refuses."""
+    real = tmp_path / "real-etc"
+    real.mkdir()
+    (real / "x.dex").write_bytes(b"x")
+    link = tmp_path / "etc-link"
+    link.symlink_to(real)
+    monkeypatch.setattr(guard, "_ETC_ROOT", str(link))
+    refused("dex_convert", {"output_path": str(real / "x.dex")})
+    # reads are not the /etc rule's business
+    guard.validate("apk_identify", {"apk_path": str(real / "app.apk")})
 
 
 def test_unresolvable_home_fails_closed(monkeypatch):
