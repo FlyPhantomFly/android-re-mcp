@@ -111,6 +111,17 @@ def test_zip_and_rules_dir_host_paths_are_guarded(tmp_path, monkeypatch):
                            "rules_dir": str(tmp_path / "rules")})
 
 
+def test_etc_reads_are_allowed_for_the_new_keys():
+    """The /etc rule constrains writes only; both new keys are reads."""
+    guard.validate("zip_test", {"zip_path": "/etc/hosts"})
+    guard.validate("quark_scan", {"apk_path": "/etc/hosts", "rules_dir": "/etc"})
+
+
+def test_zip_path_has_no_output_suffix_rule():
+    """No OUTPUT_SUFFIXES entry for zip_test: any suffix is a valid read."""
+    guard.validate("zip_test", {"zip_path": "/tmp/anything.txt"})
+
+
 def test_zip_update_nested_from_file_is_guarded(isolated_env, tmp_path, monkeypatch):
     """zip_update's ops[].from_file is a host read and must use check_path."""
     (isolated_env / ".ssh").mkdir()
