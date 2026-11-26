@@ -44,7 +44,7 @@ is no separate copy in this skill directory.
 | Row shape | Fail | A table row has the same cell count as its header |
 | Joined phrase | Review | “optional” is not separated from the preceding clause by punctuation |
 | Verbatim claim | Review | A row claiming "verbatim" also mentions era/ambiguity |
-| Changelog freshness | Fail | Under `[Unreleased]`, every property added since the last tag is named |
+| Changelog freshness | Fail | Every property added since the last tag is named in `[Unreleased]`, or in the newest release section while that release is still pending (its version is greater than the latest tag) |
 | Description drift | Review | A schema description names a `--flag` the handler never builds |
 
 The script cannot tell whether the code or the docs are wrong. For each

@@ -183,13 +183,15 @@ def ratchet_unexpected(failures: list[dict], allowed: set[str]) -> list[dict]:
     return [item for item in failures if failure_key(item) not in allowed]
 
 
-def changelog_blocks(changelog: Path) -> list[str]:
-    """The `[Unreleased]` block plus the newest versioned block, in order.
+def changelog_blocks(changelog: Path, latest_tag: str | None = None) -> list[str]:
+    """The blocks that can document properties added since ``latest_tag``.
 
-    Once a release is cut, the entries for properties added since the last
-    tag move out of `[Unreleased]` into the versioned section — the
-    changelog-freshness check must scan both, or a freshly bumped tree
-    fails 19 checks that were green one commit earlier.
+    `[Unreleased]` is always scanned. The newest versioned block is scanned
+    only while that release is still pending — its version is greater than
+    ``latest_tag`` (or no release tag resolves at all). Once the heading
+    version equals the published tag, its entries describe the already
+    released state and scanning it would mask a brand-new property whose
+    name the released text happens to mention.
     """
     text = changelog.read_text(encoding="utf-8")
     blocks: list[str] = []
@@ -201,12 +203,22 @@ def changelog_blocks(changelog: Path) -> list[str]:
     if unreleased:
         blocks.append(unreleased.group(1))
     versioned = re.search(
-        r"^## \[\d+\.\d+\.\d+\][^\n]*\n(.*?)(?=^## \[|\Z)",
+        r"^## \[(\d+\.\d+\.\d+)\][^\n]*\n(.*?)(?=^## \[|\Z)",
         text,
         re.MULTILINE | re.DOTALL,
     )
     if versioned:
-        blocks.append(versioned.group(1))
+        heading = versioned.group(1)
+        pending = True
+        if latest_tag:
+            try:
+                pending = tuple(map(int, heading.split("."))) > tuple(
+                    map(int, latest_tag.lstrip("v").split("."))
+                )
+            except ValueError:
+                pending = True
+        if pending:
+            blocks.append(versioned.group(2))
     return blocks
 
 
@@ -326,7 +338,10 @@ def main(argv: list[str] | None = None) -> int:
                     }
                 )
 
-    blocks = changelog_blocks(repo / "CHANGELOG.md")
+    blocks = changelog_blocks(
+        repo / "CHANGELOG.md",
+        tag_or_error if tag_or_error and not tag_or_error.startswith("cannot compare") else None,
+    )
     if added:
         if not blocks:
             failures.append({"message": "no [Unreleased] changelog block for schema changes"})

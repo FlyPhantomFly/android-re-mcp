@@ -109,33 +109,57 @@ def test_no_release_tag_is_reported_cleanly(tmp_path, monkeypatch):
 
 
 def test_freshness_check_scans_the_newest_release_block(tmp_path):
-    """After a version bump the added-property entries live under
-    `[1.9.0]`, not `[Unreleased]` — the check must scan both (the dry run
-    for the 1.9.0 release failed 19 checks one commit after the bump)."""
+    """(a) pending release: entries live in the new versioned block."""
     checker = _checker()
     changelog = tmp_path / "CHANGELOG.md"
-
-    def write(unreleased_empty: bool) -> None:
-        body = "" if unreleased_empty else "### Changed\n- pending entry mentions `newarg`.\n"
-        changelog.write_text(
-            "## [Unreleased]\n"
-            f"\n{body}"
-            "## [1.1.0] - 2026-11-25\n"
-            "\n"
-            "### Changed\n"
-            "- `demo` gains `newarg` (the entries moved out of Unreleased).\n",
-            encoding="utf-8",
-        )
-
-    write(unreleased_empty=True)
-    blocks = checker.changelog_blocks(changelog)
-    # even with an empty Unreleased, the newest release block must be scanned
+    changelog.write_text(
+        "## [Unreleased]\n"
+        "\n"
+        "## [1.1.0] - 2026-11-25\n"
+        "\n"
+        "### Changed\n"
+        "- `demo` gains `newarg` (the release commit moved the entries here).\n",
+        encoding="utf-8",
+    )
+    blocks = checker.changelog_blocks(changelog, "v1.0.0")
+    assert len(blocks) == 2
     assert "newarg" in "\n".join(blocks), blocks
 
-    write(unreleased_empty=False)
-    blocks = checker.changelog_blocks(changelog)
-    assert len(blocks) == 2
-    assert all("newarg" in block for block in blocks), blocks
+
+def test_freshness_check_stops_scanning_once_tag_equals_heading(tmp_path):
+    """(b) tag == newest heading: only [Unreleased] is scanned — the released
+    block's mention of a name must not mask a brand-new property."""
+    checker = _checker()
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(
+        "## [Unreleased]\n"
+        "\n"
+        "## [1.1.0] - 2026-11-25\n"
+        "\n"
+        "### Changed\n"
+        "- `demo` gains `newarg` (this release is already tagged).\n",
+        encoding="utf-8",
+    )
+    blocks = checker.changelog_blocks(changelog, "v1.1.0")
+    assert len(blocks) == 1
+    assert "newarg" not in "\n".join(blocks), blocks
+
+
+def test_freshness_check_scans_unreleased_names(tmp_path):
+    """(c) a property named in [Unreleased] is found regardless of the tag."""
+    checker = _checker()
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(
+        "## [Unreleased]\n"
+        "\n"
+        "### Changed\n"
+        "- `demo` gains `newarg` (pending, named in Unreleased).\n"
+        "\n"
+        "## [1.1.0] - 2026-11-25\n",
+        encoding="utf-8",
+    )
+    blocks = checker.changelog_blocks(changelog, "v1.1.0")
+    assert any("newarg" in block for block in blocks), blocks
 
 
 def test_tag_failure_is_a_hard_error_on_ci(tmp_path, monkeypatch):
