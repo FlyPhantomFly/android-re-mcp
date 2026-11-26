@@ -269,6 +269,7 @@ def test_max_range_mb_coercion_matrix(handler, monkeypatch):
         True: 1,
         10**9: dynamic_mod._MAX_RANGE_MB,
         float("inf"): 32,
+        float("nan"): 32,  # int(nan) raises ValueError, not OverflowError
     }
     for value, expected in cases.items():
         result = handler.frida_memdump({"max_range_mb": value})
