@@ -48,7 +48,7 @@ def _decorator_name(node: ast.AST) -> str:
 
 
 def _skip_aliases(tree: ast.AST) -> dict[str, str]:
-    """Resolve module-level marker aliases such as ROUNDTRIP/DEX_OUTLINE."""
+    """Resolve module-level marker aliases: skipif chains and jar_gated()."""
     aliases: dict[str, str] = {}
     for node in tree.body:
         if isinstance(node, ast.Assign):
@@ -61,7 +61,12 @@ def _skip_aliases(tree: ast.AST) -> dict[str, str]:
         if value is None:
             continue
         names = [_decorator_name(n) for n in ast.walk(value)]
-        if not any(name in {"skipif", "skip"} for name in names):
+        gated_call = (
+            isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Name)
+            and value.func.id == "jar_gated"
+        )
+        if not any(name in {"skipif", "skip"} for name in names) and not gated_call:
             continue
         source = ast.unparse(value)
         for target in targets:
@@ -106,6 +111,8 @@ def inventory(repo: Path) -> dict:
                 )
     def is_jar(item: dict) -> bool:
         text = " ".join(item.get("sources", []))
+        if "jar_gated(" in text:
+            return True
         return any(
             token in text or token in item["test"]
             for token in ("dexfile-cli.jar", "ROUNDTRIP", "DEX_OUTLINE")

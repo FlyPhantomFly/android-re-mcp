@@ -6,6 +6,8 @@ unit-testable without a jar, a device, or a pytester subprocess.
 
 from __future__ import annotations
 
+import pytest
+
 NEEDLE = "dexfile-cli.jar"
 
 
@@ -32,18 +34,30 @@ def _marker_condition(mark) -> bool:
 
 
 def gated_skips(items) -> list[str]:
-    """Nodeids whose skipif condition holds AND whose reason names the jar.
+    """Nodeids carrying the ``jar_gated`` marker whose skipif condition holds.
 
-    Checking the condition matters: the skipif booleans are evaluated at
-    module import, so with the jar installed the reason text is still there
-    but the test would run — it must not be counted as a would-skip.
+    Selection is by marker identity, not by reason text — a reworded skip
+    reason cannot remove a test from the gate.
     """
     out: list[str] = []
     for item in items:
+        if not any(item.iter_markers(name="jar_gated")):
+            continue
         for mark in item.iter_markers(name="skipif"):
-            if not _marker_condition(mark):
-                continue
-            if any(NEEDLE in reason for reason in _skipif_reasons(mark)):
+            if _marker_condition(mark):
                 out.append(item.nodeid)
                 break
     return out
+
+
+def jar_gated(available, reason):
+    """Decorator factory: mark a test as jar-gated and skip it when absent.
+
+    The ``jar_gated`` marker is the identity — the skip reason is free text
+    that CI enforcement never reads.
+    """
+    def decorate(fn):
+        fn = pytest.mark.skipif(not available, reason=reason)(fn)
+        fn = pytest.mark.jar_gated(fn)
+        return fn
+    return decorate

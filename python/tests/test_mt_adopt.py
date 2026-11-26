@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from jar_gate import jar_gated
 from android_re_mcp.handlers import apkops as apkops_mod
 from android_re_mcp.handlers.apkops import ApkOpsHandler
 from android_re_mcp.handlers.dex import DexHandler
@@ -38,7 +39,7 @@ requires_androguard = pytest.mark.skipif(
 FIXTURE_APK = str(Path(__file__).parent / "fixtures" / "notesdemo.apk")
 
 JAR_OK = (apkops_mod.tools_dir() / "dexfile-cli.jar").is_file()
-ROUNDTRIP = pytest.mark.skipif(not JAR_OK, reason="dexfile-cli.jar not available")
+ROUNDTRIP = jar_gated(JAR_OK, "dexfile-cli.jar not available")
 
 
 # ── apk_read_signature ────────────────────────────────────────────────────
@@ -411,7 +412,7 @@ def test_resource_xref_finds_hex_uses(tmp_path):
 
 REAL_TOOLS = os.environ.get("ANDROID_RE_MCP_TOOLS_DIR") or str(Path.home() / "tools")
 JAR_OK = (Path(REAL_TOOLS) / "dexfile-cli.jar").is_file()
-DEX_OUTLINE = pytest.mark.skipif(not JAR_OK, reason="dexfile-cli.jar not available")
+DEX_OUTLINE = jar_gated(JAR_OK, "dexfile-cli.jar not available")
 
 
 @DEX_OUTLINE

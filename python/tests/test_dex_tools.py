@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from jar_gate import jar_gated
 from android_re_mcp.handlers import dex as dex_mod
 from android_re_mcp.handlers.dex import DexHandler
 
@@ -33,7 +34,7 @@ FIXTURE_SMALI = """.class public Lcom/poc/Loader;
 
 JAR_AVAILABLE = (Path(REAL_TOOLS_DIR) / dex_mod._JAR_NAME).is_file() and dex_mod.shutil.which("java") is not None
 
-ROUNDTRIP = pytest.mark.skipif(not JAR_AVAILABLE, reason="dexfile-cli.jar / java not available")
+ROUNDTRIP = jar_gated(JAR_AVAILABLE, "dexfile-cli.jar / java not available")
 
 
 @pytest.fixture

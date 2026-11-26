@@ -49,6 +49,9 @@ include = ["src", "tests", "README.md", "LICENSE", "NOTICE.md", "pyproject.toml"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+  "jar_gated: the test requires the pinned dexfile-cli.jar (used by CI jar-gated enforcement)",
+]
 
 [tool.ruff]
 line-length = 120

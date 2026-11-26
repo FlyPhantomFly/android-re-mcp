@@ -24,10 +24,12 @@ def _checker():
     return module
 
 
-def _item(nodeid: str, reason: str | None):
+def _item(nodeid: str, reason: str | None, jar_gated: bool = True):
     marks = []
     if reason is not None:
         marks.append(SimpleNamespace(name="skipif", args=(True,), kwargs={"reason": reason}))
+    if jar_gated:
+        marks.append(SimpleNamespace(name="jar_gated", args=(), kwargs={}))
     return SimpleNamespace(nodeid=nodeid, iter_markers=lambda name=None: iter(
         mark for mark in marks if name in (None, mark.name)))
 
@@ -56,7 +58,8 @@ def test_gated_skips_matches_the_dexfile_reason():
     items = [
         _item("tests/test_dex_tools.py::test_dex_validate_clean_dex",
               "dexfile-cli.jar / java not available"),
-        _item("tests/test_quark_scan.py::test_x", "quark-engine not installed"),
+        # a non-jar skip carries no jar_gated marker even with a truthy condition
+        _item("tests/test_quark_scan.py::test_x", "quark-engine not installed", jar_gated=False),
     ]
     assert gated_skips(items) == ["tests/test_dex_tools.py::test_dex_validate_clean_dex"]
 
@@ -65,10 +68,10 @@ def test_gated_skips_ignores_reworded_and_empty_reasons():
     from jar_gate import gated_skips
 
     items = [
-        _item("a::b", "vendored jar missing"),  # reworded: no dexfile-cli.jar needle
+        _item("a::b", "vendored jar missing"),  # reworded reason, marker present: still gated
         _item("c::d", None),
     ]
-    assert gated_skips(items) == []
+    assert gated_skips(items) == ["a::b"]
 
 
 def test_gated_skips_accepts_kwargs_and_positional_reasons():
@@ -78,6 +81,7 @@ def test_gated_skips_accepts_kwargs_and_positional_reasons():
         nodeid="tests/x.py::test_pos",
         iter_markers=lambda name=None: iter([
             SimpleNamespace(name="skipif", args=(True, "dexfile-cli.jar / java missing"), kwargs={}),
+            SimpleNamespace(name="jar_gated", args=(), kwargs={}),
         ]),
     )
     assert gated_skips([positional]) == ["tests/x.py::test_pos"]
@@ -166,3 +170,56 @@ def test_require_run_with_the_shipped_list_rejects_an_all_skipped_report(tmp_pat
 def test_main_returns_2_for_an_unreadable_report(tmp_path):
     checker = _checker()
     assert checker.main([str(tmp_path / "missing.xml")]) == 2
+
+
+def test_jar_gated_required_list_matches_the_marked_tests():
+    """The hand-maintained CI list must name exactly the tests carrying the
+    jar_gated marker (AST scan of the two defining modules). Adding a gated
+    test without listing it, or deleting one, fails here."""
+    needles = jar_gate_load_required()
+    marked = _marked_tests()
+    assert marked == needles, {
+        "listed_but_not_marked": sorted(needles - marked),
+        "marked_but_not_listed": sorted(marked - needles),
+    }
+
+
+def jar_gate_load_required():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    needles = set()
+    for line in (root / "scripts" / "jar_gated_required.txt").read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            needles.add(line)
+    return needles
+
+
+def _marked_tests():
+    import ast
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    tests = root / "python" / "tests"
+    marked = set()
+    for path in sorted(tests.glob("test_*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        # module-level aliases: X = jar_gated(...)
+        aliases = set()
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+                func = node.value.func
+                if isinstance(func, ast.Name) and func.id == "jar_gated":
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            aliases.add(target.id)
+        for fn in (n for n in tree.body if isinstance(n, ast.FunctionDef)):
+            for decorator in fn.decorator_list:
+                name = decorator.id if isinstance(decorator, ast.Name) else (
+                    decorator.attr if isinstance(decorator, ast.Attribute) else None
+                )
+                if name in aliases:
+                    marked.add(f"{path.stem}::{fn.name}")
+                    break
+    return marked
