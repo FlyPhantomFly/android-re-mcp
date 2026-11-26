@@ -234,6 +234,51 @@ def test_memdump_requires_session():
     assert "frida_attach" in result["error"]
 
 
+def test_max_range_mb_coercion_matrix(handler, monkeypatch):
+    """Every coercible input lands in 1.._MAX_RANGE_MB; invalid falls back to 32.
+
+    The reviewer's probe (scratch test_frida_review.py) plus the F4 residual:
+    float('inf') raises OverflowError out of int(), not ValueError, so the
+    except clause must name it — otherwise the raw error escapes the handler.
+    """
+    session = handler._frida_session
+
+    def create(src):
+        script = _FakeScript(src)
+        session.created.append(script)
+        original_load = script.load
+
+        def load_with_reply():
+            original_load()
+            for event, callback in script.handlers:
+                if event == "message":
+                    callback({"type": "send", "payload": {
+                        "type": "done", "total_ranges": 1, "skipped_large": 0}}, None)
+
+        script.load = load_with_reply  # type: ignore[method-assign]
+        return script
+
+    monkeypatch.setattr(session, "create_script", create)
+    handler._attached_package = "com.example.app"
+
+    cases = {
+        0: 1,
+        -5: 1,
+        "8": 8,
+        "abc": 32,
+        True: 1,
+        10**9: dynamic_mod._MAX_RANGE_MB,
+        float("inf"): 32,
+    }
+    for value, expected in cases.items():
+        result = handler.frida_memdump({"max_range_mb": value})
+        assert result["status"] == "ok", (value, result)
+        assert result["output"]["max_range_mb"] == expected, value
+        marker = "var MAX_RANGE = "
+        embedded = int(session.created[-1].src.split(marker)[1].split(";")[0])
+        assert embedded == expected * 1024 * 1024, value
+
+
 # ── frida_spawn_hluda: the schema's `config` reaches _load_script ─────────
 
 def test_spawn_hluda_forwards_config(monkeypatch, handler):

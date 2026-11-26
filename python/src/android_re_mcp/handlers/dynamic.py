@@ -649,7 +649,8 @@ class DynamicHandler:
 
         try:
             max_range_mb = min(max(1, int(args.get("max_range_mb", 32))), _MAX_RANGE_MB)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
+            # OverflowError: int(float('inf')) raises it, not ValueError
             max_range_mb = 32
         max_range_bytes = max_range_mb * 1024 * 1024
 
