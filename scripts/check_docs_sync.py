@@ -183,14 +183,31 @@ def ratchet_unexpected(failures: list[dict], allowed: set[str]) -> list[dict]:
     return [item for item in failures if failure_key(item) not in allowed]
 
 
-def changelog_block(changelog: Path) -> str | None:
+def changelog_blocks(changelog: Path) -> list[str]:
+    """The `[Unreleased]` block plus the newest versioned block, in order.
+
+    Once a release is cut, the entries for properties added since the last
+    tag move out of `[Unreleased]` into the versioned section — the
+    changelog-freshness check must scan both, or a freshly bumped tree
+    fails 19 checks that were green one commit earlier.
+    """
     text = changelog.read_text(encoding="utf-8")
-    match = re.search(
+    blocks: list[str] = []
+    unreleased = re.search(
         r"^## \[Unreleased\][^\n]*\n(.*?)(?=^## \[|\Z)",
         text,
         re.MULTILINE | re.DOTALL,
     )
-    return match.group(1) if match else None
+    if unreleased:
+        blocks.append(unreleased.group(1))
+    versioned = re.search(
+        r"^## \[\d+\.\d+\.\d+\][^\n]*\n(.*?)(?=^## \[|\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    if versioned:
+        blocks.append(versioned.group(1))
+    return blocks
 
 
 def added_properties(repo: Path, current: list[dict], load_schemas_source) -> tuple[dict[str, list[str]], str | None]:
@@ -309,18 +326,19 @@ def main(argv: list[str] | None = None) -> int:
                     }
                 )
 
-    block = changelog_block(repo / "CHANGELOG.md")
+    blocks = changelog_blocks(repo / "CHANGELOG.md")
     if added:
-        if block is None:
+        if not blocks:
             failures.append({"message": "no [Unreleased] changelog block for schema changes"})
         else:
+            covered = "\n".join(blocks)
             for tool, props in sorted(added.items()):
                 for prop in props:
-                    if not re.search(rf"(?<![a-z0-9_]){re.escape(prop)}(?![a-z0-9_])", block):
+                    if not re.search(rf"(?<![a-z0-9_]){re.escape(prop)}(?![a-z0-9_])", covered):
                         failures.append(
                             {
                                 "tool": tool,
-                                "message": f"[Unreleased] changelog does not name `{prop}`",
+                                "message": f"changelog (Unreleased/newest release) does not name `{prop}`",
                             }
                         )
 

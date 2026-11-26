@@ -108,6 +108,36 @@ def test_no_release_tag_is_reported_cleanly(tmp_path, monkeypatch):
     assert tag_or_error is not None and "cannot compare" in tag_or_error
 
 
+def test_freshness_check_scans_the_newest_release_block(tmp_path):
+    """After a version bump the added-property entries live under
+    `[1.9.0]`, not `[Unreleased]` — the check must scan both (the dry run
+    for the 1.9.0 release failed 19 checks one commit after the bump)."""
+    checker = _checker()
+    changelog = tmp_path / "CHANGELOG.md"
+
+    def write(unreleased_empty: bool) -> None:
+        body = "" if unreleased_empty else "### Changed\n- pending entry mentions `newarg`.\n"
+        changelog.write_text(
+            "## [Unreleased]\n"
+            f"\n{body}"
+            "## [1.1.0] - 2026-11-25\n"
+            "\n"
+            "### Changed\n"
+            "- `demo` gains `newarg` (the entries moved out of Unreleased).\n",
+            encoding="utf-8",
+        )
+
+    write(unreleased_empty=True)
+    blocks = checker.changelog_blocks(changelog)
+    # even with an empty Unreleased, the newest release block must be scanned
+    assert "newarg" in "\n".join(blocks), blocks
+
+    write(unreleased_empty=False)
+    blocks = checker.changelog_blocks(changelog)
+    assert len(blocks) == 2
+    assert all("newarg" in block for block in blocks), blocks
+
+
 def test_tag_failure_is_a_hard_error_on_ci(tmp_path, monkeypatch):
     """F2 residual: a tag-less CI checkout must not skip the check silently."""
     checker = _checker()
