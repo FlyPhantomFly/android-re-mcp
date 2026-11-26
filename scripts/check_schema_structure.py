@@ -250,12 +250,16 @@ def _walk_schema(
                 )
 
     # K3: `properties` only makes sense on an object node. A node without an
-    # explicit type but with `properties` is an implicit object (allowed).
-    if "properties" in node and declared not in (None, "object"):
-        structural.append(
-            {"tool": tool,
-             "message": f"{path}: properties on non-object type: {declared!r}"}
-        )
+    # explicit type but with `properties` is an implicit object (allowed), a
+    # declared `"object"` or a list containing `"object"` is an object, and
+    # anything else (string, array, …) with `properties` is malformed.
+    if "properties" in node and declared is not None:
+        declared_types = declared if isinstance(declared, list) else [declared]
+        if "object" not in declared_types:
+            structural.append(
+                {"tool": tool,
+                 "message": f"{path}: properties on non-object type: {declared!r}"}
+            )
 
     if node.get("type") == "array" and "items" not in node:
         structural.append({"tool": tool, "message": f"{path}: array without items"})

@@ -108,6 +108,20 @@ TOOL_SCHEMAS = [
     assert not any("nulled" in message for message in messages), messages
 
 
+def test_checker_allows_list_form_object_with_properties(tmp_path):
+    """R3-6: ['object', 'null'] with properties is valid JSON Schema."""
+    schemas = """
+TOOL_SCHEMAS = [
+    {"name": "demo", "inputSchema": {"type": "object", "properties": {
+        "either": {"type": ["object", "null"], "properties": {"x": {"type": "string"}}},
+    }}},
+]
+"""
+    root = _synthetic_checkout(tmp_path, schemas, "class H:\n    def demo(self, args):\n        return {}\n")
+    report = _checker().audit(root)
+    assert not report["structural"], report["structural"]
+
+
 def test_checker_resolves_keys_read_through_helpers(tmp_path):
     """so_xrefs-style drift must vanish when the handler passes args to a helper."""
     schemas = """
