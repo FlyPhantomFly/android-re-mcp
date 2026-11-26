@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Behavior changes
+
+With `ANDROID_RE_MCP_ALLOWED_DIRS` set, three arguments that v1.8.0 accepted
+without directory checks are now refused by the guard: `zip_path`
+(zip_test/zip_extract/zip_update) and `rules_dir` (quark_scan) were not in
+`PATH_KEYS` at all, and `zip_update`'s `ops[].from_file` was only
+existence-checked — at v1.8.0 it would read any host file the process could
+see (e.g. `~/.ssh/id_rsa`) into the new zip entry. `dex_paths` is **not** a
+behavior change: the handler already refused outside elements at v1.8.0; the
+check merely moved to the server side. Separately, `frida_memdump`'s
+`max_range_mb` is now schema-bounded to 1–1024 and clamped in the handler
+(v1.8.0 accepted any integer ≥ 1 — `10**9` embedded a ~1 TB cap into the dump
+script), and non-integer/non-finite (inf/nan) values fall back to 32.
+
 ### Changed (Python)
 - Review-pass behavior fixes (11b346a): `check_tools`' `dexfile-cli` entry now lists all nine jar-dependent tools in `used_by` and carries its own install hints (Java 17+, not the uber-apk-signer default of 11+); `dex_convert`'s `target_version` schema default was removed so the smart default (vdex/cdex → 037) is not bypassed; `dex_merge` gained an output-suffix guard; `dex_patch` checks the jar before writing a `.bak` (a missing-tool call no longer leaves one); the capstone machine check precedes the import, so an unsupported `e_machine` is reported as such even when the optional extra is absent.
 - `dex_convert` no longer reads an undocumented `dex_path` fallback: the schema has advertised `in_path` (required) since the first DEX integration, no test, doc or caller used the alias, and it came from the original `a0ba8ca` cut. A call sending only `dex_path` now gets the honest CLI refusal for an empty input path instead of being silently accepted. Regression: `test_dex_convert_undocumented_dex_path_alias_is_gone` (mutation-checked: re-adding the fallback fails exactly that test).
