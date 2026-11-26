@@ -1,7 +1,7 @@
 """Behavioral matrix for the guard's nested/list/path keys (host-path escape tests).
 
 Covers the regression class the discovery-style tests in
-test_nested_path_guard.py cannot see: per-op nested checks, NUL bytes,
+test_guard_nested_schema_discovery.py cannot see: per-op nested checks, NUL bytes,
 dash prefixes, protected-home targets, malformed elements and large
 dex_paths lists. Mutation history: M6 (only first op checked) and M11
 (NUL check removed) survived every other suite — these tests kill both.
