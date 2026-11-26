@@ -54,6 +54,7 @@ ALLOWED_TOP = {
 }
 
 _COMBINATORS = ("oneOf", "anyOf", "allOf")
+JSON_TYPES = {"object", "array", "string", "number", "integer", "boolean", "null"}
 
 
 def find_repo(start: Path) -> Path:
@@ -236,6 +237,24 @@ def _walk_schema(
     if path and not has_shape and "properties" not in node:
         structural.append(
             {"tool": tool, "message": f"{path}: no type, enum, $ref or combinator"}
+        )
+
+    # K8: a declared type must be a real JSON-schema type (string or list form).
+    declared = node.get("type")
+    if declared is not None:
+        types = declared if isinstance(declared, list) else [declared]
+        for value in types:
+            if not isinstance(value, str) or value not in JSON_TYPES:
+                structural.append(
+                    {"tool": tool, "message": f"{path}: invalid schema type: {value!r}"}
+                )
+
+    # K3: `properties` only makes sense on an object node. A node without an
+    # explicit type but with `properties` is an implicit object (allowed).
+    if "properties" in node and declared not in (None, "object"):
+        structural.append(
+            {"tool": tool,
+             "message": f"{path}: properties on non-object type: {declared!r}"}
         )
 
     if node.get("type") == "array" and "items" not in node:

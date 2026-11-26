@@ -88,6 +88,26 @@ class H:
     ]
 
 
+def test_checker_rejects_bogus_types_and_properties_on_non_objects(tmp_path):
+    """K8 (type 'strnig') and K3 (properties under a string property)."""
+    schemas = """
+TOOL_SCHEMAS = [
+    {"name": "demo", "inputSchema": {"type": "object", "properties": {
+        "bad": {"type": "strnig"},
+        "nulled": {"type": ["string", "null"]},
+        "nested": {"type": "string", "properties": {"x": {"type": "string"}}},
+    }}},
+]
+"""
+    root = _synthetic_checkout(tmp_path, schemas, "class H:\n    def demo(self, args):\n        return {}\n")
+    report = _checker().audit(root)
+    messages = [item["message"] for item in report["structural"]]
+    assert any("invalid schema type: 'strnig'" in message for message in messages), messages
+    assert any("properties on non-object type: 'string'" in message for message in messages), messages
+    # list-form types are valid: the ['string', 'null'] property is not flagged
+    assert not any("nulled" in message for message in messages), messages
+
+
 def test_checker_resolves_keys_read_through_helpers(tmp_path):
     """so_xrefs-style drift must vanish when the handler passes args to a helper."""
     schemas = """
