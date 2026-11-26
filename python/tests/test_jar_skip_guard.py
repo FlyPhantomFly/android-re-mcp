@@ -202,6 +202,24 @@ def test_require_run_still_matches_the_shipped_list(tmp_path):
                          str(xml)]) == 0
 
 
+def test_every_android_re_mcp_env_var_in_src_is_documented():
+    """R3-7: every ANDROID_RE_MCP_* name read in python/src appears in README.md.
+
+    Variables set only by the tests (e.g. ANDROID_RE_MCP_REQUIRE_JAR in
+    conftest.py) are not in src, so they need no entry.
+    """
+    import re as re_module
+    from pathlib import Path as P
+
+    src = P(__file__).resolve().parents[1] / "src"
+    names = set()
+    for path in src.rglob("*.py"):
+        names.update(re_module.findall(r"ANDROID_RE_MCP_[A-Z_]+", path.read_text(encoding="utf-8")))
+    readme = (P(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+    missing = sorted(name for name in names if name not in readme)
+    assert not missing, f"env vars used in python/src but absent from README.md: {missing}"
+
+
 def test_main_returns_2_for_an_unreadable_report(tmp_path):
     checker = _checker()
     assert checker.main([str(tmp_path / "missing.xml")]) == 2

@@ -63,6 +63,7 @@ The Frida script library behind `frida_list_scripts` is empty until you add scri
 This server can run commands on your phone and your computer, so treat its tools with care.
 - Use stdio. `--transport sse` listens on 127.0.0.1 only, and any other `--host` needs `ANDROID_RE_MCP_TOKEN`, which clients send as a bearer token.
 - Set `ANDROID_RE_MCP_ALLOWED_DIRS` (folders separated by `:`) to keep file arguments inside your workspace. Paths under `~/.ssh`, `~/.config/gh`, shell rc files and similar are always refused.
+- Size caps for the zip/apk tools: `ANDROID_RE_MCP_MAX_FILE_MB` (default 2048) refuses to open a heavier APK, `ANDROID_RE_MCP_MAX_ENTRY_MB` (default 256) refuses to read a heavier zip entry; `0` disables either cap.
 - Switch tools off with `ANDROID_RE_MCP_DISABLE_TOOLS=adb_shell,adb_push,adb_pull`, and set the risky ones to ask first in your client.
 - `install_tool` is off unless you set `ANDROID_RE_MCP_ALLOW_INSTALL=1`. `--setup` always works because you run it yourself.
 - mitmproxy listens on 127.0.0.1. Run `adb reverse tcp:8080 tcp:8080` and point the phone's proxy at 127.0.0.1:8080.
