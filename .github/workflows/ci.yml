@@ -13,6 +13,7 @@ jobs:
   python:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
         python-version: ["3.11", "3.13"]
@@ -51,6 +52,7 @@ jobs:
   jar-gated:
     name: Jar-gated tests (dexfile-cli)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -86,7 +88,10 @@ jobs:
           target = tools / "dexfile-cli.jar"
           part = target.with_name(target.name + ".part")
           try:
-              urllib.request.urlretrieve(url, part)
+              request = urllib.request.urlopen(url, timeout=120)
+              with request as response, open(part, "wb") as fh:
+                  for chunk in iter(lambda: response.read(1024 * 1024), b""):
+                      fh.write(chunk)
               actual = hashlib.sha256(part.read_bytes()).hexdigest()
               if actual != expected_sha:
                   raise SystemExit(f"jar sha256 mismatch: {actual} != {expected_sha}")

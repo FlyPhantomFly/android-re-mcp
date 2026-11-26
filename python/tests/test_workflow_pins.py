@@ -22,3 +22,21 @@ def test_every_action_is_pinned_to_a_full_sha_with_a_comment():
             if not comment or not comment.strip("# ").strip():
                 problems.append(f"{path.name}:{lineno}: missing version comment")
     assert not problems, problems
+
+
+def test_ci_jobs_declare_a_timeout():
+    """F6: a hung step must not eat the default 6-hour job limit."""
+    text = (WORKFLOWS / "ci.yml").read_text()
+    runs_on = len(re.findall(r"^\s*runs-on:", text, re.MULTILINE))
+    timeouts = len(re.findall(r"^\s*timeout-minutes:\s*\d+\s*$", text, re.MULTILINE))
+    assert runs_on >= 1 and timeouts == runs_on, (runs_on, timeouts)
+
+
+def test_jar_download_uses_a_socket_timeout_with_sha_and_cleanup():
+    text = (WORKFLOWS / "ci.yml").read_text()
+    assert "urlretrieve(" not in text, "urlretrieve has no socket timeout"
+    assert re.search(r"urlopen\(\s*url,\s*timeout=\d+", text), "socket timeout required"
+    # the .part staging, SHA-256 verification and cleanup must survive refactors
+    assert "part.replace(target)" in text
+    assert "part.unlink(missing_ok=True)" in text
+    assert "sha256" in text
