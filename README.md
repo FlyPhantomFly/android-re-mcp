@@ -9,7 +9,7 @@ android-re-mcp is an MCP server for Android reverse engineering.
 
 You point it at a real device and a target app, then just ask: *what is this app, what's protecting it, and how do I get past that?* 
 
-The assistant picks from 89 tools: decompile, hook, trace traffic, dump memory, patch smali or dex, read the resource table, patch native code, sign and reinstall, and walks you through the answer.
+The assistant picks from 89 tools (88 on a default install; `install_tool` is off until you set `ANDROID_RE_MCP_ALLOW_INSTALL=1`): decompile, hook, trace traffic, dump memory, patch smali or dex, read the resource table, patch native code, sign and reinstall, and walks you through the answer.
 
 It's one package: PyPI: `android-re-mcp`
 
@@ -19,7 +19,7 @@ It's one package: PyPI: `android-re-mcp`
 
 ### What it does exactly
 
-`pip install "android-re-mcp[all]"` gives you an MCP server, started as `android-re-mcp`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **89 tools over one Android target at a time**:
+`pip install "android-re-mcp[all]"` gives you an MCP server, started as `android-re-mcp`, that speaks MCP over stdio (or SSE on 127.0.0.1 with a bearer token) and exposes **89 tools over one Android target at a time** (88 on a default install; `install_tool` is off until you set `ANDROID_RE_MCP_ALLOW_INSTALL=1`):
 
 - **Static work on the APK file itself** — apktool and jadx decompilation, ripgrep searches across the decompiled folder, androguard manifest parsing and bytecode cross-references, apkid packer/obfuscator identification, apkleaks secret scanning, quark-engine behaviour rules (`quark_scan`), and an orchestrator (`apk_analyze_full`) that runs all of those in one call and scores the protection tier.
 - **Dynamic work on a running app** — spawn or attach a process with Frida, inject JavaScript, stream script output back, hook SSL pinning, dump and search process memory, trace storage, crypto and network calls from a built-in script collection you can extend with your own scripts.

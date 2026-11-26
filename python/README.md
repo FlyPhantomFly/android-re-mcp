@@ -40,7 +40,7 @@ Ask in plain language and the assistant picks the tools. Some prompts and what t
 The server also carries short playbooks as MCP prompts, and it keeps per-app notes (`memory_read`, `memory_write`) so a later session can pick up where the last one stopped.
 
 ## What is in it
-The server exposes **89 tools**. The full table with every name is in the
+The server exposes **89 tools** (88 on a default install; `install_tool` is off until you set `ANDROID_RE_MCP_ALLOW_INSTALL=1`). The full table with every name is in the
 [repository README](https://github.com/FlyPhantomFly/android-re-mcp/blob/master/README.md#the-tool-set).
 The main groups:
 
