@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -210,7 +211,15 @@ def added_properties(repo: Path, current: list[dict], load_schemas_source) -> tu
             text=True,
         ).stdout
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
-        return {}, f"cannot compare with the last tag: {exc}"
+        message = f"cannot compare with the last tag: {exc}"
+        if os.environ.get("CI"):
+            # On CI a tag-less or shallow checkout must not silently skip the
+            # changelog-freshness check — that is a hole, not a pass.
+            raise SystemExit(
+                f"::error::docs-sync cannot determine the release tag on CI "
+                f"(a full clone with release tags is required). {message}"
+            ) from exc
+        return {}, message
 
     old = {schema["name"]: schema for schema in load_schemas_source(source)}
     added: dict[str, list[str]] = {}
