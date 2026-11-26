@@ -1,0 +1,244 @@
+{
+ "_readme": "Exempt (tool, property) pairs for strict README coverage. A property on a tool that is absent from this file must be named in that tool's README row. Seeded from the 1.9.0 tree so nothing regresses; add pairs deliberately with a reason.",
+ "exemptions": {
+  "apk_decompile": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "apk_decompile_java": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "apk_identify": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "apk_scan_secrets": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "apk_analyze_full": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "apk_diff": {
+   "old_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "new_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "android_google_services": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "quark_scan": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "manifest_parse": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "search_strings": {
+   "path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "pattern": "inline content or selector, covered by the tool's round-trip tests"
+  },
+  "frida_server_push": {
+   "remote_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "frida_memdump": {
+   "output_dir": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "native_strings": {
+   "so_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "native_exports": {
+   "so_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "native_disasm": {
+   "so_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "il2cpp_dump": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "output_dir": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "so_xrefs": {
+   "so_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "rop_gadgets": {
+   "so_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "elf_checksec": {
+   "so_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "native_crypto_constants": {
+   "so_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "native_map_address": {
+   "so_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "native_patch_string": {
+   "so_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "replacement_text": "inline content or selector, covered by the tool's round-trip tests",
+   "output_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "native_patch_instructions": {
+   "so_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "replacement_assembly": "inline content or selector, covered by the tool's round-trip tests",
+   "output_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "dex_info": {
+   "dex_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "classes": "paging or count knob, covered by the tool's result fields",
+   "limit": "paging or count knob, covered by the tool's result fields"
+  },
+  "dex_extract": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "dex_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "output_dir": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "dex_convert": {
+   "in_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "target_version": "covered by the tool's own tests rather than the prose row",
+   "output_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "dex_patch": {
+   "dex_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "ops": "inline content or selector, covered by the tool's round-trip tests",
+   "output_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "dex_assemble": {
+   "smali_text": "inline content or selector, covered by the tool's round-trip tests",
+   "path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "output_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "dex_split": {
+   "dex_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "output_dir": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "dex_swap": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "dex_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "entry_name": "entry/file selector, covered by the tool's tests",
+   "output_apk": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "dex_read_class_outline": {
+   "dex_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "dex_read_pseudocode": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "cache_dir": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "offset_lines": "paging or count knob, covered by the tool's result fields",
+   "max_lines": "paging or count knob, covered by the tool's result fields"
+  },
+  "dex_validate": {
+   "dex_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "max_issues": "paging or count knob, covered by the tool's result fields"
+  },
+  "dex_merge": {
+   "dex_paths": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "output_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "apk_read_signature": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "zip_test": {
+   "zip_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "zip_extract": {
+   "zip_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "output_dir": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "zip_update": {
+   "zip_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "ops": "inline content or selector, covered by the tool's round-trip tests",
+   "output_apk": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "apk_build_check": {
+   "smali_dir": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "resource_table_list": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "limit": "paging or count knob, covered by the tool's result fields"
+  },
+  "resource_read": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "resource_xref": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "smali_dir": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "flutter_version": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "so_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "dart_snapshot_info": {
+   "so_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "blutter_extract": {
+   "so_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "output_dir": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "smali_patch": {
+   "smali_dir": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "inject_gadget": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "gadget_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "output_apk": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "mitm_read_flows": {
+   "capture_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "mitm_export_har": {
+   "capture_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "output_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "analyze_code": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "find_crypto_usage": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "find_urls": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "rasp_identify": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "adb_install": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "adb_pull": {
+   "remote": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "local": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "adb_push": {
+   "local": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "remote": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "hermes_decode": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "bundle_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)",
+   "output_dir": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "scrcpy_screenshot": {
+   "output_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "apk_sign": {
+   "apk_path": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "apk_rebuild_sign": {
+   "smali_dir": "path argument, enforced by guard.py (ANDROID_RE_MCP_ALLOWED_DIRS)"
+  },
+  "memory_write": {
+   "content": "inline content or selector, covered by the tool's round-trip tests"
+  }
+ }
+}

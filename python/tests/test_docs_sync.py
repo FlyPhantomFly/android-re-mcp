@@ -1,7 +1,11 @@
 """Tests for the docs-sync release-tag selection."""
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
+import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -160,6 +164,90 @@ def test_freshness_check_scans_unreleased_names(tmp_path):
     )
     blocks = checker.changelog_blocks(changelog, "v1.1.0")
     assert any("newarg" in block for block in blocks), blocks
+
+
+def _strict_repo(tmp_path: Path, props: dict, row_text: str, exempt: dict) -> Path:
+    """A one-tool repo for strict-coverage tests: server.py, README, CHANGELOG,
+    git, and scripts/docs_sync_exempt.json holding `exempt` verbatim."""
+    repo = tmp_path / "repo"
+    server = repo / "python" / "src" / "android_re_mcp" / "server.py"
+    server.parent.mkdir(parents=True)
+    (repo / "python" / "pyproject.toml").write_text('[project]\nname = "android-re-mcp"\nversion = "1.0.0"\n')
+    props_literal = ", ".join(
+        '"' + name + '": ' + json.dumps(spec) for name, spec in props.items()
+    )
+    server_text = ('TOOL_SCHEMAS = [{"name": "demo", "inputSchema": {"type": "object", '
+                   '"properties": {' + props_literal + '}}}]' + chr(10))
+    server.write_text(server_text)
+    (repo / "README.md").write_text(
+        "| Tool | What it does | Needs |\n| --- | --- | --- |\n"
+        f"| `demo` | {row_text} | nothing |\n",
+        encoding="utf-8",
+    )
+    (repo / "CHANGELOG.md").write_text(
+        "## [Unreleased]\n\n## [1.0.0] - 2026-11-25\n", encoding="utf-8"
+    )
+    exempt_path = repo / "scripts" / "docs_sync_exempt.json"
+    exempt_path.parent.mkdir(parents=True)
+    exempt_path.write_text(json.dumps({"exemptions": exempt}, indent=1), encoding="utf-8")
+    shutil.copy(REPO_ROOT / "scripts" / "check_schema_structure.py",
+                 repo / "scripts" / "check_schema_structure.py")
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "review@example.invalid")
+    _git(repo, "config", "user.name", "Review")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "demo repo")
+    _git(repo, "tag", "v1.0.0")
+    return repo
+
+
+def test_new_content_property_fails_strict_mode(tmp_path):
+    """A new `content` property not in the exempt file must fail, even though
+    the old name-based EXEMPT list would have silenced it (R3-2)."""
+    checker = _checker()
+    repo = _strict_repo(
+        tmp_path,
+        props={"path": {"type": "string"}, "content": {"type": "string"}},
+        row_text="mentions `path` only",
+        # the decoy is the trap: a name-based exemption would silence
+        # demo's `content` because memory_write has a content property
+        exempt={"demo": {"path": "path argument, enforced by guard.py"},
+                "memory_write": {"content": "inline content, covered by round-trip tests"}},
+    )
+    code = checker.main(["--repo", str(repo), "--all-properties"])
+    assert code == 1
+    # the failure must name `content`, not just any prop
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        checker.main(["--repo", str(repo), "--all-properties"])
+    assert "README row does not mention `content`" in out.getvalue()
+
+
+def test_exempt_pair_passes_strict_mode(tmp_path):
+    checker = _checker()
+    repo = _strict_repo(
+        tmp_path,
+        props={"path": {"type": "string"}, "content": {"type": "string"}},
+        row_text="mentions `path` only",
+        exempt={"demo": {"path": "path argument, enforced by guard.py",
+                         "content": "inline content, covered by round-trip tests"}},
+    )
+    assert checker.main(["--repo", str(repo), "--all-properties"]) == 0
+
+
+def test_stale_exempt_pair_is_reported(tmp_path):
+    checker = _checker()
+    repo = _strict_repo(
+        tmp_path,
+        props={"path": {"type": "string"}},
+        row_text="mentions `path`",
+        exempt={"demo": {"path": "path argument", "ghost": "removed property"}},
+    )
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        code = checker.main(["--repo", str(repo), "--all-properties"])
+    assert code == 0  # reviews do not fail the run
+    assert "exempt pair names a property the schema no longer has: `ghost`" in out.getvalue()
 
 
 def test_tag_failure_is_a_hard_error_on_ci(tmp_path, monkeypatch):

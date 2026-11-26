@@ -31,54 +31,7 @@ from pathlib import Path
 
 # Paths, content, positional values, and non-flag switches are covered by
 # their tests rather than by name in the prose row.
-EXEMPT = {
-    "dex_path",
-    "in_path",
-    "apk_path",
-    "so_path",
-    "output_path",
-    "output_dir",
-    "output_apk",
-    "dex_paths",
-    "ops",
-    "smali_text",
-    "path",
-    "entry_name",
-    "target_version",
-    "allow_unloadable",
-    "classes",
-    "limit",
-    "max_issues",
-    "method",
-    "cache_dir",
-    "offset_lines",
-    "max_lines",
-    # remaining path-shaped arguments (host, device-side or content) that
-    # the round-trip tests cover instead of the prose row
-    "zip_path",
-    "remote",
-    "local",
-    "remote_path",
-    "capture_path",
-    "smali_dir",
-    "bundle_path",
-    "keystore_path",
-    "rules_dir",
-    "gadget_path",
-    # content/positional values covered by handler or round-trip tests
-    "old_path",
-    "new_path",
-    "pattern",
-    "script",
-    "search",
-    "search_string",
-    "search_hex",
-    "target",
-    "replacement_text",
-    "replacement_assembly",
-    "gadget_config",
-    "content",
-}
+_EXEMPT_FILE = "scripts/docs_sync_exempt.json"
 
 FLAG_RE = re.compile(r"--[a-zA-Z0-9][a-zA-Z0-9-]*")
 # flags printed by install/setup prose, not built by handlers
@@ -283,6 +236,33 @@ def main(argv: list[str] | None = None) -> int:
                              "row": item["row"]} for item in malformed]
     reviews: list[dict] = []
 
+    exempt_path = repo / _EXEMPT_FILE
+    try:
+        exempt_pairs = json.loads(exempt_path.read_text(encoding="utf-8")).get("exemptions", {})
+    except (OSError, ValueError) as exc:
+        failures.append({"message": f"cannot read exempt file {exempt_path}: {exc}"})
+        exempt_pairs = {}
+
+    # stale exempt pairs: the schema no longer has that tool or property
+    for tool, props in sorted(exempt_pairs.items()):
+        schema_props = next(
+            (s["inputSchema"].get("properties", {}) for s in schemas if s["name"] == tool),
+            None,
+        )
+        if schema_props is None:
+            reviews.append(
+                {"tool": tool, "message": "exempt file names a tool with no schema"}
+            )
+            continue
+        for prop in props:
+            if prop not in schema_props:
+                reviews.append(
+                    {
+                        "tool": tool,
+                        "message": f"exempt pair names a property the schema no longer has: `{prop}`",
+                    }
+                )
+
     added, tag_or_error = added_properties(repo, schemas, load_schemas_source)
 
     for schema in schemas:
@@ -297,8 +277,9 @@ def main(argv: list[str] | None = None) -> int:
             wanted = set(props)
         else:
             wanted = set(added.get(name, ())) | (ALWAYS_CHECK & set(props))
+        tool_exempt = exempt_pairs.get(name, {})
         for prop in wanted:
-            if prop in EXEMPT:
+            if prop in tool_exempt:
                 continue
             if not re.search(rf"(?<![a-z0-9_]){re.escape(prop)}(?![a-z0-9_])", row_text):
                 failures.append(
@@ -390,7 +371,8 @@ def main(argv: list[str] | None = None) -> int:
                 where = f"{item['tool']} (README:{item['line']})"
             print(f"FAIL {where}: {item['message']}")
         for item in reviews:
-            print(f"REVIEW {item['tool']}: README:{item['line']} {item['message']}")
+            line = f" (README:{item['line']})" if item.get("line") else ""
+            print(f"REVIEW {item['tool']}{line}: {item['message']}")
     if failures:
         return 1
     if args.strict_review and reviews:
