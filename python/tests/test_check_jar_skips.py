@@ -29,7 +29,7 @@ def test_jar_gated_skip_fires(tmp_path):
         '<skipped message="dexfile-cli.jar / java not available">'
         "dexfile-cli.jar / java not available</skipped></testcase>",
     )
-    assert _checker().main(["check_jar_skips.py", str(report)]) == 1
+    assert _checker().main([str(report)]) == 1
 
 
 def test_unrelated_skip_stays_silent(tmp_path):
@@ -39,7 +39,7 @@ def test_unrelated_skip_stays_silent(tmp_path):
         '<skipped message="quark-engine not installed">quark-engine not installed'
         "</skipped></testcase>",
     )
-    assert _checker().main(["check_jar_skips.py", str(report)]) == 0
+    assert _checker().main([str(report)]) == 0
 
 
 def test_passing_output_with_the_string_stays_silent(tmp_path):
@@ -48,8 +48,8 @@ def test_passing_output_with_the_string_stays_silent(tmp_path):
         '<testcase classname="tests.test_demo" name="test_ok">'
         "<system-out>a log line mentions dexfile-cli.jar</system-out></testcase>",
     )
-    assert _checker().main(["check_jar_skips.py", str(report)]) == 0
+    assert _checker().main([str(report)]) == 0
 
 
 def test_missing_report_is_an_error(tmp_path):
-    assert _checker().main(["check_jar_skips.py", str(tmp_path / "absent.xml")]) == 2
+    assert _checker().main([str(tmp_path / "absent.xml")]) == 2

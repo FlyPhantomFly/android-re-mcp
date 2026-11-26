@@ -1,0 +1,18 @@
+# One `module::test` substring per line; every entry must appear EXECUTED
+# (not skipped) in the CI jar job's JUnit report. This is the identity check
+# for the jar-gated suite: a reworded skip reason cannot defeat it, because
+# the match is on the test node, not the reason text.
+# Update this list deliberately when the gated tests change.
+# 11 in python/tests/test_dex_tools.py + 1 in python/tests/test_mt_adopt.py.
+test_dex_tools::test_roundtrip_assemble_info_patch_convert
+test_dex_tools::test_roundtrip_swap_into_apk
+test_dex_tools::test_dex_validate_clean_dex
+test_dex_tools::test_dex_validate_missing_class_is_honest
+test_dex_tools::test_dex_merge_two_classes
+test_dex_tools::test_dex_merge_duplicate_class_is_honest
+test_dex_tools::test_dex_validate_unknown_hierarchy_is_not_flagged
+test_dex_tools::test_dex_validate_flags_super_interface_and_truncates
+test_dex_tools::test_dex_merge_allow_cdex_writes_cdex
+test_dex_tools::test_cdex_write_opt_in_succeeds_with_note
+test_dex_tools::test_roundtrip_era_pinned_write_api_override
+test_mt_adopt::test_dex_read_class_outline_real

@@ -1,9 +1,11 @@
 import json
+import os
 from pathlib import Path
 
 import pytest
 
 from android_re_mcp.handlers.dex import DexHandler
+from jar_gate import gated_skips
 
 
 @pytest.fixture(autouse=True)
@@ -45,3 +47,18 @@ def fake_run(monkeypatch):
 
     monkeypatch.setattr(DexHandler, "_run", staticmethod(fake))
     return calls
+
+
+def pytest_collection_modifyitems(config, items):
+    """``ANDROID_RE_MCP_REQUIRE_JAR=1`` hard-fails collection when jar-gated
+    tests would skip. CI's jar job sets it, so a stale pin or a broken
+    download cannot pass silently; normal runs keep the plain skips.
+    """
+    if os.environ.get("ANDROID_RE_MCP_REQUIRE_JAR") != "1":
+        return
+    gated = gated_skips(items)
+    if gated:
+        raise pytest.UsageError(
+            "ANDROID_RE_MCP_REQUIRE_JAR=1 but jar-gated tests would skip:\n  "
+            + "\n  ".join(gated)
+        )

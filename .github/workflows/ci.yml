@@ -97,6 +97,8 @@ jobs:
           EOF
 
       - name: Test (jar-gated tests must run, not skip)
+        env:
+          ANDROID_RE_MCP_REQUIRE_JAR: "1"
         run: |
           pytest python/tests -q -rs --junitxml=pytest.xml
-          python scripts/check_jar_skips.py pytest.xml
+          python scripts/check_jar_skips.py --require-run scripts/jar_gated_required.txt pytest.xml
