@@ -54,9 +54,9 @@ jobs:
     name: PyPI publish
     needs: build
     runs-on: ubuntu-latest
-    # Generous: the wait for the pypi environment's required reviewer counts
-    # against this limit; approval may take as long as it takes.
-    timeout-minutes: 120
+    # The reviewer-approval wait happens before the job starts, so it does
+    # not count against this limit; 20 covers the minutes the job runs.
+    timeout-minutes: 20
     # Create this environment in GitHub (Settings -> Environments) and add yourself as a
     # required reviewer, so every publish needs a manual approval.
     environment: pypi
@@ -68,6 +68,6 @@ jobs:
           name: python-dist
           path: dist/
 
-      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           packages-dir: dist/

@@ -27,8 +27,8 @@ def test_every_action_is_pinned_to_a_full_sha_with_a_comment():
 def test_workflow_jobs_declare_a_timeout():
     """F6: a hung step must not eat the default 6-hour job limit.
 
-    publish-pypi's publish job is deliberately generous (120): the wait for
-    the pypi environment's required reviewer counts against its limit.
+    the publish-pypi publish job gets 20: the reviewer-approval wait happens
+    before the job starts, so the limit covers the minutes it actually runs.
     """
     problems = []
     for path in sorted(WORKFLOWS.glob("*.yml")):

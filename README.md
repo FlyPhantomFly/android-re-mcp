@@ -299,6 +299,7 @@ Eight bypass/monitor scripts ship with the package (`ssl_pinning_universal`, `ro
 - Your settings: `~/.config/android-re-mcp/config.toml` (`ANDROID_RE_MCP_CONFIG`) — today just `[signing]` keystore paths and passwords
 - Downloaded tools: `~/tools` (`ANDROID_RE_MCP_TOOLS_DIR`); subfolders (jadx, platform-tools, il2cppdumper, scrcpy) are appended to the server's PATH if present
 - `ANDROID_RE_MCP_ALLOWED_DIRS` — folders (separated by `:`) that all file arguments must stay inside
+- `HOME` must resolve on the host running the server — the guard refuses path arguments when it cannot (arbitrary-UID containers with `HOME` unset fail here)
 - `ANDROID_RE_MCP_DISABLE_TOOLS` — comma-separated tools to switch off, e.g. `adb_shell,adb_push,adb_pull`
 - `ANDROID_RE_MCP_MAX_OUTPUT_LINES` — per-call cap for heavy list outputs (default 200; `0` disables) — the total stays honest and the result names how to narrow
 - `ANDROID_RE_MCP_MAX_FILE_MB` — refuse to open an APK heavier than this many megabytes (default 2048; `0` disables the cap) — used by the zip/apk-diff/scan tools
