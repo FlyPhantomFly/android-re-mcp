@@ -2,9 +2,8 @@
 ## Supported versions
 | Version | Supported |
 | --- | --- |
-| 1.4.x | PyPI (`android-re-mcp`) |
-| 1.3.x | no (that npm package is retired; upgrade) |
-| older | no |
+| 1.9.x | PyPI (`android-re-mcp`) |
+| 1.8.x and older | no — upgrade (the pre-1.4 npm package of the same name is retired) |
 ## Reporting a vulnerability
 Please do not open a public issue for a security problem. Report it privately through [GitHub Security Advisories](https://github.com/FlyPhantomFly/android-re-mcp/security/advisories/new) and include what you found, how to reproduce it, what it could do, and a fix if you have one.
 You should hear back within 48 hours. A first assessment follows within 7 days, a fix within 30 days for critical issues and 90 days for the rest, and details are made public after the fix ships.

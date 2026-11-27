@@ -296,7 +296,7 @@ Eight bypass/monitor scripts ship with the package (`ssl_pinning_universal`, `ro
 ### Files and settings
 
 - Notes, captures and scratch files: `~/.local/share/android-re-mcp` (`ANDROID_RE_MCP_HOME` to move; created `0700`)
-- Your settings: `~/.config/android-re-mcp/config.toml` (`ANDROID_RE_MCP_CONFIG`) — today just `[signing]` keystore paths and passwords
+- Your settings: `~/.config/android-re-mcp/config.toml` (`ANDROID_RE_MCP_CONFIG`) — today just `[signing]` keystore paths and passwords. Those passwords are plaintext: the server warns at startup when the file is group- or world-readable (`chmod 600` to fix), and uber-apk-signer still receives them as command-line arguments, visible to other local users in the process list
 - Downloaded tools: `~/tools` (`ANDROID_RE_MCP_TOOLS_DIR`); subfolders (jadx, platform-tools, il2cppdumper, scrcpy) are appended to the server's PATH if present
 - `ANDROID_RE_MCP_ALLOWED_DIRS` — folders (separated by `:`) that all file arguments must stay inside
 - `HOME` must resolve on the host running the server — the guard refuses path arguments when it cannot (arbitrary-UID containers with `HOME` unset fail here)

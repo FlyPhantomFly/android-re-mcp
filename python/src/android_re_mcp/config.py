@@ -36,3 +36,38 @@ def signer_jar() -> Path:
     if configured and Path(configured).is_absolute():
         return Path(configured)
     return tools_dir() / "signing" / "uber-apk-signer.jar"
+
+
+_SIGNING_PASSWORD_KEYS = ("keystore_password", "key_password")
+
+
+def config_permission_warning() -> str | None:
+    """Warning text when the user config.toml is group/world-readable (R4-6).
+
+    ``[signing]`` passwords live in plaintext there, so a file other local
+    users can read exposes them. ``None`` when the file is absent, is
+    readable only by its owner, or parses and holds no password.
+    """
+    path = user_config_path()
+    if not path.is_file():
+        return None
+    try:
+        mode = path.stat().st_mode & 0o777
+    except OSError:
+        return None
+    if not mode & 0o044:  # no read bit for group or others
+        return None
+    try:
+        import tomllib
+
+        signing = tomllib.loads(path.read_text(encoding="utf-8")).get("signing", {})
+    except (OSError, ValueError):
+        signing = None  # cannot parse: warn anyway, the file may still hold secrets
+    if signing is not None and not any(signing.get(k) for k in _SIGNING_PASSWORD_KEYS):
+        return None
+    return (
+        f"{path} is group/world-readable (mode 0{mode:o}) and holds [signing] "
+        "keystore passwords other local users can read. Fix: chmod 600 "
+        f"{path} — note the passwords still reach uber-apk-signer as command-line "
+        "arguments, visible to local users in the process list."
+    )

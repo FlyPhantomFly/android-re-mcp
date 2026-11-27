@@ -35,6 +35,7 @@ from mcp.types import (
 )
 
 from android_re_mcp import __version__, guard
+from android_re_mcp.config import config_permission_warning
 from android_re_mcp.handlers.device import DeviceHandler
 from android_re_mcp.handlers.dynamic import DynamicHandler
 from android_re_mcp.handlers.flutter import FlutterHandler
@@ -1777,6 +1778,10 @@ def _check_auth_header(scope: dict, token: str) -> bool:
 
 def create_server() -> Server:
     """Build and return a configured MCP Server instance."""
+
+    _config_warning = config_permission_warning()
+    if _config_warning:
+        logger.warning("%s", _config_warning)
 
     server = Server("android-re-mcp", version=__version__)
 
