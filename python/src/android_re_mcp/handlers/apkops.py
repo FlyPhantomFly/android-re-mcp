@@ -26,7 +26,15 @@ import zipfile
 from pathlib import Path
 
 from android_re_mcp.handlers.caps import cap_items
+from android_re_mcp.handlers.apkscan import (
+    ENTRY_CAP_ENV,
+    entry_cap_mb,
+    entry_over_cap,
+    PayloadTooLarge,
+    _read_entry,
+)
 from android_re_mcp.paths import data_dir, tools_dir
+_CRC_CHUNK = 1024 * 1024  # streamed CRC check chunk
 
 _TIMEOUT = 600
 logger = logging.getLogger(__name__)
@@ -76,8 +84,13 @@ class ApkOpsHandler:
             try:
                 with zipfile.ZipFile(apk_path) as z:
                     details = []
+                    cap = entry_cap_mb()
                     for name in meta_signers[:4]:
-                        cert_der = z.read(name)
+                        cert_der = _read_entry(z, z.getinfo(name), cap)
+                        if cert_der is None:
+                            out.setdefault("notes", []).append(
+                                f"{name}: skipped, above the entry cap")
+                            continue
                         detail = self._openssl_cert_details(openssl, cert_der)
                         detail["file"] = name
                         details.append(detail)
@@ -203,7 +216,10 @@ class ApkOpsHandler:
                         encrypted.append(info.filename)
                     if not info.filename.endswith("/"):
                         try:
-                            z.read(info.filename)  # CRC check
+                            # streamed: validates the CRC without holding the entry
+                            with z.open(info) as fh:
+                                while fh.read(_CRC_CHUNK):
+                                    pass
                         except Exception as exc:  # noqa: BLE001
                             bad.append({"name": info.filename, "reason": str(exc)[:200]})
                 # trailing bytes after the EOCD record
@@ -263,21 +279,30 @@ class ApkOpsHandler:
 
         results: list[dict] = []
         dest = Path(out_dir)
+        cap_mb = entry_cap_mb()
         try:
             with zipfile.ZipFile(zip_path) as z:
                 for entry in entries:
                     entry = str(entry)
                     result = {"entry": entry}
+                    rel = entry.replace("\\", "/").lstrip("/")
+                    target = dest / rel
+                    # zip-slip and shape checks before any read
+                    if ".." in Path(rel).parts or Path(rel).is_absolute() or ":" in rel.split("/")[0]:
+                        result.update({"ok": False, "error": "zip-slip refused"})
+                        results.append(result)
+                        continue
                     try:
-                        data = z.read(entry)
+                        info = z.getinfo(entry)
                     except KeyError:
                         result.update({"ok": False, "error": "entry not found"})
                         results.append(result)
                         continue
-                    rel = entry.replace("\\", "/").lstrip("/")
-                    target = dest / rel
-                    if ".." in Path(rel).parts or Path(rel).is_absolute() or ":" in rel.split("/")[0]:
-                        result.update({"ok": False, "error": "zip-slip refused"})
+                    if entry_over_cap(info, cap_mb):
+                        result.update({"ok": False, "error": (
+                            f"entry is {info.file_size / (1024 * 1024):.1f} MB, above the "
+                            f"{cap_mb} MB entry cap (raise {ENTRY_CAP_ENV}, or set it to 0 to disable)"
+                        )})
                         results.append(result)
                         continue
                     if target.is_file() and not overwrite:
@@ -285,8 +310,10 @@ class ApkOpsHandler:
                         results.append(result)
                         continue
                     target.parent.mkdir(parents=True, exist_ok=True)
-                    target.write_bytes(data)
-                    result.update({"ok": True, "path": str(target), "bytes": len(data)})
+                    # stream: the entry is never held in memory
+                    with z.open(info) as src, open(target, "wb") as fh:
+                        shutil.copyfileobj(src, fh)
+                    result.update({"ok": True, "path": str(target), "bytes": info.file_size})
                     results.append(result)
         except zipfile.BadZipFile as exc:
             return {"status": "error", "tool": "zip_extract", "error": f"bad zip: {exc}"}
@@ -517,7 +544,15 @@ class ApkOpsHandler:
             try:
                 with zipfile.ZipFile(apk_path) as z:
                     if "AndroidManifest.xml" in z.namelist():
-                        manifest_bytes = z.read("AndroidManifest.xml")
+                        data = _read_entry(z, z.getinfo("AndroidManifest.xml"), entry_cap_mb())
+                        if data is None:
+                            blockers.append({
+                                "code": "MANIFEST_OVER_CAP",
+                                "message": (f"AndroidManifest.xml is above the "
+                                            f"{entry_cap_mb()} MB entry cap; skipped"),
+                                "fix_hint": "raise ANDROID_RE_MCP_MAX_ENTRY_MB to check it"})
+                        else:
+                            manifest_bytes = data
             except zipfile.BadZipFile as exc:
                 blockers.append({"code": "APK_NOT_A_ZIP", "message": f"bad zip: {exc}"})
         if manifest_bytes is not None:
@@ -559,10 +594,14 @@ class ApkOpsHandler:
                     with zipfile.ZipFile(apk_path) as z:
                         scratch = Path(data_dir()) / "build-check"
                         scratch.mkdir(parents=True, exist_ok=True)
+                        cap = entry_cap_mb()
                         for name in z.namelist():
                             if name.startswith("classes") and name.endswith(".dex"):
+                                data = _read_entry(z, z.getinfo(name), cap)
+                                if data is None:
+                                    continue
                                 p = scratch / Path(name).name
-                                p.write_bytes(z.read(name))
+                                p.write_bytes(data)
                                 dex_files.append(p)
                 except zipfile.BadZipFile:
                     pass
@@ -622,7 +661,12 @@ class ApkOpsHandler:
         from androguard.core.axml import ARSCParser
 
         with zipfile.ZipFile(apk_path) as z:
-            return ARSCParser(z.read("resources.arsc"))
+            data = _read_entry(z, z.getinfo("resources.arsc"), entry_cap_mb())
+            if data is None:
+                raise PayloadTooLarge(
+                    f"resources.arsc is above the {entry_cap_mb()} MB entry cap "
+                    f"(raise ANDROID_RE_MCP_MAX_ENTRY_MB, or set it to 0 to disable)")
+            return ARSCParser(data)
 
     @staticmethod
     def _quiet_androguard():

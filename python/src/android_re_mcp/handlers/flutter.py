@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = 120
 _TIMEOUT_LONG = 600   # Blutter can be very slow on large apps
+from android_re_mcp.handlers.apkscan import _read_entry, entry_cap_mb
 from android_re_mcp.paths import scratch_dir, tools_dir
 
 _TOOLS_DIR = tools_dir()
@@ -110,12 +111,17 @@ class FlutterHandler:
         try:
             with zipfile.ZipFile(apk_path) as zf:
                 target = f"lib/{abi}/libflutter.so"
+                cap = entry_cap_mb()
                 if target in zf.namelist():
-                    return zf.read(target), target
+                    data = _read_entry(zf, zf.getinfo(target), cap)
+                    if data is not None:
+                        return data, target
                 # Try other ABIs
                 for name in zf.namelist():
                     if "libflutter.so" in name:
-                        return zf.read(name), name
+                        data = _read_entry(zf, zf.getinfo(name), cap)
+                        if data is not None:
+                            return data, name
         except Exception as exc:  # noqa: BLE001
             logger.warning("APK extract failed: %s", exc)
         return None, ""
@@ -190,7 +196,11 @@ class FlutterHandler:
                 with zipfile.ZipFile(apk_path) as zf:
                     target = f"lib/{abi}/libapp.so"
                     if target in zf.namelist():
-                        data = zf.read(target)
+                        data = _read_entry(zf, zf.getinfo(target), entry_cap_mb())
+                        if data is None:
+                            return {"status": "error", "tool": "dart_snapshot_info",
+                                    "error": (f"libapp.so is above the {entry_cap_mb()} MB "
+                                              "entry cap (raise ANDROID_RE_MCP_MAX_ENTRY_MB)")}
             except Exception as exc:  # noqa: BLE001
                 return {"status": "error", "tool": "dart_snapshot_info", "error": str(exc)}
         else:
@@ -291,8 +301,10 @@ class FlutterHandler:
                 with zipfile.ZipFile(apk_path) as zf:
                     target = f"lib/{abi}/libapp.so"
                     if target in zf.namelist():
-                        tmp_so.write_bytes(zf.read(target))
-                        libapp_path = tmp_so
+                        data = _read_entry(zf, zf.getinfo(target), entry_cap_mb())
+                        if data is not None:
+                            tmp_so.write_bytes(data)
+                            libapp_path = tmp_so
             except Exception as exc:  # noqa: BLE001
                 return {"status": "error", "tool": "blutter", "error": str(exc)}
 

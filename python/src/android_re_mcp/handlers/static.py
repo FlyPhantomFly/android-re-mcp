@@ -16,6 +16,7 @@ import logging
 import subprocess
 from pathlib import Path
 
+from android_re_mcp.handlers.apkscan import _read_entry, entry_cap_mb
 from android_re_mcp.handlers.caps import cap_items
 
 from android_re_mcp.clitools import find_cli as _find_cli
@@ -696,7 +697,10 @@ class StaticHandler:
                     for name in zfile.namelist():
                         if name.startswith("assets/") and not name.endswith(".so"):
                             try:
-                                text = zfile.read(name).decode("utf-8", errors="ignore")
+                                data = _read_entry(zfile, zfile.getinfo(name), entry_cap_mb())
+                                if data is None:
+                                    continue
+                                text = data.decode("utf-8", errors="ignore")
                                 for match in _URL_RE.findall(text):
                                     if len(match) > 6:
                                         urls_from_assets.add(match.rstrip(".,;"))

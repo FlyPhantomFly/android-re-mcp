@@ -65,13 +65,23 @@ def _open_zip(path: str) -> zipfile.ZipFile:
 
 
 def _read_entry(zf: zipfile.ZipFile, info: zipfile.ZipInfo, cap_mb: int) -> bytes | None:
-    """One entry under *cap_mb* MB (0 disables); ``None`` = skip."""
-    if cap_mb and (info.file_size > cap_mb * _MB or info.compress_size > cap_mb * _MB):
+    """One entry under *cap_mb* MB (0 disables); None = skip."""
+    if entry_over_cap(info, cap_mb):
         return None
     try:
         return zf.read(info)
     except Exception:  # noqa: BLE001 — corrupt entry: skip, don't fail the scan
         return None
+
+
+def entry_cap_mb() -> int:
+    """The per-entry cap in MB (ANDROID_RE_MCP_MAX_ENTRY_MB; 0 disables)."""
+    return _env_max_mb(ENTRY_CAP_ENV, DEFAULT_ENTRY_CAP_MB)
+
+
+def entry_over_cap(info: zipfile.ZipInfo, cap_mb: int) -> bool:
+    """True when the entry exceeds *cap_mb* MB (0 disables the cap)."""
+    return bool(cap_mb) and (info.file_size > cap_mb * _MB or info.compress_size > cap_mb * _MB)
 
 
 def _printable_strings(data: bytes, min_len: int = 8) -> str:

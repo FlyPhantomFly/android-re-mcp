@@ -21,6 +21,7 @@ from xml.etree import ElementTree
 
 logger = logging.getLogger(__name__)
 
+from android_re_mcp.handlers.apkscan import _read_entry, entry_cap_mb
 from android_re_mcp.handlers.caps import output_cap
 from android_re_mcp.paths import scratch_dir
 
@@ -406,16 +407,22 @@ class DeviceHandler:
                 # Explicit candidates first
                 for candidate in bundle_candidates:
                     if candidate in names:
+                        data = _read_entry(zf, zf.getinfo(candidate), entry_cap_mb())
+                        if data is None:
+                            continue
                         dst = scratch_dir("hermes") / Path(candidate).name
-                        dst.write_bytes(zf.read(candidate))
+                        dst.write_bytes(data)
                         return dst
                 # Fallback: any .bundle or .hbc in assets
                 for name in names:
                     if name.startswith("assets/") and (
                         name.endswith(".bundle") or name.endswith(".hbc")
                     ):
+                        data = _read_entry(zf, zf.getinfo(name), entry_cap_mb())
+                        if data is None:
+                            continue
                         dst = scratch_dir("hermes") / Path(name).name
-                        dst.write_bytes(zf.read(name))
+                        dst.write_bytes(data)
                         return dst
         except Exception:  # noqa: BLE001
             pass

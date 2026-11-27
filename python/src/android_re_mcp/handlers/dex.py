@@ -27,6 +27,7 @@ import zipfile
 from pathlib import Path
 
 from android_re_mcp.handlers.caps import cap_items
+from android_re_mcp.handlers.apkscan import _read_entry, entry_cap_mb
 from android_re_mcp.paths import data_dir, tools_dir
 
 _JAR_NAME = "dexfile-cli.jar"
@@ -347,7 +348,10 @@ class DexHandler:
                         p = scratch / Path(apk_path).stem / name
                         p.parent.mkdir(parents=True, exist_ok=True)
                         if not p.exists():
-                            p.write_bytes(z.read(name))
+                            data = _read_entry(z, z.getinfo(name), entry_cap_mb())
+                            if data is None:
+                                continue
+                            p.write_bytes(data)
                         targets.append(str(p))
             except (zipfile.BadZipFile, OSError) as exc:
                 return {"status": "error", "tool": "dex_read_class_outline", "error": str(exc)}
@@ -597,11 +601,18 @@ class DexHandler:
             # 100 MB APK would be pure waste
             dexes = sorted(n for n in z.namelist()
                            if n.startswith("classes") and n.endswith(".dex"))
+            cap = entry_cap_mb()
             for name in dexes:
-                if hashlib.sha256(z.read(name)).hexdigest() == dex_sha:
+                data = _read_entry(z, z.getinfo(name), cap)
+                if data is None:
+                    continue
+                if hashlib.sha256(data).hexdigest() == dex_sha:
                     return name
             for name in dexes:
-                if len(z.read(name)) == dex_size:
+                data = _read_entry(z, z.getinfo(name), cap)
+                if data is None:
+                    continue
+                if len(data) == dex_size:
                     return name
             return dexes[0] if dexes else ""
 

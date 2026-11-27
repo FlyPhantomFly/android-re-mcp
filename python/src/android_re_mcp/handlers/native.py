@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = 120
 _TIMEOUT_LONG = 300
+from android_re_mcp.handlers.apkscan import _read_entry, entry_cap_mb
 from android_re_mcp.handlers.caps import cap_items
 from android_re_mcp.paths import scratch_dir, tools_dir
 
@@ -51,11 +52,15 @@ def _extract_native_libs(apk_path: str, abi: str = "arm64-v8a") -> list[Path]:
     extracted: list[Path] = []
     try:
         with zipfile.ZipFile(apk_path) as zf:
+            cap = entry_cap_mb()
             for name in zf.namelist():
                 if f"lib/{abi}/" in name and name.endswith(".so"):
+                    data = _read_entry(zf, zf.getinfo(name), cap)
+                    if data is None:
+                        continue
                     tmp = scratch_dir("native_libs") / Path(name).name
                     tmp.parent.mkdir(parents=True, exist_ok=True)
-                    tmp.write_bytes(zf.read(name))
+                    tmp.write_bytes(data)
                     extracted.append(tmp)
     except Exception as exc:  # noqa: BLE001
         logger.warning("APK extraction failed: %s", exc)
@@ -685,13 +690,17 @@ class NativeHandler:
                     (n for n in names if "global-metadata.dat" in n), None
                 )
                 if meta_name:
-                    metadata_path.write_bytes(zf.read(meta_name))
+                    data = _read_entry(zf, zf.getinfo(meta_name), entry_cap_mb())
+                    if data is not None:
+                        metadata_path.write_bytes(data)
 
                 il2cpp_name = next(
                     (n for n in names if f"lib/{abi}/libil2cpp.so" in n), None
                 )
                 if il2cpp_name:
-                    il2cpp_so_path.write_bytes(zf.read(il2cpp_name))
+                    data = _read_entry(zf, zf.getinfo(il2cpp_name), entry_cap_mb())
+                    if data is not None:
+                        il2cpp_so_path.write_bytes(data)
 
         except Exception as exc:  # noqa: BLE001
             return {"status": "error", "tool": "il2cpp_dump",
