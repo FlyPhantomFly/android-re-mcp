@@ -222,3 +222,53 @@ def test_rasp_identify_tolerates_missing_apk(tmp_path, monkeypatch):
     out = RaspHandler().rasp_identify({"apk_path": str(tmp_path / "nope.apk")})["output"]
     assert out["detected"] == [] and out["protection_tier"] == "none"
     assert "error" in out["native_libraries"]
+
+
+# ── R4-7: native_disasm target keeps radare2 operators out ───────────────
+
+class FakeR2Proc:
+    returncode = 0
+    stdout = "disasm"
+    stderr = ""
+
+
+def _disasm_target(monkeypatch, target):
+    """Run native_disasm with r2 'present' and subprocess captured."""
+    from android_re_mcp.handlers import native as native_mod
+
+    captured = {}
+    so = native_mod.scratch_dir("r4t7") / "libprobe.so"
+    so.parent.mkdir(parents=True, exist_ok=True)
+    so.write_bytes(b"\x7fELF fake")
+
+    def fake_run(argv, **kw):
+        captured["argv"] = argv
+        return FakeR2Proc()
+
+    monkeypatch.setattr(native_mod.shutil, "which", lambda name: "/usr/bin/r2")
+    monkeypatch.setattr(native_mod.subprocess, "run", fake_run)
+    out = native_mod.NativeHandler().native_disasm(
+        {"so_path": str(so), "target": target, "n_instructions": 4})
+    return out, captured
+
+
+def test_disasm_target_refuses_radare2_iterators(monkeypatch):
+    for bad in ("foo@@bar", "@@@", "sym@x", "a;b", "x!y"):
+        out, _ = _disasm_target(monkeypatch, bad)
+        assert out["status"] == "error", f"{bad!r} was not refused"
+        assert "target must be" in out["error"]
+
+
+def test_disasm_target_accepts_plain_symbol_offset_and_plt(monkeypatch):
+    for good in ("foo", "_Z3barv", "0x1234", "0xdeadbeef", "foo@plt"):
+        out, captured = _disasm_target(monkeypatch, good)
+        assert out["status"] == "ok", f"{good!r} was refused: {out.get('error')}"
+        assert good in captured["argv"][3]
+        assert "@@" not in captured["argv"][3]
+
+
+def test_disasm_target_rejects_oversized_symbol(monkeypatch):
+    out, _ = _disasm_target(monkeypatch, "a" * 197)
+    assert out["status"] == "error"
+    out, _ = _disasm_target(monkeypatch, "a" * 196 + "@plt")
+    assert out["status"] == "ok"

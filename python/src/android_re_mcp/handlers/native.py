@@ -593,9 +593,11 @@ class NativeHandler:
                     "error": f"so_path '{so_path}' not found"}
 
         # radare2 treats ';' and '!' as command syntax, so only plain symbols and offsets get through.
-        if not re.fullmatch(r"(0x[0-9a-fA-F]{1,16}|[A-Za-z0-9_.@]{1,200})", target):
+        # '@' is allowed only as a Ghidra-style '@plt' suffix: radare2 uses '@'/'@@'
+        # as its own operators, and a 'foo@@bar' target would run an iterator.
+        if not re.fullmatch(r"(0x[0-9a-fA-F]{1,16}|[A-Za-z0-9_.]{1,196}(?:@plt)?)", target):
             return {"status": "error", "tool": "native_disasm",
-                    "error": "target must be a symbol name or a 0x offset"}
+                    "error": "target must be a symbol name, an 0x offset, or a symbol with an @plt suffix"}
         seek = f"sym.{target}" if not target.startswith("0x") else target
 
         if mode == "graph":
