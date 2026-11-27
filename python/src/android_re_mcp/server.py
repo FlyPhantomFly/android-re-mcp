@@ -12,6 +12,7 @@ flag themselves with _SERIALIZE and get a dedicated single-worker pool.
 from __future__ import annotations
 
 import asyncio
+import hmac
 import inspect
 import json
 import logging
@@ -1723,6 +1724,32 @@ async def _run_tool(
     )
 
 
+def _bearer_ok(auth_header: bytes, token: str) -> bool:
+    """Constant-time bearer check that never raises (R4-2).
+
+    The header arrives as raw bytes; compare bytes so a non-UTF-8 or
+    non-ASCII header answers 401 instead of raising, and accept a
+    non-ASCII token by encoding the expected value.
+    """
+    if not token:
+        return True
+    try:
+        return hmac.compare_digest(bytes(auth_header), f"Bearer {token}".encode("utf-8"))
+    except (TypeError, ValueError):
+        return False
+
+
+def _check_auth_header(scope: dict, token: str) -> bool:
+    """True when the request may proceed (R4-2).
+
+    Non-HTTP scopes (lifespan, websocket shutdown) carry no headers and
+    are not authenticated — same gate as before the check was extracted.
+    """
+    if scope.get("type") != "http" or not token:
+        return True
+    return _bearer_ok(dict(scope["headers"]).get(b"authorization", b""), token)
+
+
 def create_server() -> Server:
     """Build and return a configured MCP Server instance."""
 
@@ -1958,7 +1985,6 @@ def create_server() -> Server:
             )
 
     async def run_sse(host: str = "127.0.0.1", port: int = 8765) -> None:
-        import hmac
         import os
 
         import uvicorn
@@ -2004,11 +2030,9 @@ def create_server() -> Server:
                 self.app = app
 
             async def __call__(self, scope, receive, send) -> None:  # noqa: ANN001
-                if token and scope["type"] == "http":
-                    sent = dict(scope["headers"]).get(b"authorization", b"").decode()
-                    if not hmac.compare_digest(sent, f"Bearer {token}"):
-                        await PlainTextResponse("unauthorized", status_code=401)(scope, receive, send)
-                        return
+                if not _check_auth_header(scope, token):
+                    await PlainTextResponse("unauthorized", status_code=401)(scope, receive, send)
+                    return
                 await self.app(scope, receive, send)
 
         app = BearerAuth(
