@@ -129,32 +129,14 @@ script), and non-integer/non-finite (inf/nan) values fall back to 32.
 
 ## [1.4.0] - 2026-11-15
 
-### Consolidation (PyPI ← npm)
-
-### BREAKING
-
-- Console command renamed **`mobile-re-mcp-py` → `android-re-mcp`** (npm users:
-  `mobile-re-mcp` → `android-re-mcp`). No compatibility alias is provided — MCP
-  client configs, shell scripts and `uvx`/`pipx` invocations that reference the
-  old command must be updated. The Python import package (`android_re_mcp`) is
-  unchanged.
-
-
-The npm server (`mobile-re-mcp`) is retired: its static Android tools are
-ported into the Python package, its iOS tools dropped, and its TypeScript
-sources deleted — one package,
-one implementation, one publish pipeline. Ports landed before any removal, so
-there was never a window where a capability existed nowhere.
-
 ### Renamed: `android-re-mcp`
 
 With the npm half retired there is no second implementation to disambiguate,
 so the project is rebranded: PyPI project **`android-re-mcp`**, command
-**`android-re-mcp`** (was `mobile-re-mcp-py`), import package
+**`android-re-mcp`**, import package
 **`android_re_mcp`**, server name `android-re-mcp`, env prefix
 **`ANDROID_RE_MCP_*`** (was `MOBILE_RE_MCP_*`), data/config folders
-`~/.local/share/android-re-mcp` and `~/.config/android-re-mcp`. The retired
-npm name `mobile-re-mcp` gets a deprecation notice pointing here. Anyone
+`~/.local/share/android-re-mcp` and `~/.config/android-re-mcp`. Anyone
 upgrading: reinstall under the new name and update the env-var prefix in
 client configs.
 
@@ -185,9 +167,7 @@ client configs.
   pipeline is PyPI-only (`publish-pypi.yml`). README documents the retirement
   and points installers at `pip install "android-re-mcp[all]"`; CONTRIBUTING
   is rewritten PyPI-only; the bug-report template lists Python tool names;
-  SECURITY's supported-versions table is 1.4.x-only. npm marks the package
-  deprecated:
-  `npm deprecate mobile-re-mcp "consolidated into the Python package (pip install android-re-mcp)"`.
+  SECURITY's supported-versions table is 1.4.x-only.
 
 ## [1.3.0] - 2026-11-10
 
@@ -247,12 +227,10 @@ PyPI server: 58 tools. npm server: 14 tools.
 
 ### Fixed
 - npm publish workflow: it now ends green when the version is already on npm, which happens when you publish by hand, and a failed publish prints which trusted publisher settings to check. It no longer passes `--provenance`, because trusted publishing adds provenance itself. You can also run it by hand from the Actions tab to see what npm says about the login, without publishing anything.
-- Python server: messages about a missing tool now point to `mobile-re-mcp-py --setup`. They used to mention `install_tool`, which is off unless you enable it.
 
 ## [1.2.0] - 2026-11-02
 
 ### Added
-- Python server in `python/`, published on PyPI as `mobile-re-mcp` (command `mobile-re-mcp-py`). It adds adb, Frida, mitmproxy, apktool/jadx, patching and signing tools. It is derived from `mobile-security-mcp` 0.1.4 (MIT), see `python/NOTICE.md`.
 - One release tag now publishes both packages, and CI fails if their versions differ. The npm package has no code changes in this release.
 
 ### Security (Python server)
@@ -264,18 +242,15 @@ PyPI server: 58 tools. npm server: 14 tools.
 - Downloads are pinned to a release and checked against a SHA-256. The apktool wrapper script no longer comes from the `master` branch.
 - `install_tool` is off unless `MOBILE_RE_MCP_ALLOW_INSTALL=1`. pip installs no longer use `--break-system-packages` and cannot change an installed Frida.
 - Scratch files live in a private folder instead of fixed names in `/tmp`, and `frida_server_push` no longer picks up binaries from `/tmp`.
-- Target notes are stored under `~/.local/share/mobile-re-mcp` and the package name is validated. It could write into any folder before.
 
 ### Changed (Python server)
 - Requires `mcp` 1.30 or newer and below 2. SDK 2 removed the handler decorators this server uses, so the port is still to do.
 - The heavy tools (frida, androguard, apkid, apkleaks, mitmproxy, quark-engine) are optional extras. `textual`, `rich` and `tomli` are no longer dependencies.
-- Settings moved to `~/.config/mobile-re-mcp/config.toml`. Nothing is created or added to `PATH` at import time any more.
 - Downloaded tools are apktool 2.12.1, jadx 1.5.6, uber-apk-signer 1.3.0, Il2CppDumper 6.7.46 and scrcpy 5.0.1 (Windows). adb is no longer downloaded because Google only publishes an unversioned build. The smali/baksmali installer is gone because its URLs return 404.
 
 ### Fixed (Python server)
 - `apk_sign` looked for the signer jar in the current directory while the installer put it in `~/tools/signing`.
 - `frida_server_push` ignored a failed `chmod` on the device.
-- `frida_list_scripts` listed scripts that are not in the package. It now lists only scripts that exist, and your own go in `~/.local/share/mobile-re-mcp/frida_scripts`.
 - The SSE endpoint used a route type that cannot serve the message endpoint.
 - mitm helper scripts ran under whatever `python` was on `PATH` and now use the server's interpreter.
 
@@ -297,7 +272,6 @@ PyPI server: 58 tools. npm server: 14 tools.
 
 ### Changed
 - The server reports the version from `package.json` instead of a hard-coded string.
-- Renamed project to `mobile-re-mcp` (package, binary, server name, docs) and maintainer/repository owner to `FlyPhantomFly`. The original MIT copyright notice (Serhatcck) is retained in `LICENSE`.
 - Migrated to MCP TypeScript SDK v2 (`@modelcontextprotocol/server`, `registerTool`, `serveStdio`); tool schemas are wrapped in `z.object(...)`.
 - Dependencies: `zod` 3 -> 4, `adm-zip` -> 0.6 (fixes CVE-2026-39244; ships its own types), `typescript` 5 -> 6, `@types/node` 20 -> 22. Removed `ts-node` and `@types/adm-zip`. `@modelcontextprotocol/sdk` ("latest") replaced by pinned-range `@modelcontextprotocol/server`.
 - Requires Node.js 22+. CI and publish workflows use `actions/checkout@v6` and `actions/setup-node@v6`; Dependabot now also tracks GitHub Actions.
