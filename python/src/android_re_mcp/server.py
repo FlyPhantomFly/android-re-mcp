@@ -1724,6 +1724,31 @@ async def _run_tool(
     )
 
 
+def _sse_transport_settings(host: str, loopback: bool):
+    """Transport settings for the SSE server (R4-3).
+
+    A loopback bind keeps the exact-host allow-list. A wildcard bind
+    (0.0.0.0/::) skips the Host check entirely: mcp has no any-host
+    wildcard, a remote client arrives via the machine's LAN address —
+    never the bind address — and the bearer token (required for
+    non-loopback binds) is the protection. A specific non-loopback
+    address keeps the exact-host list.
+    """
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    if not loopback and host in ("0.0.0.0", "::"):
+        return TransportSecuritySettings(enable_dns_rebinding_protection=False)
+
+    hosts = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
+    if not loopback:
+        hosts.append(f"{host}:*")
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=hosts,
+        allowed_origins=["http://127.0.0.1:*", "http://localhost:*"],
+    )
+
+
 def _bearer_ok(auth_header: bytes, token: str) -> bool:
     """Constant-time bearer check that never raises (R4-2).
 
@@ -2002,16 +2027,9 @@ def create_server() -> Server:
             )
 
         try:
-            from mcp.server.transport_security import TransportSecuritySettings
-
-            hosts = ["127.0.0.1:*", "localhost:*", "[::1]:*"] + ([] if loopback else [f"{host}:*"])
             sse = SseServerTransport(
                 "/messages/",
-                security_settings=TransportSecuritySettings(
-                    enable_dns_rebinding_protection=True,
-                    allowed_hosts=hosts,
-                    allowed_origins=["http://127.0.0.1:*", "http://localhost:*"],
-                ),
+                security_settings=_sse_transport_settings(host, loopback),
             )
         except ImportError:
             sse = SseServerTransport("/messages/")

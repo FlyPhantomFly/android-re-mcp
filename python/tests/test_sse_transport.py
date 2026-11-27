@@ -9,7 +9,7 @@ calls only, no live server.
 
 from __future__ import annotations
 
-from android_re_mcp.server import _bearer_ok, _check_auth_header
+from android_re_mcp.server import _bearer_ok, _check_auth_header, _sse_transport_settings
 
 
 def _http_scope(auth_header: bytes) -> dict:
@@ -68,3 +68,26 @@ def test_bearer_ok_handles_all_manners_of_garbage():
         assert isinstance(_bearer_ok(garbage, "tok"), bool)
     assert _bearer_ok(b"Bearer tok", "tok") is True
     assert _bearer_ok(b"Bearer \x80\x81", "tok") is False
+
+
+# ── R4-3: the Host allow-list follows the bind address ───────────────────
+
+def test_loopback_bind_keeps_exact_host_list():
+    settings = _sse_transport_settings("127.0.0.1", loopback=True)
+    assert settings.allowed_hosts == ["127.0.0.1:*", "localhost:*", "[::1]:*"]
+    assert settings.enable_dns_rebinding_protection is True
+    assert settings.allowed_origins == ["http://127.0.0.1:*", "http://localhost:*"]
+
+
+def test_specific_non_loopback_bind_pins_its_own_host():
+    settings = _sse_transport_settings("192.168.1.5", loopback=False)
+    assert settings.allowed_hosts == ["127.0.0.1:*", "localhost:*", "[::1]:*", "192.168.1.5:*"]
+
+
+def test_wildcard_bind_skips_the_host_check():
+    for host in ("0.0.0.0", "::"):
+        settings = _sse_transport_settings(host, loopback=False)
+        # v1.9.0 pinned f"{host}:*", so a client arriving via the LAN IP got 421;
+        # mcp has no any-host wildcard, so the check itself is disabled instead
+        assert settings.enable_dns_rebinding_protection is False
+        assert settings.allowed_hosts == []
