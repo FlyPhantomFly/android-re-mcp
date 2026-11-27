@@ -134,6 +134,74 @@ def test_read_entry_returns_none_over_cap(tmp_path):
         assert apkscan._read_entry(z, z.getinfo("big.bin"), 0) is not None
 
 
+# ── R4-2: symlinks in the output folder must not redirect writes ─────────
+
+def _link_fixture(tmp_path, link_target):
+    """out/link → ../victim/<name>; a zip whose entry writes through it."""
+    out = tmp_path / "out"
+    out.mkdir()
+    victim = tmp_path / "victim"
+    victim.mkdir()
+    (out / "link").symlink_to(link_target)
+    p = tmp_path / "link-pwn.zip"
+    with zipfile.ZipFile(p, "w") as z:
+        z.writestr("link", "pwned")
+        z.writestr("link/pwn.txt", "pwned")
+        z.writestr("ok.txt", "hello")
+    return p
+
+
+def test_symlinked_parent_outside_dest_refused(tmp_path, monkeypatch):
+    p = _link_fixture(tmp_path, "../victim")
+    monkeypatch.chdir(tmp_path)
+    h = ApkOpsHandler()
+    out = h.zip_extract({"zip_path": str(p), "entries": ["link/pwn.txt"],
+                         "output_dir": str(tmp_path / "out")})
+    res = out["output"]["results"][0]
+    assert res["ok"] is False
+    assert res["error"] == "path escapes the output folder"
+    assert not (tmp_path / "victim" / "pwn.txt").exists()
+
+
+def test_symlinked_parent_refused_before_any_read(tmp_path, monkeypatch):
+    p = _link_fixture(tmp_path, "../victim")
+    monkeypatch.chdir(tmp_path)
+
+    def boom(self, name, *a, **kw):  # noqa: ANN001
+        raise AssertionError("z.read() ran for a refused symlink escape")
+
+    monkeypatch.setattr(zipfile.ZipFile, "read", boom)
+    h = ApkOpsHandler()
+    out = h.zip_extract({"zip_path": str(p), "entries": ["link/pwn.txt"],
+                         "output_dir": str(tmp_path / "out")})
+    assert out["output"]["results"][0]["ok"] is False
+
+
+def test_benign_entry_still_extracts_after_symlink_refusal(tmp_path, monkeypatch):
+    p = _link_fixture(tmp_path, "../victim")
+    monkeypatch.chdir(tmp_path)
+    h = ApkOpsHandler()
+    out = h.zip_extract({"zip_path": str(p), "entries": ["link/pwn.txt", "ok.txt"],
+                         "output_dir": str(tmp_path / "out")})
+    results = out["output"]["results"]
+    assert results[0]["ok"] is False
+    assert results[1]["ok"] is True
+    assert (tmp_path / "out" / "ok.txt").read_bytes() == b"hello"
+
+
+def test_symlink_at_final_component_refused(tmp_path, monkeypatch):
+    # out/link → ../victim/missing.txt (dangling): open() would create it outside
+    p = _link_fixture(tmp_path, "../victim/missing.txt")
+    monkeypatch.chdir(tmp_path)
+    h = ApkOpsHandler()
+    out = h.zip_extract({"zip_path": str(p), "entries": ["link"],
+                         "output_dir": str(tmp_path / "out")})
+    res = out["output"]["results"][0]
+    assert res["ok"] is False
+    assert res["error"] == "symlink in the way"
+    assert not (tmp_path / "victim" / "missing.txt").exists()
+
+
 # ── no raw whole-entry reads may reappear in the handlers ────────────────
 
 _RAW_READ = re.compile(r"\b(?:zf|z|zfile)\.read\(")

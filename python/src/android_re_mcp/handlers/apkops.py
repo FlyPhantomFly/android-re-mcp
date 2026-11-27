@@ -292,6 +292,12 @@ class ApkOpsHandler:
                         result.update({"ok": False, "error": "zip-slip refused"})
                         results.append(result)
                         continue
+                    resolved_parent = target.parent.resolve()
+                    dest_resolved = dest.resolve()
+                    if resolved_parent != dest_resolved and dest_resolved not in resolved_parent.parents:
+                        result.update({"ok": False, "error": "path escapes the output folder"})
+                        results.append(result)
+                        continue
                     try:
                         info = z.getinfo(entry)
                     except KeyError:
@@ -307,6 +313,11 @@ class ApkOpsHandler:
                         continue
                     if target.is_file() and not overwrite:
                         result.update({"ok": False, "error": "already exists (overwrite=false)"})
+                        results.append(result)
+                        continue
+                    if target.is_symlink():
+                        # a symlink at the final component would be followed by open()
+                        result.update({"ok": False, "error": "symlink in the way"})
                         results.append(result)
                         continue
                     target.parent.mkdir(parents=True, exist_ok=True)
