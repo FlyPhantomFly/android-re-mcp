@@ -10,6 +10,7 @@ zips built in tmp_path.
 from __future__ import annotations
 
 import hashlib
+import os
 import zipfile
 from pathlib import Path
 
@@ -201,6 +202,54 @@ def test_symlink_at_final_component_refused(tmp_path, monkeypatch):
     assert res["ok"] is False
     assert res["error"] == "symlink in the way"
     assert not (tmp_path / "victim" / "missing.txt").exists()
+
+
+# ── T18: zip_update cleans up its partial .tmp on every failure path ─────
+
+def _corrupted_zip(tmp_path):
+    """A stored 8 MB entry with one flipped byte mid-file: streaming it
+    raises Bad CRC-32 part-way through the write."""
+    apk = tmp_path / "a.apk"
+    with zipfile.ZipFile(apk, "w", zipfile.ZIP_STORED) as z:
+        z.writestr("classes.dex", b"dex\n035\0" + b"\x01" * 100)
+        z.writestr("assets/a.bin", b"A" * (8 * 1024 * 1024))
+        z.writestr("assets/b.txt", b"tail")
+    raw = bytearray(apk.read_bytes())
+    i = raw.index(b"A" * 1024) + 4 * 1024 * 1024
+    raw[i] ^= 0xFF
+    apk.write_bytes(bytes(raw))
+    return apk
+
+
+def test_zip_update_corrupt_entry_error_no_tmp_left_original_untouched(tmp_path):
+    apk = _corrupted_zip(tmp_path)
+    payload = tmp_path / "x.txt"
+    payload.write_text("hello")
+    before = hashlib.sha256(apk.read_bytes()).hexdigest()
+    out = ApkOpsHandler().zip_update({
+        "zip_path": str(apk),
+        "ops": [{"op": "add", "entry_path": "assets/x.txt", "from_file": str(payload)}]})
+    assert out["status"] == "error"
+    assert "Bad CRC" in out["error"]
+    assert hashlib.sha256(apk.read_bytes()).hexdigest() == before, "the archive was modified"
+    assert not Path(str(apk) + ".tmp").exists(), "a partial .tmp was left behind"
+
+
+def test_zip_update_unwritable_output_dir_no_tmp_left(tmp_path):
+    if os.geteuid() == 0:
+        pytest.skip("running as root: a read-only directory cannot provoke the write error")
+    apk = _zip_fixture(tmp_path)
+    payload = tmp_path / "x.txt"
+    payload.write_text("hello")
+    readonly = tmp_path / "ro"
+    readonly.mkdir()
+    readonly.chmod(0o500)
+    out = ApkOpsHandler().zip_update({
+        "zip_path": str(apk), "output_apk": str(readonly / "out.apk"),
+        "ops": [{"op": "add", "entry_path": "assets/x.txt", "from_file": str(payload)}]})
+    assert out["status"] == "error"
+    assert not Path(str(readonly / "out.apk.tmp")).exists()
+    assert not Path(str(readonly / "out.apk")).exists()
 
 
 # ── no raw whole-entry reads may reappear in the handlers (AST scan) ─────

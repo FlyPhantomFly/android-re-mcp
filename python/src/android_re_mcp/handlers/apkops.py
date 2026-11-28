@@ -517,6 +517,10 @@ class ApkOpsHandler:
                 tmp.replace(target)
             except (zipfile.BadZipFile, OSError) as exc:
                 return {"status": "error", "tool": "zip_update", "error": str(exc)}
+            finally:
+                # a partial .tmp never survives a failed write; after a successful
+                # replace() the path is gone, so this is a no-op (T18)
+                tmp.unlink(missing_ok=True)
         finally:
             src.close()
 
