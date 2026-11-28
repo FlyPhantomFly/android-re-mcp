@@ -61,7 +61,7 @@ The Frida script library behind `frida_list_scripts` is empty until you add scri
 
 ## Staying safe
 This server can run commands on your phone and your computer, so treat its tools with care.
-- Use stdio. `--transport sse` listens on 127.0.0.1 only, and any other `--host` needs `ANDROID_RE_MCP_TOKEN`, which clients send as a bearer token.
+- Use stdio. `--transport sse` listens on 127.0.0.1 only, and any other `--host` needs `ANDROID_RE_MCP_TOKEN`, which clients send as a bearer token; a wildcard bind (`0.0.0.0`, `::` or any other spelling that binds every interface) accepts any Host header — the token is the protection there, while loopback and specific-address binds reject foreign Host headers.
 - Set `ANDROID_RE_MCP_ALLOWED_DIRS` (folders separated by `:`) to keep file arguments inside your workspace. Paths under `~/.ssh`, `~/.config/gh`, shell rc files and similar are always refused. `HOME` must also resolve on the host — the guard refuses path arguments when it cannot.
 - Size caps for the zip/apk tools: `ANDROID_RE_MCP_MAX_FILE_MB` (default 2048) refuses to open a heavier APK, `ANDROID_RE_MCP_MAX_ENTRY_MB` (default 256) refuses to read a heavier zip entry; `0` disables either cap.
 - Switch tools off with `ANDROID_RE_MCP_DISABLE_TOOLS=adb_shell,adb_push,adb_pull`, and set the risky ones to ask first in your client.

@@ -209,7 +209,7 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | --- | --- | --- |
 | `native_strings` | strings from a `.so` or all libs in an APK selected by `abi`, filtered by `min_len` to `interesting_only` entries | strings (or pure-Python fallback) |
 | `native_exports` | exported symbols per library from the `abi` selected | readelf/nm (or built-in ELF parser) |
-| `native_disasm` | radare2 disassembly of `target` (asm, `mode` graph/pseudocode), bounded by `n_instructions` | radare2 |
+| `native_disasm` | radare2 disassembly of `target` (asm, `mode` graph/pseudocode), bounded by `n_instructions`; `target` takes a symbol, an `0x` offset, or a symbol with a trailing `@plt` — bare `@`/`@@` are radare2 operators and are refused | radare2 |
 | `il2cpp_dump` | Unity: dump.cs + script.json from libil2cpp.so and global-metadata.dat for `abi` | Il2CppDumper |
 
 **Native ELF security & code search (5)** — added in the capstone integration review
@@ -244,8 +244,8 @@ The 7 Java-hooking scripts ship as pre-built bundles with `frida-java-bridge` co
 | --- | --- | --- |
 | `apk_read_signature` | signing metadata: scheme matrix (v1–v4, sourceStamp via apksigner), signer digests, cert subject/issuer/serial/validity/keys via openssl on the META-INF certs; unsigned → ok/verifies:false | apksigner (optional), openssl (optional) |
 | `zip_test` | full integrity audit: CRC every entry, duplicate names, method histogram, encrypted entries, bad entries, trailing bytes, STORE-only dex smell | nothing |
-| `zip_extract` | named entries → files: explicit entry→dest, zip-slip refused, byte-faithful, per-entry results; `overwrite` controls existing files | nothing |
-| `zip_update` | generalized APK-entry surgery: `add`/`replace`/`patch` (expected_hex guard)/`rename`/`delete`; untouched entries byte-identical; `expected_sha256` concurrency guard; `.bak` first | nothing |
+| `zip_extract` | named entries → files: explicit entry→dest, zip-slip refused, byte-faithful, per-entry results; `overwrite` controls existing files; entries over the entry cap are refused before any read (streamed otherwise, so nothing lands in memory) | nothing |
+| `zip_update` | generalized APK-entry surgery: `add`/`replace`/`patch` (expected_hex guard)/`rename`/`delete`; untouched entries stream byte-identical (a large APK stays editable); `replace`/`patch` on an entry over the entry cap are refused into `errors` (raise `ANDROID_RE_MCP_MAX_ENTRY_MB` or set it to `0`); `expected_sha256` concurrency guard; `.bak` first | nothing |
 | `apk_build_check` | pre-build linting before `apk_rebuild_sign`: manifest, aapt2 resource-compile check, dex sanity (dexfile-cli), duplicate/pending-edit detection (`.bak` scan); blockers carry codes + fix hints | nothing (aapt2/dexfile-cli when present) |
 | `resource_table_list` | structured resources.arsc view via `aapt2 dump resources`: `package` and `type_name` filter the types/entries (id + name) | aapt2 (build-tools) |
 | `resource_read` | resolve concrete variants: ids (`0x7f13010b`) or type/name refs (`string/app_name`) → per-config values, `@ref` chains followed to `resolve_depth` | nothing |
@@ -303,7 +303,7 @@ Eight bypass/monitor scripts ship with the package (`ssl_pinning_universal`, `ro
 - `ANDROID_RE_MCP_DISABLE_TOOLS` — comma-separated tools to switch off, e.g. `adb_shell,adb_push,adb_pull`
 - `ANDROID_RE_MCP_MAX_OUTPUT_LINES` — per-call cap for heavy list outputs (default 200; `0` disables) — the total stays honest and the result names how to narrow
 - `ANDROID_RE_MCP_MAX_FILE_MB` — refuse to open an APK heavier than this many megabytes (default 2048; `0` disables the cap) — used by the zip/apk-diff/scan tools
-- `ANDROID_RE_MCP_MAX_ENTRY_MB` — refuse to read a single zip entry heavier than this many megabytes (default 256; `0` disables the cap)
+- `ANDROID_RE_MCP_MAX_ENTRY_MB` — refuse to read a single zip entry heavier than this many megabytes (default 256; `0` disables the cap) — used by every tool that reads archive entries; entries above it are refused, never loaded
 - `ANDROID_RE_MCP_ALLOW_INSTALL=1` — the only way `install_tool` becomes callable over MCP (`--setup` always works)
 - `ANDROID_RE_MCP_FRIDA_ENDPOINT=127.0.0.1:31337` — connect every `frida_*` tool to a remote frida-server instead of USB discovery. For a stealth setup (renamed server binary on a non-default port, reached via `adb forward tcp:31337 tcp:31337`) USB discovery finds nothing — this is the switch that makes the dynamic tools work against it.
 
@@ -314,7 +314,7 @@ This server runs commands on your phone and your computer, so treat its tools wi
 - Every call passes the guard first: file arguments reject a leading `-`, NUL bytes, and protected locations (`~/.ssh`, `~/.config/gh`, shell rc files, keyrings, …); `package`, `serial`, `port` and similar arguments are pattern-checked; writes into `/etc` are refused.
 - The stateful tools (`frida_spawn`, `adb_shell`, `adb_install`, `mitm_*`, signing) change a real device — set them to ask first in your client, and keep `ANDROID_RE_MCP_DISABLE_TOOLS` around anything you do not want reachable.
 - mitmproxy listens on 127.0.0.1. Run `adb reverse tcp:8080 tcp:8080` and point the phone's proxy at 127.0.0.1:8080.
-- SSE transport is loopback-only unless you set `ANDROID_RE_MCP_TOKEN`; foreign Host headers are rejected.
+- SSE transport is loopback-only unless you set `ANDROID_RE_MCP_TOKEN`; on a loopback or specific-address bind foreign Host headers are rejected (DNS-rebinding protection), while a wildcard bind (`0.0.0.0`, `::` or any other spelling that binds every interface) accepts any Host header — the bearer token is the protection there. A non-ASCII token works; malformed `Authorization` headers answer 401.
 - Downloads are pinned to a release and SHA-256-verified. Scratch files live in a private `0700` folder, never `/tmp`.
 - A sample you analyze can try to steer the assistant through its own strings and symbol names. Use a VM for hostile samples, and do not auto-approve tools that touch the device.
 
