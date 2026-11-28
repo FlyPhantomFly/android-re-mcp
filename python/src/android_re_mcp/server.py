@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import hmac
 import inspect
+import ipaddress
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
@@ -1725,19 +1726,46 @@ async def _run_tool(
     )
 
 
+def _bind_is_loopback(host: str) -> bool:
+    """True for addresses that only reach the local machine (R5-3)."""
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def _bind_is_wildcard(host: str) -> bool:
+    """True for spellings that bind every interface (R5-3).
+
+    uvicorn calls ``sock.bind((host, port))`` directly: ``''`` and ``0``
+    bind 0.0.0.0, ``::0`` and ``0:0:0:0:0:0:0:0`` bind ``::``. ``[::]``
+    is not a bindable address (the server fails to start), so it is
+    classified like a specific host.
+    """
+    if host in ("", "0"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_unspecified
+    except ValueError:
+        return False
+
+
 def _sse_transport_settings(host: str, loopback: bool):
     """Transport settings for the SSE server (R4-3).
 
     A loopback bind keeps the exact-host allow-list. A wildcard bind
-    (0.0.0.0/::) skips the Host check entirely: mcp has no any-host
-    wildcard, a remote client arrives via the machine's LAN address —
-    never the bind address — and the bearer token (required for
-    non-loopback binds) is the protection. A specific non-loopback
-    address keeps the exact-host list.
+    (any unspecified address: 0.0.0.0, ::, '', 0, ::0, 0:0:0:0:0:0:0:0)
+    skips the Host check entirely: mcp has no any-host wildcard, a
+    remote client arrives via the machine's LAN address — never the
+    bind address — and the bearer token (required for non-loopback
+    binds) is the protection. A specific non-loopback address keeps
+    the exact-host list.
     """
     from mcp.server.transport_security import TransportSecuritySettings
 
-    if not loopback and host in ("0.0.0.0", "::"):
+    if not loopback and _bind_is_wildcard(host):
         return TransportSecuritySettings(enable_dns_rebinding_protection=False)
 
     hosts = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
@@ -2024,7 +2052,7 @@ def create_server() -> Server:
         from starlette.routing import Mount, Route
 
         token = os.environ.get("ANDROID_RE_MCP_TOKEN", "")
-        loopback = host in ("127.0.0.1", "::1", "localhost")
+        loopback = _bind_is_loopback(host)
         if not loopback and not token:
             raise SystemExit(
                 f"Refusing to listen on {host} without ANDROID_RE_MCP_TOKEN. "

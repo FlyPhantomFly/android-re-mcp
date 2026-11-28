@@ -9,7 +9,10 @@ calls only, no live server.
 
 from __future__ import annotations
 
-from android_re_mcp.server import _bearer_ok, _check_auth_header, _sse_transport_settings
+from android_re_mcp.server import (_bearer_ok, _check_auth_header,
+                                   _sse_transport_settings)
+
+import pytest
 
 
 def _http_scope(auth_header: bytes) -> dict:
@@ -91,3 +94,72 @@ def test_wildcard_bind_skips_the_host_check():
         # mcp has no any-host wildcard, so the check itself is disabled instead
         assert settings.enable_dns_rebinding_protection is False
         assert settings.allowed_hosts == []
+
+
+# ── R5-3: every spelling of a wildcard bind ──────────────────────────────
+
+@pytest.mark.parametrize("host,bound", [
+    ("", "0.0.0.0"),
+    ("0", "0.0.0.0"),
+    ("::0", "::"),
+    ("0:0:0:0:0:0:0:0", "::"),
+    ("0.0.0.0", "0.0.0.0"),
+])
+def test_uvicorn_bind_semantics(host, bound):
+    """Why these spellings count as wildcard: uvicorn's config.py calls
+    sock.bind((host, port)) directly, and the OS binds them to the
+    unspecified address (verified here with an ephemeral port)."""
+    import socket
+
+    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+    sock = socket.socket(family=family, type=socket.SOCK_STREAM)
+    try:
+        sock.bind((host, 0))
+        assert sock.getsockname()[0] == bound
+    finally:
+        sock.close()
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "::", "", "0", "::0", "0:0:0:0:0:0:0:0"])
+def test_every_wildcard_spelling_skips_the_host_check(host):
+    settings = _sse_transport_settings(host, loopback=False)
+    assert settings.enable_dns_rebinding_protection is False
+    assert settings.allowed_hosts == []
+
+
+def test_bracketed_ipv6_is_classified_specific():
+    # '[::]' is not a bindable address (uvicorn fails to start) — treated
+    # like a specific host, never like a wildcard
+    settings = _sse_transport_settings("[::]", loopback=False)
+    assert settings.enable_dns_rebinding_protection is True
+    assert "[::]:*" in settings.allowed_hosts
+
+
+@pytest.mark.parametrize("host", ["example.com", "192.168.1.5", "10.0.0.7"])
+def test_hostname_and_lan_addresses_keep_the_exact_host_list(host):
+    settings = _sse_transport_settings(host, loopback=False)
+    assert settings.enable_dns_rebinding_protection is True
+    assert f"{host}:*" in settings.allowed_hosts
+
+
+def test_wildcard_classification():
+    from android_re_mcp.server import _bind_is_loopback, _bind_is_wildcard
+
+    for host in ("0.0.0.0", "::", "", "0", "::0", "0:0:0:0:0:0:0:0"):
+        assert _bind_is_wildcard(host), host
+        assert not _bind_is_loopback(host), host
+    for host in ("127.0.0.1", "::1", "192.168.1.5", "example.com", "[::]"):
+        assert not _bind_is_wildcard(host), host
+    for host in ("127.0.0.1", "::1", "localhost"):
+        assert _bind_is_loopback(host), host
+    assert not _bind_is_wildcard("localhost")
+
+
+def test_wildcard_and_loopback_never_overlap():
+    from android_re_mcp.server import _bind_is_loopback, _bind_is_wildcard
+
+    for host in ("", "0", "::0", "0:0:0:0:0:0:0:0", "0.0.0.0", "::",
+                 "127.0.0.1", "::1", "localhost", "example.com"):
+        assert not (_bind_is_wildcard(host) and _bind_is_loopback(host)), host
+    # '[::]' is neither (not a bindable address at all) — asserted in
+    # test_bracketed_ipv6_is_classified_specific
