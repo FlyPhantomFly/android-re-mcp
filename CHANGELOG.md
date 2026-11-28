@@ -14,7 +14,7 @@
 ### Documentation corrections for 1.9.0
 - The behavior-changes callout overstated the cap size: `10**9` MB at 1024 KiB/MB is about 1.05 PB (1049 TB), not "~1 TB".
 - The claim that `Path.home()` cannot fail on Linux was wrong: with `HOME` unset under a UID absent from the passwd file (arbitrary-UID containers), `Path.home()` raises RuntimeError. The guard then refuses every path argument with "cannot resolve HOME" — the right failure, but README now says `HOME` must resolve.
-- The publish-pypi notes claimed the reviewer-approval wait counts against `timeout-minutes`. GitHub's docs say the opposite: a job with required reviewers waits for approval before it starts, so the approval wait is outside the limit. The publish job's limit is now 20 minutes.
+- The publish-pypi notes claimed the reviewer-approval wait counts against `timeout-minutes`. GitHub's "Reviewing deployments" page says a job with required reviewers waits for approval before it starts, so the approval wait is not job run time. The publish job's limit is now 20 minutes.
 - "README rows now name every schema argument" overstated it: rows name every non-exempt argument; the exempt (tool, property) pairs are listed in scripts/docs_sync_exempt.json.
 - The coercion-matrix entry implied `float('nan')` previously escaped the handler — only infinity did; `nan`'s ValueError was already caught.
 
