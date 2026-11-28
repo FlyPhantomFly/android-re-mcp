@@ -15,6 +15,29 @@ from android_re_mcp.server import (_bearer_ok, _check_auth_header,
 import pytest
 
 
+def _ipv6_bindable() -> bool:
+    """Whether this host can bind an IPv6 socket at all.
+
+    Some containers disable IPv6 even though ``socket.has_ipv6`` is
+    true; the check must be a real bind attempt (an ephemeral port
+    cannot conflict).
+    """
+    import socket
+
+    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    try:
+        sock.bind(("::", 0))
+    except OSError:
+        return False
+    finally:
+        sock.close()
+    return True
+
+
+_ipv6_ok = pytest.mark.skipif(not _ipv6_bindable(),
+                              reason="this host cannot bind an IPv6 socket")
+
+
 def _http_scope(auth_header: bytes) -> dict:
     return {"type": "http", "headers": [(b"authorization", auth_header), (b"host", b"127.0.0.1")]}
 
@@ -101,8 +124,8 @@ def test_wildcard_bind_skips_the_host_check():
 @pytest.mark.parametrize("host,bound", [
     ("", "0.0.0.0"),
     ("0", "0.0.0.0"),
-    ("::0", "::"),
-    ("0:0:0:0:0:0:0:0", "::"),
+    pytest.param("::0", "::", marks=_ipv6_ok),
+    pytest.param("0:0:0:0:0:0:0:0", "::", marks=_ipv6_ok),
     ("0.0.0.0", "0.0.0.0"),
 ])
 def test_uvicorn_bind_semantics(host, bound):

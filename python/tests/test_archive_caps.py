@@ -487,6 +487,17 @@ print(f"{base} {hwm()} {r.get('status')} {r.get('error', '')}")
 """
 
 
+def _proc_status_available() -> bool:
+    """The VmHWM peak comes from Linux procfs; off Linux the memory
+    tests cannot measure anything."""
+    return Path("/proc/self/status").exists()
+
+
+_proc_ok = pytest.mark.skipif(not _proc_status_available(),
+                              reason="/proc/self/status does not exist here "
+                                     "(Linux procfs): the VmHWM peak cannot be read")
+
+
 def _run_vmhwm_child(code, *args):
     """Run the handler in a fresh child; return (baseline_mb, peak_mb, tail).
 
@@ -507,6 +518,7 @@ def _run_vmhwm_child(code, *args):
     return int(base), int(peak), " ".join(tail)
 
 
+@_proc_ok
 def test_zip_update_300mb_entry_stays_under_60mb_growth(tmp_path, monkeypatch):
     monkeypatch.delenv("ANDROID_RE_MCP_MAX_ENTRY_MB", raising=False)  # default cap: 256
     payload = tmp_path / "x.txt"
@@ -521,6 +533,7 @@ def test_zip_update_300mb_entry_stays_under_60mb_growth(tmp_path, monkeypatch):
                              "the 300 MB entry was held in memory"
 
 
+@_proc_ok
 def test_dex_swap_300mb_entry_stays_under_60mb_growth(tmp_path, monkeypatch):
     monkeypatch.delenv("ANDROID_RE_MCP_MAX_ENTRY_MB", raising=False)  # default cap: 256
     new_dex = tmp_path / "new.dex"
