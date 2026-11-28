@@ -22,7 +22,9 @@ import os
 import re
 import shutil
 import subprocess
+import time
 import zipfile
+import zlib
 from pathlib import Path
 
 from android_re_mcp.handlers.caps import cap_items
@@ -366,103 +368,157 @@ class ApkOpsHandler:
                 shutil.copy2(zip_path, bak)
 
         try:
-            with zipfile.ZipFile(zip_path) as src:
-                infos = {info.filename: info for info in src.infolist()}
-                contents = {info.filename: src.read(info.filename)
-                            for info in src.infolist()}
+            src = zipfile.ZipFile(zip_path)
         except (zipfile.BadZipFile, OSError) as exc:
             return {"status": "error", "tool": "zip_update", "error": f"cannot read zip: {exc}"}
 
-        final = dict(contents)
-        order = list(contents.keys())
-        results: list[dict] = []
-        errors: list[dict] = []
-
-        for op in ops:
-            if not isinstance(op, dict):
-                errors.append({"error": "each op must be a JSON object"})
-                continue
-            op_type = op.get("op")
-            try:
-                if op_type == "add":
-                    name = str(op.get("entry_path", ""))
-                    data = self._op_payload(op)
-                    if data is None:
-                        raise ValueError("needs from_file (absolute path) or content")
-                    if name in final:
-                        raise ValueError("entry already exists (use replace)")
-                    if name.upper().startswith("META-INF/"):
-                        results.append({"op": "add", "entry": name, "warning":
-                                        "META-INF entries affect signatures — re-sign with apk_sign"})
-                    final[name] = data
-                    order.append(name)
-                    results.append({"op": "add", "entry": name, "ok": True,
-                                    "after_size": len(data)})
-                elif op_type == "replace":
-                    name = str(op.get("entry_path", ""))
-                    data = self._op_payload(op)
-                    if data is None:
-                        raise ValueError("needs from_file (absolute path) or content")
-                    if name not in final:
-                        raise ValueError("entry not found (use add)")
-                    before = len(final[name])
-                    final[name] = data
-                    results.append({"op": "replace", "entry": name, "ok": True,
-                                    "before_size": before, "after_size": len(data),
-                                    "changed": before != len(data) or
-                                    final.get(name) != contents.get(name)})
-                elif op_type == "patch":
-                    name = str(op.get("entry_path", ""))
-                    if name not in final:
-                        raise ValueError("entry not found")
-                    r = self._apply_patch_bytes(final[name], op)
-                    if not r.get("ok"):
-                        raise ValueError(r.get("error", "patch failed"))
-                    final[name] = r["data"]
-                    results.append({"op": "patch", "entry": name, "ok": True,
-                                    "byte_offset": r["byte_offset"],
-                                    "before_size": r["before_size"],
-                                    "after_size": r["after_size"]})
-                elif op_type == "rename":
-                    src_name, dst_name = str(op.get("from", "")), str(op.get("to", ""))
-                    if src_name.upper().startswith("META-INF/") or dst_name.upper().startswith("META-INF/"):
-                        raise ValueError("renaming META-INF entries breaks signatures — refused")
-                    if src_name not in final:
-                        raise ValueError("entry not found")
-                    if dst_name in final:
-                        raise ValueError("target entry exists")
-                    final[dst_name] = final.pop(src_name)
-                    order = [dst_name if n == src_name else n for n in order]
-                    results.append({"op": "rename", "from": src_name, "to": dst_name, "ok": True})
-                elif op_type == "delete":
-                    name = str(op.get("entry_path", ""))
-                    if name not in final:
-                        raise ValueError("entry not found")
-                    if name.upper().startswith("META-INF/"):
-                        results.append({"op": "delete", "entry": name, "warning":
-                                        "deleting META-INF entries breaks signatures — re-sign"})
-                    del final[name]
-                    order.remove(name)
-                    results.append({"op": "delete", "entry": name, "ok": True})
-                else:
-                    raise ValueError("unknown op (add|replace|patch|rename|delete)")
-            except ValueError as exc:
-                errors.append({"op": op_type, "entry": op.get("entry_path") or op.get("from"),
-                               "error": str(exc)})
-
-        tmp = Path(str(target) + ".tmp")
         try:
-            with zipfile.ZipFile(tmp, "w") as dst:
-                for name in order:
-                    info = infos.get(name)
-                    data = final[name]
-                    if info is not None and name in contents and contents.get(name) == data:
-                        dst.writestr(info, data)  # unchanged: original ZipInfo (compression kept)
+            infos = {info.filename: info for info in src.infolist()}
+            # Bytes are held in memory only for entries an op reads or rewrites;
+            # untouched entries stream from src to the output at write time (R5-1).
+            # final[name] is the op's bytes (None = untouched/renamed, still in src);
+            # source_of[name] is the archive entry the name currently maps to.
+            final: dict[str, bytes | None] = {}
+            source_of: dict[str, str] = {name: name for name in infos}
+            order = list(infos.keys())
+            results: list[dict] = []
+            errors: list[dict] = []
+            cap_mb = entry_cap_mb()
+
+            def current_bytes(name: str) -> bytes:
+                """An op's input bytes: in memory, or read (capped) from the source."""
+                if name in final and final[name] is not None:
+                    return final[name]
+                info = infos[source_of[name]]
+                if entry_over_cap(info, cap_mb):
+                    raise PayloadTooLarge(
+                        f"entry is {info.file_size / (1024 * 1024):.1f} MB, above the "
+                        f"{cap_mb} MB entry cap (raise {ENTRY_CAP_ENV}, or set it to 0 to disable)")
+                data = _read_entry(src, info, cap_mb)
+                if data is None:
+                    raise ValueError(f"cannot read entry '{info.filename}' from the source archive")
+                return data
+
+            def _refuse_over_cap_target(name: str) -> None:
+                """Ops that rewrite an entry are refused when it is over the cap."""
+                info = infos[source_of[name]]
+                if entry_over_cap(info, cap_mb):
+                    raise PayloadTooLarge(
+                        f"entry is {info.file_size / (1024 * 1024):.1f} MB, above the "
+                        f"{cap_mb} MB entry cap (raise {ENTRY_CAP_ENV}, or set it to 0 to disable)")
+
+            for op in ops:
+                if not isinstance(op, dict):
+                    errors.append({"error": "each op must be a JSON object"})
+                    continue
+                op_type = op.get("op")
+                try:
+                    if op_type == "add":
+                        name = str(op.get("entry_path", ""))
+                        data = self._op_payload(op)
+                        if data is None:
+                            raise ValueError("needs from_file (absolute path) or content")
+                        if name in source_of:
+                            raise ValueError("entry already exists (use replace)")
+                        if name.upper().startswith("META-INF/"):
+                            results.append({"op": "add", "entry": name, "warning":
+                                            "META-INF entries affect signatures — re-sign with apk_sign"})
+                        final[name] = data
+                        source_of[name] = name
+                        order.append(name)
+                        results.append({"op": "add", "entry": name, "ok": True,
+                                        "after_size": len(data)})
+                    elif op_type == "replace":
+                        name = str(op.get("entry_path", ""))
+                        data = self._op_payload(op)
+                        if data is None:
+                            raise ValueError("needs from_file (absolute path) or content")
+                        if name not in source_of:
+                            raise ValueError("entry not found (use add)")
+                        _refuse_over_cap_target(name)
+                        # current length without reading: in memory, else the source entry's size
+                        before = len(final[name]) if name in final and final[name] is not None \
+                            else infos[source_of[name]].file_size
+                        final[name] = data
+                        results.append({"op": "replace", "entry": name, "ok": True,
+                                        "before_size": before, "after_size": len(data),
+                                        "changed": before != len(data) or
+                                        zlib.crc32(data) & 0xFFFFFFFF != infos[source_of[name]].CRC})
+                    elif op_type == "patch":
+                        name = str(op.get("entry_path", ""))
+                        if name not in source_of:
+                            raise ValueError("entry not found")
+                        _refuse_over_cap_target(name)
+                        r = self._apply_patch_bytes(current_bytes(name), op)
+                        if not r.get("ok"):
+                            raise ValueError(r.get("error", "patch failed"))
+                        final[name] = r["data"]
+                        results.append({"op": "patch", "entry": name, "ok": True,
+                                        "byte_offset": r["byte_offset"],
+                                        "before_size": r["before_size"],
+                                        "after_size": r["after_size"]})
+                    elif op_type == "rename":
+                        src_name, dst_name = str(op.get("from", "")), str(op.get("to", ""))
+                        if src_name.upper().startswith("META-INF/") or dst_name.upper().startswith("META-INF/"):
+                            raise ValueError("renaming META-INF entries breaks signatures — refused")
+                        if src_name not in source_of:
+                            raise ValueError("entry not found")
+                        if dst_name in source_of:
+                            raise ValueError("target entry exists")
+                        final[dst_name] = final.pop(src_name, None)
+                        source_of[dst_name] = source_of.pop(src_name)
+                        order = [dst_name if n == src_name else n for n in order]
+                        results.append({"op": "rename", "from": src_name, "to": dst_name, "ok": True})
+                    elif op_type == "delete":
+                        name = str(op.get("entry_path", ""))
+                        if name not in source_of:
+                            raise ValueError("entry not found")
+                        if name.upper().startswith("META-INF/"):
+                            results.append({"op": "delete", "entry": name, "warning":
+                                            "deleting META-INF entries breaks signatures — re-sign"})
+                        final.pop(name, None)
+                        del source_of[name]
+                        order.remove(name)
+                        results.append({"op": "delete", "entry": name, "ok": True})
                     else:
-                        dst.writestr(name, data)  # changed/new: deflate
-            tmp.replace(target)
-        except OSError as exc:
-            return {"status": "error", "tool": "zip_update", "error": str(exc)}
+                        raise ValueError("unknown op (add|replace|patch|rename|delete)")
+                except ValueError as exc:
+                    errors.append({"op": op_type, "entry": op.get("entry_path") or op.get("from"),
+                                   "error": str(exc)})
+
+            tmp = Path(str(target) + ".tmp")
+            try:
+                with zipfile.ZipFile(tmp, "w") as dst:
+                    for name in order:
+                        if name in final and final[name] is not None:
+                            data = final[name]
+                            info = infos.get(name)
+                            if (info is not None and source_of.get(name) == name
+                                    and zlib.crc32(data) & 0xFFFFFFFF == info.CRC):
+                                dst.writestr(info, data)  # unchanged: original ZipInfo (compression kept)
+                            else:
+                                # changed/new: `writestr(name, …)` — fresh ZipInfo stamped
+                                # now, the destination archive's own default compression
+                                dst.writestr(name, data)
+                        else:
+                            src_name = source_of[name]
+                            if src_name == name:
+                                # untouched: stream source → destination, ZipInfo preserved
+                                with src.open(infos[name]) as fsrc, dst.open(infos[name], "w") as fdst:
+                                    shutil.copyfileobj(fsrc, fdst)
+                            else:
+                                # renamed: written as `writestr(name, …)` did — a fresh
+                                # ZipInfo stamped now, the destination archive's own
+                                # default compression
+                                new_info = zipfile.ZipInfo(name, date_time=time.localtime()[:6])
+                                new_info.compress_type = dst.compression
+                                with src.open(infos[src_name]) as fsrc, dst.open(new_info, "w") as fdst:
+                                    shutil.copyfileobj(fsrc, fdst)
+                tmp.replace(target)
+            except (zipfile.BadZipFile, OSError) as exc:
+                return {"status": "error", "tool": "zip_update", "error": str(exc)}
+        finally:
+            src.close()
 
         out: dict = {"zip": zip_path, "output": str(target),
                      "results": results,

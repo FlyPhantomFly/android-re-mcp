@@ -563,13 +563,18 @@ class DexHandler:
             with zipfile.ZipFile(apk_path) as src, \
                     zipfile.ZipFile(tmp, "w") as dst:
                 for info in src.infolist():
-                    data = src.read(info.filename)
                     if info.filename == entry:
-                        data = dex_bytes
+                        # the swap target's own bytes are never read (the entry
+                        # cap does not apply to it); matching, when it has to
+                        # guess, goes through the capped _find_dex_entry
+                        dst.writestr(info, dex_bytes)
                         replaced = True
-                    # preserve each entry's original compression — resources.arsc
-                    # must stay STORED (uncompressed) or modern Android refuses it
-                    dst.writestr(info, data)
+                    else:
+                        # untouched entry: stream source → destination, never
+                        # held in memory (R5-1); ZipInfo preserved, so
+                        # resources.arsc stays STORED
+                        with src.open(info) as fsrc, dst.open(info, "w") as fdst:
+                            shutil.copyfileobj(fsrc, fdst)
             if not replaced:
                 with zipfile.ZipFile(tmp, "a") as dst:
                     dst.writestr(entry, dex_bytes)
