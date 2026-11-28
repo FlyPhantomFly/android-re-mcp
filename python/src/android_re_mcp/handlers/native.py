@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = 120
 _TIMEOUT_LONG = 300
+from android_re_mcp.guard import SYMBOL_PATTERN
 from android_re_mcp.handlers.apkscan import _read_entry, entry_cap_mb
 from android_re_mcp.handlers.caps import cap_items
 from android_re_mcp.paths import scratch_dir, tools_dir
@@ -593,9 +594,10 @@ class NativeHandler:
                     "error": f"so_path '{so_path}' not found"}
 
         # radare2 treats ';' and '!' as command syntax, so only plain symbols and offsets get through.
-        # '@' is allowed only as a Ghidra-style '@plt' suffix: radare2 uses '@'/'@@'
-        # as its own operators, and a 'foo@@bar' target would run an iterator.
-        if not re.fullmatch(r"(0x[0-9a-fA-F]{1,16}|[A-Za-z0-9_.]{1,196}(?:@plt)?)", target):
+        # The pattern is the guard's SYMBOL_PATTERN (kept in step by construction):
+        # '@' is allowed only as a Ghidra-style '@plt' suffix, because radare2
+        # uses '@'/'@@' as its own operators and a 'foo@@bar' target would run an iterator.
+        if not re.fullmatch(SYMBOL_PATTERN, target):
             return {"status": "error", "tool": "native_disasm",
                     "error": "target must be a symbol name, an 0x offset, or a symbol with an @plt suffix"}
         seek = f"sym.{target}" if not target.startswith("0x") else target

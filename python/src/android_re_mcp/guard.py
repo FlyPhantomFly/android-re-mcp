@@ -39,7 +39,11 @@ OUTPUT_SUFFIXES = {
     "dex_swap": {"output_apk": {".apk"}},
 }
 
-_SYMBOL = re.compile(r"(0x[0-9a-fA-F]{1,16}|[A-Za-z0-9_.@]{1,200})")
+# One symbol rule for the guard and the native handler (R5-2): '@' is allowed
+# only as a trailing '@plt' — radare2 uses '@'/'@@' as its own operators, and
+# Android symbol names have no versioned '@@' forms (bionic does not symbol-version).
+SYMBOL_PATTERN = r"(0x[0-9a-fA-F]{1,16}|[A-Za-z0-9_.]{1,196}(?:@plt)?)"
+_SYMBOL = re.compile(SYMBOL_PATTERN)
 _PACKAGE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*(:[A-Za-z0-9_.]{1,64})?")
 _SERIAL = re.compile(r"[A-Za-z0-9._:\-]{1,100}")
 _REMOTE_PATH = re.compile(r"/[A-Za-z0-9._/\-]{1,200}")
@@ -155,7 +159,7 @@ def validate(tool: str, args: Any) -> dict:
     _match(args, "serial", _SERIAL, "a device serial")
     _match(args, "package", _PACKAGE, "an Android package name")
     if tool == "native_disasm":
-        _match(args, "target", _SYMBOL, "a symbol name or 0x offset", required=True)
+        _match(args, "target", _SYMBOL, "a symbol name, an 0x offset, or a symbol with an @plt suffix", required=True)
     if tool == "frida_server_push":
         _match(args, "remote_path", _REMOTE_PATH, "an absolute device path")
         if "abi" in args and args["abi"] not in _ABIS:

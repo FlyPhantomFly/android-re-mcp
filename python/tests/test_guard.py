@@ -20,6 +20,36 @@ def test_native_disasm_accepts_symbols_and_offsets(target):
     assert guard.validate("native_disasm", {"so_path": "/x/lib.so", "target": target})["target"] == target
 
 
+# ── R5-2: the guard's symbol rule matches the handler's (R4-7) ───────────
+
+@pytest.mark.parametrize("target", ["foo@plt", "Java_com_example_Foo_bar@plt"])
+def test_native_disasm_guard_accepts_plt_suffix(target):
+    assert guard.validate("native_disasm", {"so_path": "/x/lib.so", "target": target})["target"] == target
+
+
+@pytest.mark.parametrize("target", ["foo@@bar", "foo@bar", "@plt", "@", "foo@plt@x", "a" * 197])
+def test_native_disasm_guard_refuses_at_and_iterators(target):
+    refused("native_disasm", {"so_path": "/x/lib.so", "target": target})
+
+
+def test_native_disasm_guard_accepts_offset_and_196_char_plt_symbol():
+    assert guard.validate("native_disasm", {"so_path": "/x/lib.so", "target": "0x1000"})["target"] == "0x1000"
+    long_sym = "a" * 196 + "@plt"
+    assert guard.validate("native_disasm", {"so_path": "/x/lib.so", "target": long_sym})["target"] == long_sym
+
+
+def test_guard_symbol_rule_is_the_handler_rule():
+    """One shared constant: the guard compiles what the handler fullmatches."""
+    import re
+
+    from android_re_mcp.handlers import native
+    assert native.SYMBOL_PATTERN is guard.SYMBOL_PATTERN
+    for good in ("foo", "foo@plt", "0xdeadbeef", "_Z3barv"):
+        assert re.fullmatch(guard.SYMBOL_PATTERN, good)
+    for bad in ("foo@@bar", "foo@bar", "@plt", "a;b", "x!y", "a" * 197, "a" * 196 + "@plt@x"):
+        assert re.fullmatch(guard.SYMBOL_PATTERN, bad) is None
+
+
 def test_path_must_not_start_with_dash():
     refused("apk_decompile", {"apk_path": "--help"})
     refused("search_strings", {"path": "-x", "pattern": "a"})
