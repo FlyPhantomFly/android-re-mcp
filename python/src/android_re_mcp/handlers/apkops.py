@@ -389,11 +389,10 @@ class ApkOpsHandler:
                 """An op's input bytes: in memory, or read (capped) from the source."""
                 if name in final and final[name] is not None:
                     return final[name]
+                # the over-cap rule is checked once per op, in
+                # _refuse_over_cap_target, before current_bytes is called;
+                # _read_entry applies the same cap again on the read itself
                 info = infos[source_of[name]]
-                if entry_over_cap(info, cap_mb):
-                    raise PayloadTooLarge(
-                        f"entry is {info.file_size / (1024 * 1024):.1f} MB, above the "
-                        f"{cap_mb} MB entry cap (raise {ENTRY_CAP_ENV}, or set it to 0 to disable)")
                 data = _read_entry(src, info, cap_mb)
                 if data is None:
                     raise ValueError(f"cannot read entry '{info.filename}' from the source archive")
